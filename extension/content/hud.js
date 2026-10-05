@@ -1,6 +1,7 @@
 import { hasConsent } from '../core/consent.js';
 import { buildGaugeViews, viewForRole } from '../core/gauges.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
+import { DEFAULT_LANG } from '../core/messages.js';
 import {
   SETTINGS_KEY,
   activeProvider,
@@ -191,7 +192,7 @@ class Hud {
     this.settings = settings;
     this.snapshots = snapshots;
     this.lang = null;
-    this.t = createTranslator('zh_CN');
+    this.t = createTranslator(DEFAULT_LANG);
     this.translators = new Map();
     this.cards = new Map();
     this.drag = null;

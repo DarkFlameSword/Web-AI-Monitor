@@ -66,7 +66,7 @@ npm run store:assets     # 重新生成 docs/store/images/ 下的全部图片
 
 - **名称、简介**：来自 `extension/_locales/<语言>/messages.json`（`extName`、`extDescription`），后台不能单独改。
 - **类别**：`Tools`（或 `Workflow & Planning`）。
-- **语言**：默认语言是简体中文（`default_locale: zh_CN`）。浏览器语言不是中、日、英的用户会看到中文的名称和简介；如果想面向全球用户，可以把 `default_locale` 改成 `en`。
+- **语言**：默认语言是英文（`default_locale: en`），后台的默认商品详情填英文版。浏览器语言是中文、日文的用户看到对应语言的名称、简介和界面；其他语言的用户看到英文。中文、日文的详细说明和截图在后台「添加语言」里分别上传。
 - **官方网址 / 主页**：`https://github.com/DarkFlameSword/Web-AI-Monitor`
 - **支持网址**：`https://github.com/DarkFlameSword/Web-AI-Monitor/issues`
 - **详细说明**：按语言粘贴下面的文字。不要堆砌关键词（同一个词不超过 5 次），不要写「解锁」「绕过」「破解限额」之类的词。

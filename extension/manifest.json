@@ -4,7 +4,7 @@
   "short_name": "__MSG_extShortName__",
   "description": "__MSG_extDescription__",
   "version": "0.5.0",
-  "default_locale": "zh_CN",
+  "default_locale": "en",
   "minimum_chrome_version": "120",
   "icons": {
     "16": "assets/icons/icon-16.png",

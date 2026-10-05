@@ -2,7 +2,7 @@ import { DEFAULT_LANG, LANGS, LANG_TAGS, MESSAGES } from './messages.js';
 
 /**
  * Pick the UI language: an explicit choice wins, otherwise follow the
- * browser, and fall back to Chinese, the extension's primary language.
+ * browser, and fall back to English.
  */
 export function resolveLang(preference, uiLanguage) {
   if (LANGS.includes(preference)) return preference;

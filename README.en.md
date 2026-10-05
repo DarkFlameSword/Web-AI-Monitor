@@ -12,7 +12,7 @@ A Chrome extension (Manifest V3) that shows how much of each AI's usage limits y
 | --- | --- |
 | ![Claude HUD](docs/screenshots/en/hud-claude.png)<br><br>![ChatGPT HUD](docs/screenshots/en/hud-chatgpt.png)<br><br>Collapsed: ![Claude collapsed](docs/screenshots/hud-collapsed.png) ![ChatGPT collapsed](docs/screenshots/hud-collapsed-chatgpt.png) | ![Settings](docs/screenshots/en/settings.png)<br><br>![Calendar](docs/screenshots/en/settings-calendar.png) |
 
-The UI is available in Simplified Chinese (default), Japanese and English. The screenshots above are the English UI; the [Chinese README](README.md) shows the Chinese one.
+The UI is available in English (default), Simplified Chinese and Japanese. The screenshots above are the English UI; the [Chinese README](README.md) shows the Chinese one.
 
 ## Gauges (Claude)
 
@@ -86,7 +86,7 @@ An entry the account does not have is left out; when neither exists, the whole p
   - when any window reaches its reset time;
   - when you open the popup or come back to a tab (if the numbers are old);
   - only every 30 minutes while you are signed out.
-- **Languages**: Simplified Chinese (default) / Japanese / English. It follows the browser unless you pick one in settings.
+- **Languages**: English / Simplified Chinese / Japanese. It follows the browser (English for any other browser language) unless you pick one in settings.
 
 ## Install (developer mode)
 

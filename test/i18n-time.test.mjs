@@ -28,22 +28,23 @@ test('every provider template translates its own strings in every language', () 
   }
 });
 
-test('language follows the browser unless chosen, Chinese by default', () => {
+test('language follows the browser unless chosen, English by default', () => {
   assert.equal(resolveLang('auto', 'zh-TW'), 'zh_CN');
   assert.equal(resolveLang('auto', 'ja-JP'), 'ja');
   assert.equal(resolveLang('auto', 'en-GB'), 'en');
-  assert.equal(resolveLang('auto', 'fr-FR'), 'zh_CN');
+  assert.equal(resolveLang('auto', 'fr-FR'), 'en');
   assert.equal(resolveLang('en', 'ja'), 'en');
-  assert.equal(resolveLang(undefined, ''), 'zh_CN');
+  assert.equal(resolveLang(undefined, ''), 'en');
 });
 
 test('translator formats variables and lets vendor strings in', () => {
-  const t = createTranslator('ja', { ja: { 'x.only': '{name} だけ' }, zh_CN: { 'x.zh': '中文' } });
+  const t = createTranslator('ja', { ja: { 'x.only': '{name} だけ' }, en: { 'x.missing': 'English' }, zh_CN: { 'x.zh': '中文' } });
   assert.equal(t('x.only', { name: 'Fable' }), 'Fable だけ');
-  assert.equal(t('x.zh'), '中文');
+  assert.equal(t('x.missing'), 'English', 'missing in Japanese: the English string');
+  assert.equal(t('x.zh'), 'x.zh', 'other languages are not consulted');
   assert.equal(t('time.resetsIn', { t: '1:00:00' }), '回復まで 1:00:00');
   assert.equal(t('no.such.key'), 'no.such.key');
-  assert.equal(createTranslator('xx').lang, 'zh_CN');
+  assert.equal(createTranslator('xx').lang, 'en');
 });
 
 test('countdowns', () => {

@@ -6,7 +6,8 @@
  * not here. scripts/build-font.py scans these files for the glyphs to keep.
  */
 export const LANGS = Object.freeze(['zh_CN', 'ja', 'en']);
-export const DEFAULT_LANG = 'zh_CN';
+/** For browsers in any other language, and for strings missing in one. */
+export const DEFAULT_LANG = 'en';
 
 /** Names shown in the language picker, each in its own language. */
 export const LANG_NAMES = Object.freeze({ zh_CN: '简体中文', ja: '日本語', en: 'English' });

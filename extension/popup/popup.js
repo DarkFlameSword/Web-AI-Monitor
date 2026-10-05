@@ -1,7 +1,7 @@
 import { ALL_SITES } from '../background/page-hud.js';
 import { PRIVACY_POLICY_URL, WELCOME_PATH, giveConsent, hasConsent, withdrawConsent } from '../core/consent.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
+import { DEFAULT_LANG, LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
 import {
   POLL_RANGE,
   SCALE_RANGE,
@@ -32,7 +32,7 @@ const state = {
   perms: { allSites: false, notify: false, vendors: {} },
 };
 
-let t = createTranslator('zh_CN');
+let t = createTranslator(DEFAULT_LANG);
 const translators = new Map();
 const cards = new Map();
 
