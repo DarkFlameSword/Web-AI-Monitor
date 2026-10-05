@@ -146,11 +146,11 @@ const expiryFields = PROVIDERS.map(provider => {
     translator: () => t,
     format: ms => formatDate(ms, t.tag),
   });
-  const clear = h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => saveDay('') });
   const name = h(doc, 'span', { class: 'set-sub set-name', text: provider.name });
-  return { provider, picker, clear, wrap: h(doc, 'div', { class: 'set-inline' }, [name, picker.el, clear]) };
+  // Clearing lives in the calendar's footer, so the row fits in every language.
+  return { provider, picker, wrap: h(doc, 'div', { class: 'set-inline set-date' }, [name, picker.el]) };
 });
-const expiryHint = h(doc, 'span', { class: 'set-hint' });
+const expiryHint = h(doc, 'span', { class: 'set-hint wrap' });
 
 const pollSlider = slider({
   ...POLL_RANGE,
@@ -236,13 +236,10 @@ function renderSettings() {
     check.text.textContent = provider.name;
     check.extra.textContent = provider.optionalPermission && !check.input.checked ? t('settings.needsPermission') : '';
   }
-  for (const { provider, picker, clear, wrap } of expiryFields) {
+  for (const { provider, picker, wrap } of expiryFields) {
     wrap.hidden = !watching.includes(provider);
-    const day = settings.rankExpiry[provider.id] ?? '';
-    picker.setValue(day);
+    picker.setValue(settings.rankExpiry[provider.id] ?? '');
     picker.setLabel(`${provider.name} ${t('settings.rankExpiry')}`);
-    clear.textContent = t('action.clear');
-    clear.hidden = !day;
   }
 
   pollSlider.set(settings.pollMinutes);

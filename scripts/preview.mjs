@@ -197,6 +197,20 @@ async function waitFor(fn, what, tries = 40) {
 
 const hudOn = page => page.locator('web-ai-monitor-hud').evaluate(el => window.getComputedStyle(el).display !== 'none').catch(() => false);
 
+/** What in the popup sticks out past the card's padding box (should be nothing). */
+const overflowing = page => page.evaluate(() => {
+  const app = document.getElementById('app');
+  const box = app.getBoundingClientRect();
+  const style = window.getComputedStyle(app);
+  const left = box.left + parseFloat(style.paddingLeft) - 0.5;
+  const right = box.right - parseFloat(style.paddingRight) + 0.5;
+  return [...app.querySelectorAll('*')]
+    .filter(el => el.getClientRects().length && !el.closest('[hidden]'))
+    .map(el => ({ el, r: el.getBoundingClientRect() }))
+    .filter(({ r }) => r.width > 1 && (r.right > right || r.left < left))
+    .map(({ el, r }) => `${el.className || el.tagName} "${(el.textContent ?? '').trim().slice(0, 24)}" ${Math.round(r.left)}-${Math.round(r.right)}`);
+});
+
 /** Text inside the HUD. Its shadow root is closed, so it is read over CDP. */
 async function hudText(page) {
   const cdp = await page.context().newCDPSession(page);
@@ -372,9 +386,19 @@ async function main() {
       await page.getByRole('button', { name: '返回' }).click();
       const shown = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now.getFullYear(), now.getMonth(), 24));
       assert.match(await page.locator('body').innerText(), new RegExp(`资质过期时间 ${shown}`));
+      // Clear sits in the calendar's footer while a date is set.
       await page.getByRole('button', { name: '设置' }).click();
-      await page.getByRole('button', { name: '清除' }).click();
+      await page.getByRole('button', { name: 'Claude 订阅过期时间' }).click();
+      await calendar.getByRole('button', { name: '清除' }).click();
       await waitFor(async () => !(await app.storage.get('settings'))?.rankExpiry?.claude, 'cleared date');
+      await page.getByRole('button', { name: 'Claude 订阅过期时间' }).click();
+      assert.equal(await calendar.getByRole('button', { name: '清除' }).isHidden(), true, 'nothing to clear');
+      // Delete on the focused day clears too.
+      await calendar.locator(`[data-day="${day}"]`).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.rankExpiry?.claude === day, 'saved again');
+      await page.getByRole('button', { name: 'Claude 订阅过期时间' }).click();
+      await page.keyboard.press('Delete');
+      await waitFor(async () => !(await app.storage.get('settings'))?.rankExpiry?.claude, 'cleared with Delete');
       await page.close();
     });
 
@@ -469,6 +493,65 @@ async function main() {
       await app.storage.set({ settings: { ...settings, activeProvider: 'claude' } });
       await page.close();
       await gpt.close();
+      await other.close();
+    });
+
+    await check('the popup and its settings fit the card in every language, dates set, calendar open', async () => {
+      const settings = await app.storage.get('settings');
+      const later = days => new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+      for (const lang of ['zh_CN', 'ja', 'en']) {
+        await app.storage.set({ settings: { ...settings, lang, rankExpiry: { claude: later(29), chatgpt: later(12) } } });
+        const page = await app.openPopup();
+        for (const tab of ['Claude', 'ChatGPT']) {
+          await page.getByRole('tab', { name: tab }).click();
+          await sleep(300);
+          assert.deepEqual(await overflowing(page), [], `${lang} ${tab} card`);
+        }
+        await page.locator('.guild-cmds .cmd').last().click(); // settings
+        await sleep(300);
+        assert.deepEqual(await overflowing(page), [], `${lang} settings`);
+        await page.locator('.pix-date-btn').first().click();
+        await page.getByRole('dialog').first().waitFor();
+        assert.deepEqual(await overflowing(page), [], `${lang} calendar`);
+        await page.close();
+      }
+      await app.storage.set({ settings });
+    });
+
+    await check('English screenshots: both vendors in the popup and the HUD, settings, calendar', async () => {
+      const settings = await app.storage.get('settings');
+      const later = days => new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+      await app.storage.set({
+        settings: { ...settings, lang: 'en', activeProvider: 'claude', hud: { ...settings.hud, collapsed: false }, rankExpiry: { claude: later(29), chatgpt: later(12) } },
+      });
+      const other = await app.context.newPage();
+      await other.goto('https://example.com/');
+      await waitFor(() => hudOn(other), 'HUD on example.com');
+      const page = await app.openPopup();
+      assert.match(await page.locator('body').innerText(), /Adventurer rank/);
+      await shoot(page.locator('body'), '19-en-popup-claude');
+      await waitFor(async () => (await hudText(other)).startsWith('Claude'), 'HUD on Claude');
+      await sleep(500);
+      await shoot(other.locator('web-ai-monitor-hud'), '20-en-hud-claude');
+
+      await page.getByRole('tab', { name: 'ChatGPT' }).click();
+      await sleep(600);
+      assert.match(await page.locator('body').innerText(), /Mana crystal/);
+      await shoot(page.locator('body'), '21-en-popup-chatgpt');
+      await waitFor(async () => (await hudText(other)).startsWith('ChatGPT'), 'HUD on ChatGPT');
+      await sleep(500);
+      await shoot(other.locator('web-ai-monitor-hud'), '22-en-hud-chatgpt');
+
+      await page.getByRole('button', { name: 'Settings' }).click();
+      await sleep(400);
+      await shoot(page.locator('body'), '23-en-settings');
+      await page.locator('.pix-date-btn').first().click();
+      await page.getByRole('dialog').first().waitFor();
+      await page.waitForTimeout(200);
+      await shoot(page.locator('body'), '24-en-calendar');
+
+      await app.storage.set({ settings: { ...settings, activeProvider: 'claude' } });
+      await page.close();
       await other.close();
     });
 

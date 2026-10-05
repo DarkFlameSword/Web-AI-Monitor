@@ -81,6 +81,11 @@ body {
   flex: none;
 }
 
+/* A longer hint under a field: wraps instead of running past the card. */
+.set-hint.wrap {
+  white-space: normal;
+}
+
 .set-inline {
   display: flex;
   align-items: center;
@@ -204,6 +209,16 @@ body {
 .pix-range-value {
   min-width: 42px;
   white-space: nowrap;
+}
+
+/* Sharing a line with its label (HUD size: five steps, values all one width),
+   the slider is shorter so the row stays inside the card in every language. */
+.set-inline > .pix-range input {
+  width: 72px;
+}
+
+.set-inline > .pix-range .pix-range-value {
+  min-width: 0;
 }
 
 /* ------------------------------------------------- vendor tabs */
@@ -366,6 +381,15 @@ body {
   min-width: 52px;
 }
 
+/* Date field on the column's right edge, so its calendar covers the hint below it entirely. */
+.set-date {
+  align-self: stretch;
+}
+
+.set-date .pix-dd {
+  margin-left: auto;
+}
+
 .pix-cal {
   left: auto;
   right: 1px;
@@ -466,6 +490,10 @@ body {
 
 .pix-cal-foot {
   display: flex;
-  justify-content: flex-end;
   margin-top: 4px;
+}
+
+/* Clear on the left while a date is set; Today always on the right. */
+.pix-cal-today {
+  margin-left: auto;
 }

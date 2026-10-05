@@ -148,6 +148,7 @@ const dayKey = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
 
 /**
  * A date field with a pixel calendar. Values are YYYY-MM-DD strings ('' for none).
+ * The calendar's footer has Today, and Clear while a date is set (also Delete).
  *
  * @param {Document} doc
  * @param {{onChange: (day: string) => void, translator: () => Function, format: (ms: number) => string}} options
@@ -162,11 +163,12 @@ export function pixelDate(doc, { onChange, translator, format }) {
   const prev = h(doc, 'button', { class: 'pix-cal-nav prev', type: 'button' });
   const next = h(doc, 'button', { class: 'pix-cal-nav next', type: 'button' });
   const grid = h(doc, 'div', { class: 'pix-cal-grid', role: 'grid' });
-  const today = h(doc, 'button', { class: 'cmd', type: 'button' });
+  const clear = h(doc, 'button', { class: 'cmd pix-cal-clear', type: 'button' });
+  const today = h(doc, 'button', { class: 'cmd pix-cal-today', type: 'button' });
   const panel = h(doc, 'div', { class: 'pix-cal', role: 'dialog', hidden: true }, [
     h(doc, 'div', { class: 'pix-cal-head' }, [prev, title, next]),
     grid,
-    h(doc, 'div', { class: 'pix-cal-foot' }, today),
+    h(doc, 'div', { class: 'pix-cal-foot' }, [clear, today]),
   ]);
   const root = h(doc, 'span', { class: 'pix-dd' }, [button, panel]);
 
@@ -201,6 +203,8 @@ export function pixelDate(doc, { onChange, translator, format }) {
     prev.setAttribute('aria-label', t('cal.prev'));
     next.setAttribute('aria-label', t('cal.next'));
     today.textContent = t('cal.today');
+    clear.textContent = t('action.clear');
+    clear.hidden = !value;
 
     const weekStart = Number(t('cal.weekStart')) || 0;
     const names = t('cal.weekdays').split(',');
@@ -262,12 +266,17 @@ export function pixelDate(doc, { onChange, translator, format }) {
   prev.addEventListener('click', () => moveCursor(0, -1));
   next.addEventListener('click', () => moveCursor(0, 1));
   today.addEventListener('click', () => choose(dayKey(new Date())));
+  clear.addEventListener('click', () => choose(''));
   panel.addEventListener('keydown', event => {
     const keys = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [-7, 0], ArrowDown: [7, 0], PageUp: [0, -1], PageDown: [0, 1] };
+    const onDay = event.target.classList?.contains('pix-cal-day');
     if (event.key === 'Escape') {
       event.preventDefault();
       control.close(true);
-    } else if (event.target.classList?.contains('pix-cal-day') && event.key in keys) {
+    } else if (onDay && (event.key === 'Delete' || event.key === 'Backspace') && value) {
+      event.preventDefault();
+      choose('');
+    } else if (onDay && event.key in keys) {
       event.preventDefault();
       moveCursor(...keys[event.key]);
     }
