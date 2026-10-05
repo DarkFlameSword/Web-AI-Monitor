@@ -33,7 +33,8 @@
 | Team / Enterprise（组织方案，不在个人阶梯上） | B / S |
 
 - 规则写在厂商模板里：`ladder` 按个人方案从高到低排列，第一档是 A，每低一档降一个字母；接别家时照样列出它的个人方案即可。组织方案在模板里单独写明资质。
-- 资质过期时间 = 订阅的到期或续费日期。先在组织信息里找到期字段，找不到再读一次账单详情（`subscription_details`），结果缓存 6 小时。读不到时显示 `--`。三天内到期且不会自动续期时变红；悬停可以看到「到期自动续期 / 到期后不再续期」。Free 不显示过期时间。
+- 资质过期时间由你在设置里手动填写（每个厂商一个日期，填订阅的到期日；可清除）。填写的那天当天仍有效，过了这天显示「资质已于 ... 过期」。三天内到期或已过期时变红。
+- 付费方案没填时显示「资质过期时间 未填写」，点它直接跳到设置里对应的日期框；Free 方案没填时不显示。悬浮窗里把资质和过期时间放在印章的悬停提示里。
 
 ## 宝物袋（额度）
 
@@ -75,9 +76,8 @@
 
 - 读取 claude.ai 网页自己用的接口（非公开 API，可能随时变动）：
   - `GET https://claude.ai/api/organizations`：找到当前组织（优先 `lastActiveOrg` cookie）并推断方案；
-  - `GET https://claude.ai/api/organizations/{org}/subscription_details`：付费方案的到期 / 续费日期（组织信息里没有时才请求，最多 6 小时一次）；
   - `GET https://claude.ai/api/organizations/{org}/usage`：用量。新格式 `limits[]`（`session` / `weekly_all` / `weekly_scoped` + `scope.model.display_name`）和旧格式 `five_hour` / `seven_day` / `seven_day_*` 都能解析，不认识的字段会被跳过。宝物袋来自同一个响应：`extra_usage`（金额以最小货币单位给出，按 `decimal_places` 换算）和云端会话额度（目前是代号字段 `iguana_necktie`，以美元给出，`resets_at` 是失效时间；代号改名时会按 `cloud` / `ccr` / `remote_session` 关键字兜底）。
-- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的 claude.ai 标签页，以页面身份同源请求（只允许上面三个路径，只读 GET）。
+- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的 claude.ai 标签页，以页面身份同源请求（只允许上面两个路径，只读 GET）。
 - 数据只保存在本机的 `chrome.storage.local`，不发送到任何第三方服务器。
 
 ### 权限说明
@@ -110,7 +110,7 @@ extension/
   core/                       与厂商无关
     gauges.js                 Meter[] + 模板 -> 卡片上的每一行（剩余量、等级、READY、封印、恢复中）
     wallets.js                Wallet[] + 模板 -> 宝物袋的每一行（余额、上限、失效、状态）
-    rank.js                   方案 + 模板阶梯 -> 冒险者资质；订阅 -> 资质过期时间
+    rank.js                   方案 + 模板阶梯 -> 冒险者资质；用户填写的日期 -> 资质过期时间
     roles.js                  角色词表：mp / hp / sp / ex；宝物：coin（金币）/ emerald（绿宝石）
     i18n.js, messages.js      多语言
     time.js                   倒计时与时间格式
@@ -164,7 +164,7 @@ extension/
    };
    ```
 
-2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http, { previous })` 返回 `{ meters, wallets, plan, subscription }`（`wallets` 可以是空数组，`subscription` 可以是 null）。
+2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http)` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。
 3. 在 `extension/providers/index.js` 里注册，在 `manifest.json` 的 `host_permissions` 和 `content_scripts.matches` 里加上它的域名。
 4. 如果模板里出现了新的界面文字，运行 `npm run build:font` 重新生成字体子集。
 
@@ -186,6 +186,7 @@ npm run preview          # 用 Playwright 加载扩展、模拟 claude.ai，跑�
 - 回复结束后自动刷新；
 - 授权后其他网站（包括严格 CSP 的）出现悬浮窗和像素字体，关掉「所有网页」后隐藏；
 - 用过的能量重置后发且只发一次「完全恢复」通知；
+- 资质过期时间：未填写时点提示跳到设置，填写后显示日期，可清除；
 - 刷新间隔滑块（滚轮、方向键）改到 1 - 30 分钟并同步到定时器；悬浮窗 200% 时正好放大一倍；
 - 关掉 Claude 的监控后弹窗提示、悬浮窗隐藏，重新打开后恢复。
 

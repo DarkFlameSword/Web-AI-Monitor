@@ -1,4 +1,5 @@
 import { LANGS } from './messages.js';
+import { parseDay } from './rank.js';
 
 export const SETTINGS_KEY = 'settings';
 /** Background refresh, in whole minutes. */
@@ -14,6 +15,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   pollMinutes: 5,
   /** Providers the user switched off; everything else is monitored. */
   disabledProviders: Object.freeze([]),
+  /** Adventurer rank expiry per provider, entered by the user: { [providerId]: 'YYYY-MM-DD' }. */
+  rankExpiry: Object.freeze({}),
   /**
    * The floating window. It shows on the vendors' own sites; `everywhere`
    * extends it to every site once the user grants that permission.
@@ -47,6 +50,8 @@ export function normalizeSettings(raw) {
     disabledProviders: Array.isArray(src.disabledProviders)
       ? [...new Set(src.disabledProviders.filter(id => typeof id === 'string' && id))]
       : [],
+    rankExpiry: Object.fromEntries(Object.entries(src.rankExpiry && typeof src.rankExpiry === 'object' ? src.rankExpiry : {})
+      .filter(([id, day]) => id && parseDay(day))),
     hud: {
       enabled: bool(hud.enabled, defaults.enabled),
       everywhere: bool(hud.everywhere, defaults.everywhere),

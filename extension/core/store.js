@@ -8,8 +8,6 @@
  * @property {import('./gauges.js').Meter[]} meters  Last known meters, kept when a refresh fails.
  * @property {import('./wallets.js').Wallet[]} wallets  Credits next to the limits (the gold pouch).
  * @property {string|null} plan                      Plan id from the provider, e.g. "max_20x".
- * @property {{endsAt: string|null, renews: boolean|null, checkedAt: number}|null} subscription
- *                                                   When the plan (adventurer rank) lapses, if known.
  * @property {number|null} fetchedAt                 Epoch ms of the last successful refresh.
  * @property {number} attemptedAt                    Epoch ms of the last attempt.
  */

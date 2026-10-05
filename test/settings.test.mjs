@@ -9,6 +9,7 @@ test('missing settings become the defaults', () => {
     lang: 'auto',
     pollMinutes: 5,
     disabledProviders: [],
+    rankExpiry: {},
     hud: { ...DEFAULT_SETTINGS.hud },
     notify: { recovered: false },
   });
@@ -21,6 +22,7 @@ test('bad values are replaced or clamped, good ones kept', () => {
     lang: 'ja',
     pollMinutes: 7.4,
     disabledProviders: ['claude', 'claude', '', 3],
+    rankExpiry: { claude: '2026-11-03', other: '2026-02-30', third: 'soon' },
     hud: { enabled: false, everywhere: true, collapsed: 'yes', corner: 'middle', x: 12.6, y: -40, scale: 1.4 },
     notify: { recovered: 'sure' },
     hiddenHosts: ['example.com'],
@@ -29,6 +31,7 @@ test('bad values are replaced or clamped, good ones kept', () => {
     lang: 'ja',
     pollMinutes: 7,
     disabledProviders: ['claude'],
+    rankExpiry: { claude: '2026-11-03' },
     hud: { enabled: false, everywhere: true, collapsed: false, corner: 'br', x: 13, y: 0, scale: 1.5 },
     notify: { recovered: false },
   });

@@ -128,7 +128,28 @@
 }
 
 .wam .q-expiry {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  line-height: 16px;
+  color: inherit;
+  background: none;
   white-space: nowrap;
+}
+
+.wam button.q-expiry {
+  cursor: pointer;
+}
+
+.wam button.q-expiry:hover,
+.wam button.q-expiry:focus-visible {
+  color: var(--ink);
+  outline: none;
+  text-decoration: underline dotted;
+}
+
+.wam .q-expiry.unset {
+  color: var(--ink-3);
 }
 
 .wam .q-expiry.soon {

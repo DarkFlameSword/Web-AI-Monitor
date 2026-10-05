@@ -302,6 +302,7 @@ class Hud {
         this.cards.set(provider.id, card);
       }
       this.cardsEl.append(card.el); // keeps registry order
+      card.rankExpiry = this.settings.rankExpiry[provider.id] ?? null;
       card.render(this.snapshots[provider.id] ?? null, this.translatorFor(provider), now);
     }
     this.renderChip(now);

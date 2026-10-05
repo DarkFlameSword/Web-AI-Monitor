@@ -1,5 +1,3 @@
-import { parseIso } from './time.js';
-
 /**
  * Adventurer rank from the plan. A template lists the vendor's personal
  * plans from the top in `ladder`: the best is A, each step down is one
@@ -25,14 +23,30 @@ function rankOf(template, planId, seen) {
 }
 
 /**
- * When the qualification lapses: the subscription's end or renewal date.
+ * A calendar day typed as YYYY-MM-DD (what a date input gives), as the
+ * local start of that day and the moment it is over. Null when invalid.
  *
- * @param {{endsAt?: string|null, renews?: boolean|null}|null|undefined} subscription
- * @returns {{expiresAt: number|null, renews: boolean|null}}
+ * @returns {{start: number, end: number}|null}
  */
-export function qualificationExpiry(subscription) {
-  return {
-    expiresAt: parseIso(subscription?.endsAt),
-    renews: typeof subscription?.renews === 'boolean' ? subscription.renews : null,
-  };
+export function parseDay(text) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof text === 'string' ? text : '');
+  if (!match) return null;
+  const [year, month, day] = match.slice(1).map(Number);
+  const start = new Date(year, month - 1, day);
+  if (start.getFullYear() !== year || start.getMonth() !== month - 1 || start.getDate() !== day) return null;
+  return { start: start.getTime(), end: new Date(year, month - 1, day + 1).getTime() };
+}
+
+/**
+ * When the qualification lapses: the date the user entered in settings
+ * (the last day it is valid).
+ *
+ * @param {string|null|undefined} day  YYYY-MM-DD.
+ * @param {number} now  Epoch ms.
+ * @returns {{day: number|null, expired: boolean, msLeft: number|null}}
+ */
+export function qualificationExpiry(day, now) {
+  const parsed = parseDay(day);
+  if (!parsed) return { day: null, expired: false, msLeft: null };
+  return { day: parsed.start, expired: now >= parsed.end, msLeft: parsed.end - now };
 }

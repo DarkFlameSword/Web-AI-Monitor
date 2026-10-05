@@ -171,70 +171,6 @@ export function parseWallets(raw) {
   return [cloudCredit(raw), usageCredits(raw)].filter(Boolean);
 }
 
-/** Field names that say when a subscription ends or renews. */
-const END_FIELDS = /(period_end|next_charge|next_billing|next_payment|renews?_at|renewal|expires_at|expiration|ends_at|end_date|cancel_at)/i;
-/** How long an answer about the subscription is trusted. */
-const SUBSCRIPTION_TTL_MS = 6 * 60 * 60_000;
-
-/** ISO time from an ISO/date string or epoch seconds/milliseconds; null otherwise. */
-function isoFrom(value) {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const ms = value > 1e12 ? value : value > 1e9 ? value * 1000 : null;
-    return ms ? new Date(ms).toISOString() : null;
-  }
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value) && Number.isFinite(Date.parse(value))) {
-    return new Date(Date.parse(value)).toISOString();
-  }
-  return null;
-}
-
-/**
- * The subscription's next end or renewal date anywhere in a record (the
- * organization, or a billing response), and whether it renews. The field
- * names are not documented, so this looks for the usual ones.
- *
- * @returns {{endsAt: string, renews: boolean|null}|null}
- */
-export function findSubscription(record, now) {
-  const dates = [];
-  let renews = null;
-  const visit = (value, depth) => {
-    if (!value || typeof value !== 'object' || depth > 3) return;
-    for (const [key, field] of Object.entries(value)) {
-      if (/^cancel_at_period_end$/i.test(key)) {
-        if (typeof field === 'boolean') renews = !field;
-      } else if (/^(auto_renew|will_renew|renews|is_auto_renewing)$/i.test(key)) {
-        if (typeof field === 'boolean') renews = field;
-      } else if (END_FIELDS.test(key)) {
-        const iso = isoFrom(field);
-        if (iso && Date.parse(iso) > now) dates.push(iso);
-      }
-      if (field && typeof field === 'object') visit(field, depth + 1);
-    }
-  };
-  visit(record, 0);
-  dates.sort();
-  return dates.length ? { endsAt: dates[0], renews } : null;
-}
-
-/** Subscription end from the organization, else from billing details (cached for hours). */
-async function fetchSubscription(http, org, plan, previous) {
-  const now = Date.now();
-  const fromOrg = findSubscription(org, now);
-  if (fromOrg) return { ...fromOrg, checkedAt: now };
-  if (!plan || plan === 'free') return null;
-  const cached = previous?.subscription;
-  const cachedEnd = Date.parse(cached?.endsAt ?? '');
-  if (cached && now - (cached.checkedAt ?? 0) < SUBSCRIPTION_TTL_MS && !(cachedEnd <= now)) return cached;
-  try {
-    const details = await http.getJson(`/api/organizations/${encodeURIComponent(org.uuid)}/subscription_details`);
-    const found = findSubscription(details, now);
-    return { endsAt: found?.endsAt ?? null, renews: found?.renews ?? null, checkedAt: now };
-  } catch {
-    return { endsAt: null, renews: null, checkedAt: now };
-  }
-}
-
 /** The organization to read: the one claude.ai last used, else the first chat one. */
 export function pickOrg(orgs, preferredId) {
   const list = Array.isArray(orgs) ? orgs.filter(org => org && typeof org.uuid === 'string') : [];
@@ -264,9 +200,8 @@ const usagePath = orgId => `/api/organizations/${encodeURIComponent(orgId)}/usag
 
 /**
  * @param {import('../../core/http.js').Http} http
- * @param {{previous?: import('../../core/store.js').Snapshot|null}} [context]
  */
-async function fetchUsage(http, { previous = null } = {}) {
+async function fetchUsage(http) {
   const orgs = await http.getJson('/api/organizations');
   const preferred = await http.getCookie(ORG_COOKIE).catch(() => null);
   let org = pickOrg(orgs, preferred);
@@ -284,9 +219,7 @@ async function fetchUsage(http, { previous = null } = {}) {
     org = fallback;
     usage = await http.getJson(usagePath(org.uuid));
   }
-  const plan = detectPlan(org);
-  const subscription = await fetchSubscription(http, org, plan, previous);
-  return { meters: parseUsage(usage), wallets: parseWallets(usage), plan, subscription };
+  return { meters: parseUsage(usage), wallets: parseWallets(usage), plan: detectPlan(org) };
 }
 
 export default Object.freeze({
@@ -300,7 +233,6 @@ export default Object.freeze({
   proxyPaths: Object.freeze([
     /^\/api\/organizations$/,
     new RegExp(`^/api/organizations/${ORG_ID}/usage$`, 'i'),
-    new RegExp(`^/api/organizations/${ORG_ID}/subscription_details$`, 'i'),
   ]),
   /** A page request that just spent quota: a reply finished streaming. */
   isActivity(path, durationMs) {

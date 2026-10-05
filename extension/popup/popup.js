@@ -132,6 +132,24 @@ const providerChecks = PROVIDERS.map(provider => ({
   }),
 }));
 const providersMore = h(doc, 'span', { class: 'set-hint' });
+
+/** Rank expiry, typed by the user per provider (YYYY-MM-DD from a date input). */
+const expiryInputs = PROVIDERS.map(provider => {
+  const saveDay = day => updateSettings(draft => {
+    if (day) draft.rankExpiry[provider.id] = day;
+    else delete draft.rankExpiry[provider.id];
+  });
+  const input = h(doc, 'input', { type: 'date', onchange: () => saveDay(input.value) });
+  const clear = h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => saveDay('') });
+  const name = h(doc, 'span', { class: 'set-sub', text: provider.name });
+  return {
+    provider,
+    input,
+    clear,
+    wrap: h(doc, 'div', { class: 'set-inline' }, [name, h(doc, 'span', { class: 'pix-select pix-date' }, input), clear]),
+  };
+});
+const expiryHint = h(doc, 'span', { class: 'set-hint' });
 const hudShow = checkbox(checked => updateSettings(draft => { draft.hud.enabled = checked; }));
 // Permission requests must start inside the click. The worker also mirrors
 // grants into settings, in case the popup closes while Chrome asks.
@@ -167,6 +185,7 @@ const pollLabel = h(doc, 'span', { class: 'set-label' });
 const notifyLabel = h(doc, 'span', { class: 'set-label' });
 const providersLabel = h(doc, 'span', { class: 'set-label' });
 const sizeLabel = h(doc, 'span', { class: 'set-sub' });
+const expiryLabel = h(doc, 'span', { class: 'set-label' });
 const privacyNote = h(doc, 'p', { class: 'set-note' });
 
 settingsView.append(
@@ -174,6 +193,10 @@ settingsView.append(
   h(doc, 'div', { class: 'set-row' }, [
     providersLabel,
     h(doc, 'div', { class: 'set-col' }, [...providerChecks.map(item => item.check.wrap), providersMore]),
+  ]),
+  h(doc, 'div', { class: 'set-row' }, [
+    expiryLabel,
+    h(doc, 'div', { class: 'set-col' }, [...expiryInputs.map(item => item.wrap), expiryHint]),
   ]),
   h(doc, 'div', { class: 'set-row' }, [
     hudLabel,
@@ -199,6 +222,17 @@ function renderSettings() {
   providersLabel.textContent = t('settings.providers');
   sizeLabel.textContent = t('settings.hudSize');
   providersMore.textContent = t('settings.providersMore');
+  expiryLabel.textContent = t('settings.rankExpiry');
+  expiryHint.textContent = t('settings.rankExpiryHint');
+  const monitored = enabledProviders(PROVIDERS, settings);
+  for (const { provider, input, clear, wrap } of expiryInputs) {
+    wrap.hidden = !monitored.includes(provider);
+    const day = settings.rankExpiry[provider.id] ?? '';
+    if (doc.activeElement !== input) input.value = day;
+    input.setAttribute('aria-label', `${provider.name} ${t('settings.rankExpiry')}`);
+    clear.textContent = t('action.clear');
+    clear.hidden = !day;
+  }
   privacyNote.textContent = t('settings.privacy');
 
   for (const { provider, check } of providerChecks) {
@@ -230,6 +264,13 @@ function translatorFor(provider) {
   return translators.get(provider.id) ?? t;
 }
 
+/** From the card's expiry line: jump to the provider's date field in settings. */
+function editExpiry(provider) {
+  state.view = 'settings';
+  render();
+  expiryInputs.find(item => item.provider === provider)?.input.focus();
+}
+
 function openSite(provider) {
   chrome.tabs.create({ url: provider.homeUrl });
   window.close();
@@ -247,11 +288,12 @@ function renderCards(now) {
       continue;
     }
     if (!card) {
-      card = new ProviderCard(doc, provider, { onOpenSite: openSite });
+      card = new ProviderCard(doc, provider, { onOpenSite: openSite, onEditExpiry: editExpiry });
       cards.set(provider.id, card);
     }
     statusView.append(card.el); // keeps registry order
     card.busy = state.refreshing;
+    card.rankExpiry = state.settings.rankExpiry[provider.id] ?? null;
     card.render(state.snapshots[provider.id] ?? null, translatorFor(provider), now);
   }
 }

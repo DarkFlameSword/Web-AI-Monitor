@@ -65,14 +65,13 @@ async function runRefresh(provider, reason) {
     meters: previous?.meters ?? [],
     wallets: previous?.wallets ?? [],
     plan: previous?.plan ?? null,
-    subscription: previous?.subscription ?? null,
     fetchedAt: previous?.fetchedAt ?? null,
   };
   let result;
   try {
-    const { meters, wallets = [], plan, subscription = null } = await fetchUsage(provider, { previous });
+    const { meters, wallets = [], plan } = await fetchUsage(provider);
     result = meters.length
-      ? { status: 'ok', meters, wallets, plan, subscription, fetchedAt: now }
+      ? { status: 'ok', meters, wallets, plan, fetchedAt: now }
       : { ...kept, status: 'no_data' };
   } catch (error) {
     result = { ...kept, status: classify(error) };

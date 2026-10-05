@@ -258,3 +258,32 @@ body {
   min-width: 42px;
   white-space: nowrap;
 }
+
+/* Date field in the same notched frame as the selects. */
+.pix-date input {
+  display: block;
+  height: 16px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  font: inherit;
+  line-height: 16px;
+  color: var(--ink);
+  background: transparent;
+}
+
+.pix-date input::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.pix-date input:focus-visible {
+  outline: 1px dotted var(--seal);
+  outline-offset: 2px;
+}
+
+.pix-date::after {
+  display: none;
+}

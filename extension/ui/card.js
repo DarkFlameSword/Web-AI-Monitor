@@ -6,7 +6,7 @@ import { formatAgo, formatClock, formatCountdown, formatCountdownShort, formatDa
 import { buildWalletViews } from '../core/wallets.js';
 import { POUCH, POUCH_PALETTE, TREASURE_ART, h, pixelArt } from './dom.js';
 
-/** A qualification about to lapse (and not renewing) is shown in red this early. */
+/** A qualification about to lapse is shown in red this early. */
 const RANK_EXPIRY_WARNING_MS = 3 * 24 * 60 * 60_000;
 
 /**
@@ -250,7 +250,7 @@ export class ProviderCard {
    * @param {object} provider
    * @param {{compact?: boolean, onOpenSite?: (provider: object) => void}} [options]
    */
-  constructor(doc, provider, { compact = false, onOpenSite = null } = {}) {
+  constructor(doc, provider, { compact = false, onOpenSite = null, onEditExpiry = null } = {}) {
     this.doc = doc;
     this.provider = provider;
     this.compact = compact;
@@ -259,6 +259,8 @@ export class ProviderCard {
     this.snapshot = null;
     /** While a refresh is running the footer says so instead of "updated ago". */
     this.busy = false;
+    /** The rank expiry the user entered for this provider (YYYY-MM-DD), from settings. */
+    this.rankExpiry = null;
 
     this.nameEl = h(doc, 'span', { class: 'm-name', text: provider.name });
     this.sealEl = h(doc, 'span', { class: 'seal' });
@@ -272,7 +274,10 @@ export class ProviderCard {
     } else {
       // Popup: name and plan, then adventurer rank and when it lapses.
       this.rankLabel = h(doc, 'span', { class: 'q-label' });
-      this.expiryEl = h(doc, 'span', { class: 'q-expiry' });
+      // Clicking the expiry opens settings, where the user fills it in.
+      this.expiryEl = onEditExpiry
+        ? h(doc, 'button', { class: 'q-expiry', type: 'button', onclick: () => onEditExpiry(provider) })
+        : h(doc, 'span', { class: 'q-expiry' });
       this.qualification = h(doc, 'div', { class: 'qualification' }, [
         h(doc, 'span', { class: 'q-rank' }, [this.rankLabel, this.sealEl]),
         this.expiryEl,
@@ -344,28 +349,31 @@ export class ProviderCard {
     this.tickFooter(t, now);
   }
 
-  /** Adventurer rank from the plan, and the date it lapses (the subscription's end). */
+  /** Adventurer rank from the plan, and the expiry date the user entered in settings. */
   renderQualification(snapshot, t, now) {
     const qual = qualificationOf(this.provider.template, snapshot?.plan);
-    const { expiresAt, renews } = qualificationExpiry(snapshot?.subscription);
     const rank = qual?.rank ?? null;
     this.sealEl.textContent = rank ?? '';
     this.sealEl.hidden = !rank;
     this.planEl.textContent = qual?.name ?? '';
 
-    const paid = Boolean(qual) && snapshot?.plan !== 'free';
-    const date = expiresAt !== null ? formatDate(expiresAt, t.tag) : '--';
-    const expiryText = paid ? t('rank.expires', { date }) : '';
-    const renewText = renews === true ? t('rank.renews') : renews === false ? t('rank.ends') : '';
-    this.sealEl.title = [rank ? `${t('rank')} ${rank}` : '', expiryText, renewText].filter(Boolean).join('\n');
+    const { day, expired, msLeft } = qualificationExpiry(this.rankExpiry, now);
+    let expiryText = '';
+    if (day !== null) {
+      const date = formatDate(day, t.tag);
+      expiryText = expired ? t('rank.expired', { date }) : t('rank.expires', { date });
+    } else if (snapshot?.plan && snapshot.plan !== 'free') {
+      expiryText = t('rank.unset');
+    }
+    this.sealEl.title = [rank ? `${t('rank')} ${rank}` : '', expiryText].filter(Boolean).join('\n');
 
     if (!this.qualification) return;
     this.qualification.hidden = !rank;
     this.rankLabel.textContent = t('rank');
     this.expiryEl.textContent = expiryText;
-    this.expiryEl.title = renewText;
-    const soon = expiresAt !== null && renews !== true && expiresAt - now < RANK_EXPIRY_WARNING_MS;
-    this.expiryEl.classList.toggle('soon', soon);
+    this.expiryEl.hidden = !expiryText;
+    this.expiryEl.classList.toggle('unset', day === null);
+    this.expiryEl.classList.toggle('soon', day !== null && (expired || msLeft < RANK_EXPIRY_WARNING_MS));
   }
 
   /** Called every second: countdowns and "updated ago". */

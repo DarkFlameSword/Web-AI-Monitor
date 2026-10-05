@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { HttpError } from '../extension/core/http.js';
-import claude, { detectPlan, findSubscription, parseUsage, pickOrg } from '../extension/providers/claude/provider.js';
+import claude, { detectPlan, parseUsage, pickOrg } from '../extension/providers/claude/provider.js';
 
 const CURRENT_SHAPE = {
   limits: [
@@ -124,12 +124,7 @@ test('fetchUsage reads the cookie organization and reports its plan', async () =
   const result = await claude.fetchUsage(http);
   assert.equal(result.plan, 'max_20x');
   assert.equal(result.meters.length, 3);
-  assert.deepEqual(http.calls, [
-    '/api/organizations',
-    `/api/organizations/${ORG_B}/usage`,
-    `/api/organizations/${ORG_B}/subscription_details`,
-  ]);
-  assert.deepEqual(result.subscription.endsAt, null, 'unknown expiry when billing details are missing');
+  assert.deepEqual(http.calls, ['/api/organizations', `/api/organizations/${ORG_B}/usage`]);
 });
 
 test('fetchUsage falls back when the cookie organization is not readable', async () => {
@@ -163,41 +158,4 @@ test('only reply-like requests count as activity, and only allowed paths may be 
   assert.equal(allowed(`/api/organizations/${ORG_A}/usage`), true);
   assert.equal(allowed(`/api/organizations/${ORG_A}/chat_conversations`), false);
   assert.equal(allowed('/api/organizations/../account'), false);
-});
-
-test('finds when the subscription ends, from the organization or billing details', () => {
-  const now = Date.parse('2026-10-05T00:00:00Z');
-  assert.deepEqual(
-    findSubscription({ uuid: 'x', billing: { current_period_end: 1793750400, cancel_at_period_end: true } }, now),
-    { endsAt: '2026-11-04T00:00:00.000Z', renews: false },
-  );
-  assert.deepEqual(
-    findSubscription({ subscription: { next_charge_date: '2026-11-03', auto_renew: true } }, now),
-    { endsAt: '2026-11-03T00:00:00.000Z', renews: true },
-  );
-  // Past dates and unrelated timestamps are not an expiry.
-  assert.equal(findSubscription({ created_at: '2025-01-01T00:00:00Z', current_period_end: '2026-01-01' }, now), null);
-  assert.equal(findSubscription(null, now), null);
-});
-
-test('subscription details are cached for hours, and skipped on the free plan', async () => {
-  const usagePath = `/api/organizations/${ORG_A}/usage`;
-  const detailsPath = `/api/organizations/${ORG_A}/subscription_details`;
-  const paid = fakeHttp({
-    '/api/organizations': [{ uuid: ORG_A, capabilities: ['chat', 'claude_pro'] }],
-    [usagePath]: CURRENT_SHAPE,
-    [detailsPath]: { next_charge_date: '2099-01-01' },
-  });
-  const first = await claude.fetchUsage(paid);
-  assert.equal(first.subscription.endsAt, '2099-01-01T00:00:00.000Z');
-  const again = await claude.fetchUsage(paid, { previous: { subscription: first.subscription } });
-  assert.equal(again.subscription, first.subscription);
-  assert.equal(paid.calls.filter(path => path === detailsPath).length, 1);
-
-  const free = fakeHttp({
-    '/api/organizations': [{ uuid: ORG_A, capabilities: ['chat'] }],
-    [usagePath]: CURRENT_SHAPE,
-  });
-  assert.equal((await claude.fetchUsage(free)).subscription, null);
-  assert.ok(!free.calls.includes(detailsPath));
 });

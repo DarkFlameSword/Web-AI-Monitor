@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { qualificationExpiry, qualificationOf } from '../extension/core/rank.js';
+import { parseDay, qualificationExpiry, qualificationOf } from '../extension/core/rank.js';
 import template from '../extension/providers/claude/template.js';
 
 test('the best personal plan is rank A, each step down one letter', () => {
@@ -27,10 +27,14 @@ test('a ladder works for any vendor, and loops cannot hang it', () => {
   assert.equal(qualificationOf(other, 'a').rank, null);
 });
 
-test('qualification expiry reads the stored subscription', () => {
-  assert.deepEqual(qualificationExpiry({ endsAt: '2026-11-03T00:00:00Z', renews: true }), {
-    expiresAt: Date.parse('2026-11-03T00:00:00Z'),
-    renews: true,
-  });
-  assert.deepEqual(qualificationExpiry(null), { expiresAt: null, renews: null });
+test('the expiry is the day the user entered, valid until that day is over', () => {
+  const day = parseDay('2026-11-03');
+  assert.equal(day.start, new Date(2026, 10, 3).getTime());
+  assert.equal(day.end, new Date(2026, 10, 4).getTime());
+  for (const bad of ['2026-02-30', '2026-13-01', '11/03/2026', '', null, 20261103]) assert.equal(parseDay(bad), null, String(bad));
+
+  const during = new Date(2026, 10, 3, 23, 59).getTime();
+  assert.deepEqual(qualificationExpiry('2026-11-03', during), { day: day.start, expired: false, msLeft: day.end - during });
+  assert.equal(qualificationExpiry('2026-11-03', day.end).expired, true);
+  assert.deepEqual(qualificationExpiry(undefined, during), { day: null, expired: false, msLeft: null });
 });

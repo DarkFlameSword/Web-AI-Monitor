@@ -82,16 +82,16 @@ async function vendorTabs(provider) {
  * Ask the worker route first; if it fails for any reason, try an open vendor
  * tab before giving up. A sign-in error from a tab is final.
  */
-export async function fetchUsage(provider, context) {
+export async function fetchUsage(provider) {
   let firstError;
   try {
-    return await provider.fetchUsage(directHttp(provider), context);
+    return await provider.fetchUsage(directHttp(provider));
   } catch (error) {
     firstError = error;
   }
   for (const tab of await vendorTabs(provider)) {
     try {
-      return await provider.fetchUsage(tabHttp(provider, tab.id), context);
+      return await provider.fetchUsage(tabHttp(provider, tab.id));
     } catch (error) {
       if (isAuthError(error)) throw error;
     }

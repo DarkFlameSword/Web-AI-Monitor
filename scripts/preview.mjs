@@ -113,10 +113,6 @@ async function launch(extensionPath, mock) {
       return route.fulfill({ json: [{ uuid: ORG, name: 'Guild', capabilities: ['chat', 'claude_max'], rate_limit_tier: 'default_claude_max_20x' }] });
     }
     if (pathname === `/api/organizations/${ORG}/usage`) return route.fulfill({ json: mock.usage });
-    if (pathname === `/api/organizations/${ORG}/subscription_details`) {
-      const { endsIn, renews } = mock.subscription;
-      return route.fulfill({ json: { status: 'active', next_charge_date: new Date(Date.now() + endsIn).toISOString(), cancel_at_period_end: !renews } });
-    }
     if (pathname.endsWith('/completion')) return route.fulfill({ contentType: 'text/event-stream', body: 'event: done\ndata: {}\n\n' });
     return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'claude.ai (mock)') });
   });
@@ -182,7 +178,7 @@ async function main() {
 
   // ------------------------------------------------- default build
   {
-    const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), subscription: { endsIn: 29 * DAY, renews: true }, counts: { worker: 0, page: 0 } };
+    const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), counts: { worker: 0, page: 0 } };
     const app = await launch(extensionDir, mock);
     try {
       await check('default build: HUD on claude.ai, none elsewhere, nothing registered', async () => {
@@ -218,7 +214,7 @@ async function main() {
 
   // ------------------------------------------------- granted build
   const build = grantedBuild();
-  const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), subscription: { endsIn: 29 * DAY, renews: true }, counts: { worker: 0, page: 0 } };
+  const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), counts: { worker: 0, page: 0 } };
   const app = await launch(build, mock);
   try {
     const claude = await app.context.newPage();
@@ -226,7 +222,8 @@ async function main() {
     await sleep(1200);
 
     await check('refresh through an open claude.ai tab when the worker route is blocked', async () => {
-      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true } }, 'snapshot:claude': null });
+      const expiryDay = new Date(Date.now() + 29 * DAY).toISOString().slice(0, 10);
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true }, rankExpiry: { claude: expiryDay } }, 'snapshot:claude': null });
       const page = await app.openPopup(); // the popup asks for a refresh when it opens
       const snap = await waitFor(async () => {
         const value = await app.storage.get('snapshot:claude');
@@ -239,8 +236,8 @@ async function main() {
       await sleep(700);
       await shoot(page.locator('body'), '01-popup-zh');
       const text = await page.locator('body').innerText();
-      const expiry = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() + 29 * DAY));
-      assert.equal(snap.subscription?.endsAt?.slice(0, 10), new Date(Date.now() + 29 * DAY).toISOString().slice(0, 10));
+      const [y, m, d] = expiryDay.split('-').map(Number);
+      const expiry = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(y, m - 1, d));
       for (const expected of [
         /62\/100/, /81\/100/, /READY!/, /距恢复 2:1\d:\d\d/,
         /冒险者资质\s*A/, new RegExp(`资质过期时间 ${expiry}`),
@@ -285,6 +282,23 @@ async function main() {
       await waitFor(async () => !(await hudOn(page)), 'HUD hidden on example.com');
       assert.equal(await hudOn(claude), true);
       await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true } } });
+      await page.close();
+    });
+
+    await check('rank expiry: unset shows a hint that opens settings, where the date is filled in', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true } } });
+      const page = await app.openPopup();
+      const hint = page.getByRole('button', { name: '资质过期时间 未填写' });
+      await hint.click();
+      const field = page.getByLabel('Claude 资质过期时间');
+      assert.equal(await field.evaluate(el => el === document.activeElement), true, 'date field focused');
+      await field.fill('2026-12-24');
+      await waitFor(async () => (await app.storage.get('settings'))?.rankExpiry?.claude === '2026-12-24', 'saved date');
+      await page.getByRole('button', { name: '返回' }).click();
+      assert.match(await page.locator('body').innerText(), /资质过期时间 2026\/12\/24/);
+      await page.getByRole('button', { name: '设置' }).click();
+      await page.getByRole('button', { name: '清除' }).click();
+      await waitFor(async () => !(await app.storage.get('settings'))?.rankExpiry?.claude, 'cleared date');
       await page.close();
     });
 
@@ -381,9 +395,8 @@ async function main() {
     };
     await scene('02-popup-low-ja', { lang: 'ja' }, usageBody({ session: 88, weekly: 64, fable: 72, cloud: { limit: 250, used: 221, expiresIn: 9 * HOUR } }), 'max_5x');
     await scene('03-popup-empty-en', { lang: 'en' }, usageBody({ session: 100, weekly: 83, fable: 100, sessionIn: 47 * MIN, cloud: null, extra: { enabled: true, used: 5000, limit: 5000 } }));
-    mock.subscription = { endsIn: 2 * DAY + 3 * HOUR, renews: false };
-    await scene('04-popup-pro-sealed', { lang: 'zh_CN' }, usageBody({ session: 12, weekly: 40, sessionIn: null, cloud: { limit: 100, used: 0, expiresIn: 2 * DAY }, extra: { enabled: false, used: 0, limit: null } }), 'pro');
-    mock.subscription = { endsIn: 29 * DAY, renews: true };
+    const soonDay = new Date(Date.now() + 2 * DAY).toISOString().slice(0, 10);
+    await scene('04-popup-pro-sealed', { lang: 'zh_CN', rankExpiry: { claude: soonDay } }, usageBody({ session: 12, weekly: 40, sessionIn: null, cloud: { limit: 100, used: 0, expiresIn: 2 * DAY }, extra: { enabled: false, used: 0, limit: null } }), 'pro');
 
     await check('scene 08-popup-signed-out', async () => {
       await app.storage.set({ 'snapshot:claude': { provider: 'claude', status: 'signed_out', meters: [], wallets: [], plan: null, fetchedAt: null, attemptedAt: Date.now() } });
