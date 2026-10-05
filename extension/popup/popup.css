@@ -1,0 +1,183 @@
+@font-face {
+  font-family: 'WAM Guild Pixel';
+  src: url('../assets/fonts/guild-pixel-12.woff2') format('woff2');
+  font-display: block;
+}
+
+html {
+  background: #2b1a0d;
+}
+
+body {
+  width: 304px;
+  margin: 0;
+  padding: 4px;
+}
+
+.guild {
+  padding: 9px 12px 10px;
+}
+
+.guild-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 16px;
+}
+
+.guild-head svg {
+  flex: none;
+}
+
+.guild-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guild-cmds {
+  display: flex;
+  gap: 4px;
+}
+
+.guild .card + .card {
+  margin-top: 6px;
+  padding-top: 12px;
+  background: repeating-linear-gradient(90deg, var(--frame-2) 0 2px, transparent 2px 4px) top / 100% 1px no-repeat;
+}
+
+/* ------------------------------------------------------------ settings */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: start;
+  column-gap: 8px;
+}
+
+.set-label {
+  color: var(--ink-2);
+  line-height: 18px;
+}
+
+.set-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.set-note {
+  margin: 0;
+  color: var(--ink-3);
+}
+
+/* Select with a notched ink frame and a pixel arrow. */
+.pix-select {
+  position: relative;
+  display: inline-block;
+  margin: 1px;
+  background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--ink),
+    0 1px 0 0 var(--ink),
+    -1px 0 0 0 var(--ink),
+    1px 0 0 0 var(--ink);
+}
+
+.pix-select select {
+  appearance: none;
+  display: block;
+  height: 16px;
+  margin: 0;
+  padding: 0 18px 0 5px;
+  border: 0;
+  font: inherit;
+  line-height: 16px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.pix-select select:focus-visible {
+  outline: 1px dotted var(--seal);
+  outline-offset: 2px;
+}
+
+.pix-select::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 6px;
+  width: 1px;
+  height: 1px;
+  color: var(--ink);
+  background: currentColor;
+  box-shadow:
+    1px 0, 2px 0, 3px 0, 4px 0,
+    1px 1px, 2px 1px, 3px 1px,
+    2px 2px;
+  pointer-events: none;
+}
+
+/* Checkbox drawn as a 10px pixel box with a pixel tick. */
+.pix-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.pix-check input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.pix-check .box {
+  position: relative;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 1px;
+  background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--ink),
+    0 1px 0 0 var(--ink),
+    -1px 0 0 0 var(--ink),
+    1px 0 0 0 var(--ink);
+}
+
+/* Two-pixel tick; the pseudo-element is its top-right pixel at (7, 2). */
+.pix-check input:checked + .box::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 2px;
+  width: 1px;
+  height: 1px;
+  color: var(--seal);
+  background: currentColor;
+  box-shadow:
+    1px 0,
+    -1px 1px, 0 1px,
+    -6px 2px, -5px 2px, -2px 2px, -1px 2px,
+    -5px 3px, -4px 3px, -3px 3px, -2px 3px,
+    -4px 4px, -3px 4px;
+}
+
+.pix-check input:focus-visible + .box {
+  outline: 1px dotted var(--seal);
+  outline-offset: 3px;
+}

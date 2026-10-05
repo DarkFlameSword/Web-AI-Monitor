@@ -1,0 +1,136 @@
+/* The page HUD, on top of ui/theme.css, inside a closed shadow root. */
+
+:host {
+  all: initial;
+}
+
+.hud {
+  position: relative;
+}
+
+.hud-sheet {
+  width: 204px;
+  padding: 6px 8px 8px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  opacity: 0.96;
+}
+
+.hud-sheet:hover,
+.hud.dragging .hud-sheet {
+  opacity: 1;
+}
+
+.hud.dragging .hud-sheet,
+.hud.dragging .hud-chip {
+  cursor: grabbing;
+}
+
+.hud .card + .card {
+  margin-top: 6px;
+  padding-top: 6px;
+  background: repeating-linear-gradient(90deg, var(--frame-2) 0 2px, transparent 2px 4px) top / 100% 1px no-repeat;
+}
+
+/* Leave room for the collapse button on the first name line. */
+.hud .card:first-child .member {
+  padding-right: 18px;
+}
+
+.hud .seal {
+  min-width: 12px;
+  height: 12px;
+  line-height: 12px;
+  padding: 0 1px;
+}
+
+.hud-btn {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  line-height: 12px;
+  text-align: center;
+  color: var(--ink-2);
+  background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--frame-2),
+    0 1px 0 0 var(--frame-2),
+    -1px 0 0 0 var(--frame-2),
+    1px 0 0 0 var(--frame-2);
+  cursor: pointer;
+}
+
+.hud-btn:hover,
+.hud-btn:focus-visible {
+  color: var(--paper);
+  background: var(--frame);
+  outline: none;
+}
+
+/* Collapsed: a small tab with three mini gauges. */
+.hud-chip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 30px;
+  height: 22px;
+  padding: 0 5px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.hud-chip:focus-visible {
+  outline: 1px dotted var(--seal);
+  outline-offset: 3px;
+}
+
+.hud-chip .mini {
+  position: relative;
+  display: block;
+  height: 3px;
+  background: var(--paper-3);
+}
+
+.hud-chip .mini > b {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  background: var(--c, var(--ex));
+}
+
+.hud-chip .mini.role-mp {
+  --c: var(--mp);
+}
+
+.hud-chip .mini.role-hp {
+  --c: var(--hp);
+}
+
+.hud-chip .mini.role-hp.level-low {
+  --c: var(--hp-low);
+}
+
+.hud-chip .mini.role-hp.level-critical {
+  --c: var(--hp-crit);
+}
+
+.hud-chip .mini.role-sp {
+  --c: var(--sp);
+}
+
+@media print {
+  .hud {
+    display: none;
+  }
+}

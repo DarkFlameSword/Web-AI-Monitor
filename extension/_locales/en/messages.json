@@ -1,0 +1,12 @@
+{
+  "extName": {
+    "message": "Web AI Monitor - Adventurer's Guild",
+    "description": "Extension name."
+  },
+  "extShortName": {
+    "message": "AI Guild"
+  },
+  "extDescription": {
+    "message": "Live AI usage limits and reset countdowns, drawn as a pixel-art isekai adventurer's guild card."
+  }
+}

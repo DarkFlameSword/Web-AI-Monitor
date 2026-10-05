@@ -1,0 +1,12 @@
+{
+  "extName": {
+    "message": "Web AI Monitor - 冒险者公会",
+    "description": "Extension name."
+  },
+  "extShortName": {
+    "message": "AI 公会"
+  },
+  "extDescription": {
+    "message": "以像素风的异世界冒险者公会卡，在网页上实时显示 AI 用量（魔力 / 体力 / 奥义）和恢复倒计时。"
+  }
+}

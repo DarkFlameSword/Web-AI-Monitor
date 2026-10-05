@@ -1,0 +1,418 @@
+/*
+ * Adventurer's guild card: parchment, dark-brown ink, 1:1 pixel art.
+ * Shared by the popup and the page HUD (inside a shadow root). One art pixel
+ * is one CSS pixel; the font is a 12px bitmap face, so sizes stay multiples
+ * of it. Frames are drawn with offset box-shadows, which leaves the corners
+ * notched like a pixel window.
+ */
+
+.wam {
+  --paper: #f2e3c4;
+  --paper-2: #ead6ad;
+  --paper-3: #dcc493;
+  --frame: #5b3a1e;
+  --frame-2: #a27c4f;
+  --ink: #3b2412;
+  --ink-2: #74553a;
+  --ink-3: #a68862;
+  --seal: #9e2b25;
+  --seal-ink: #f7ead0;
+  --lag: #fff4d6;
+
+  --mp: #3a6ea5;
+  --mp-hi: #79a7dc;
+  --mp-lo: #244a77;
+  --hp: #4e8f3a;
+  --hp-hi: #84bf63;
+  --hp-lo: #315c24;
+  --hp-low: #c9961e;
+  --hp-low-hi: #ebc456;
+  --hp-low-lo: #8a6410;
+  --hp-crit: #b23a2b;
+  --hp-crit-hi: #dc6a58;
+  --hp-crit-lo: #74200f;
+  --sp: #d98e1f;
+  --sp-hi: #f6c35a;
+  --sp-lo: #96590c;
+  --ex: #8c7b63;
+  --ex-hi: #b4a387;
+  --ex-lo: #5f523f;
+
+  color: var(--ink);
+  font-family: 'WAM Guild Pixel', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 16px;
+  font-synthesis: none;
+  -webkit-font-smoothing: none;
+  text-rendering: optimizeSpeed;
+  letter-spacing: 0;
+}
+
+.wam *,
+.wam *::before,
+.wam *::after {
+  box-sizing: border-box;
+}
+
+.wam [hidden] {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------- card */
+
+.wam .sheet {
+  position: relative;
+  margin: 2px;
+  background: var(--paper);
+  box-shadow:
+    0 -2px 0 0 var(--frame),
+    0 2px 0 0 var(--frame),
+    -2px 0 0 0 var(--frame),
+    2px 0 0 0 var(--frame);
+}
+
+/* A thin inner rule, like the printed border of a registration card. */
+.wam .sheet::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  pointer-events: none;
+  box-shadow:
+    0 -1px 0 0 var(--frame-2),
+    0 1px 0 0 var(--frame-2),
+    -1px 0 0 0 var(--frame-2),
+    1px 0 0 0 var(--frame-2);
+}
+
+.wam .rule {
+  height: 1px;
+  margin: 6px 0;
+  background: repeating-linear-gradient(90deg, var(--frame-2) 0 2px, transparent 2px 4px);
+}
+
+.wam .member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 16px;
+}
+
+.wam .m-name {
+  color: var(--ink);
+}
+
+.wam .m-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+
+/* Rank as a small wax seal. */
+.wam .seal {
+  display: inline-block;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--seal-ink);
+  background: var(--seal);
+  box-shadow:
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
+}
+
+.wam .notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 8px;
+  padding: 4px 6px;
+  color: var(--ink-2);
+  background: var(--paper-2);
+}
+
+.wam .notice[data-tone='warn'] {
+  color: var(--seal);
+}
+
+.wam .gauges {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.wam .card.stale .gauges {
+  opacity: 0.55;
+}
+
+.wam .card-foot {
+  margin-top: 10px;
+  color: var(--ink-3);
+}
+
+/* -------------------------------------------------------------- gauges */
+
+.wam .gauge {
+  --c: var(--ex);
+  --c-hi: var(--ex-hi);
+  --c-lo: var(--ex-lo);
+  min-width: 0;
+}
+
+.wam .gauge.role-mp {
+  --c: var(--mp);
+  --c-hi: var(--mp-hi);
+  --c-lo: var(--mp-lo);
+}
+
+.wam .gauge.role-hp {
+  --c: var(--hp);
+  --c-hi: var(--hp-hi);
+  --c-lo: var(--hp-lo);
+}
+
+.wam .gauge.role-hp.level-low {
+  --c: var(--hp-low);
+  --c-hi: var(--hp-low-hi);
+  --c-lo: var(--hp-low-lo);
+}
+
+.wam .gauge.role-hp.level-critical,
+.wam .gauge.role-hp.level-empty {
+  --c: var(--hp-crit);
+  --c-hi: var(--hp-crit-hi);
+  --c-lo: var(--hp-crit-lo);
+}
+
+.wam .gauge.role-sp {
+  --c: var(--sp);
+  --c-hi: var(--sp-hi);
+  --c-lo: var(--sp-lo);
+}
+
+.wam .g-abbr {
+  color: var(--c);
+}
+
+.wam .g-val small {
+  font-size: inherit;
+  color: var(--ink-3);
+}
+
+.wam .gauge.level-critical .g-val,
+.wam .gauge.level-empty .g-val {
+  color: var(--hp-crit);
+}
+
+.wam .gauge.ready .g-time {
+  color: var(--sp-lo);
+}
+
+.wam .gauge.state-sealed .g-val,
+.wam .gauge.state-sealed .g-abbr,
+.wam .gauge.state-missing .g-abbr {
+  color: var(--ink-3);
+}
+
+/* The bar: a 1px ink frame with notched corners around the pool. */
+.wam .bar {
+  position: relative;
+  display: block;
+  height: 8px;
+  margin: 1px;
+  background: var(--paper-3);
+  box-shadow:
+    0 -1px 0 0 var(--ink),
+    0 1px 0 0 var(--ink),
+    -1px 0 0 0 var(--ink),
+    1px 0 0 0 var(--ink);
+  overflow: hidden;
+}
+
+.wam .bar > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+}
+
+.wam .bar > .lag {
+  background: var(--lag);
+  transition: width 560ms steps(8, end) 380ms;
+}
+
+.wam .bar > .fill {
+  background: var(--c);
+  box-shadow:
+    inset 0 1px 0 0 var(--c-hi),
+    inset 0 -1px 0 0 var(--c-lo);
+  transition: width 640ms steps(10, end);
+}
+
+/* Sealed: the pool is chained shut. */
+.wam .gauge.state-sealed .bar {
+  background: repeating-linear-gradient(135deg, var(--paper-3) 0 3px, var(--paper-2) 3px 6px);
+}
+
+/* A full ultimate gauge glints now and then. */
+.wam .gauge.ready .bar > .fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 3px;
+  background: var(--lag);
+  opacity: 0.8;
+  animation: wam-glint 4.2s steps(28, end) infinite;
+}
+
+@keyframes wam-glint {
+  0% {
+    left: -6px;
+  }
+  45%,
+  100% {
+    left: calc(100% + 6px);
+  }
+}
+
+/* Popup form: name / bar / meaning + countdown. */
+.wam .g-top,
+.wam .g-bot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wam .g-top {
+  margin-bottom: 3px;
+}
+
+.wam .g-top .g-abbr {
+  flex: none;
+  width: 18px;
+}
+
+.wam .g-top .g-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.wam .g-bot {
+  margin-top: 3px;
+  color: var(--ink-2);
+}
+
+.wam .g-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.wam .g-time {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Compact HUD form: one line per gauge. */
+.wam .compact .gauges {
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.wam .compact .gauge {
+  display: grid;
+  grid-template-columns: 16px 1fr 20px 50px;
+  align-items: center;
+  column-gap: 5px;
+  height: 16px;
+}
+
+.wam .compact .bar {
+  height: 4px;
+}
+
+.wam .compact .g-val {
+  text-align: right;
+}
+
+.wam .compact .g-time {
+  color: var(--ink-2);
+  text-align: right;
+}
+
+.wam .compact .notice {
+  margin-top: 4px;
+  padding: 2px 4px;
+}
+
+/* ------------------------------------------------------------ commands */
+
+/* Text commands with a pixel pointer, like an RPG menu. */
+.wam .cmd {
+  position: relative;
+  padding: 0 0 0 8px;
+  border: 0;
+  font: inherit;
+  line-height: 16px;
+  color: var(--ink-2);
+  background: none;
+  cursor: pointer;
+}
+
+.wam .cmd::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  width: 1px;
+  height: 1px;
+  color: var(--seal);
+  visibility: hidden;
+  box-shadow:
+    0 1px, 0 2px, 0 3px, 0 4px, 0 5px, 0 6px,
+    1px 1px, 1px 2px, 1px 3px, 1px 4px, 1px 5px,
+    2px 2px, 2px 3px, 2px 4px,
+    3px 3px;
+  background: currentColor;
+}
+
+.wam .cmd:hover,
+.wam .cmd:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+
+.wam .cmd:hover::before,
+.wam .cmd:focus-visible::before {
+  visibility: visible;
+}
+
+.wam .cmd:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.wam .cmd:disabled::before {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wam *,
+  .wam *::before,
+  .wam *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

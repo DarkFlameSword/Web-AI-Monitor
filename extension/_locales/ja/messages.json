@@ -1,0 +1,12 @@
+{
+  "extName": {
+    "message": "Web AI Monitor - 冒険者ギルド",
+    "description": "Extension name."
+  },
+  "extShortName": {
+    "message": "AI ギルド"
+  },
+  "extDescription": {
+    "message": "異世界の冒険者ギルドカード風ピクセル UI で、AI の使用量（魔力 / 体力 / 奥義）と回復までの時間をリアルタイム表示します。"
+  }
+}
