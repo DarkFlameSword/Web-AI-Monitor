@@ -54,8 +54,9 @@ function encodePng(size, rgba) {
 const LEVELS = { mp: 70, hp: 90, sp: 100 };
 
 for (const size of [16, 32, 48, 128]) {
-  // 128 keeps a margin around a 112px drawing, as store icons expect.
-  const pixels = size === 128 ? pad(iconPixels(LEVELS, 112), 112, 128) : iconPixels(LEVELS, size);
+  // 128 is also the store icon: a 96px drawing (6x the 16px design) inside
+  // 16px of transparent padding, as the Chrome Web Store asks.
+  const pixels = size === 128 ? pad(iconPixels(LEVELS, 96), 96, 128) : iconPixels(LEVELS, size);
   const file = join(outDir, `icon-${size}.png`);
   writeFileSync(file, encodePng(size, pixels));
   console.log(`wrote ${file}`);

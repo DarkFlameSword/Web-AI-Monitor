@@ -1,6 +1,15 @@
+import { WELCOME_PATH, hasConsent } from '../core/consent.js';
 import { HttpError, isAuthError } from '../core/http.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, activeProvider, enabledProviders, isProviderEnabled, loadSettings, updateSettings } from '../core/settings.js';
+import {
+  SETTINGS_KEY,
+  activeProvider,
+  enabledProviders,
+  isProviderEnabled,
+  loadSettings,
+  normalizeSettings,
+  updateSettings,
+} from '../core/settings.js';
 import { providerIdOfKey, readSnapshot, writeSnapshot } from '../core/store.js';
 import { PROVIDERS, getProvider, originPattern } from '../providers/index.js';
 import { paintAction, paintIdle } from './action-icon.js';
@@ -12,6 +21,7 @@ import { fetchUsage } from './transport.js';
  * The only writer of usage snapshots. It refreshes on a timer, right after a
  * reply finishes on a vendor's site, the moment a limit window resets, and
  * when the popup or a page HUD asks. Everything else reads chrome.storage.
+ * Nothing is fetched until the user agrees to the data use notice.
  */
 
 const POLL_ALARM = 'wam:poll';
@@ -48,8 +58,8 @@ function translatorFor(provider, settings) {
 
 async function runRefresh(provider, reason) {
   const [previous, settings] = await Promise.all([readSnapshot(provider.id), loadSettings()]);
-  // Switched off in settings: leave it alone.
-  if (!isProviderEnabled(provider, settings)) return previous;
+  // Switched off in settings, or the data use notice not agreed: leave it alone.
+  if (!isProviderEnabled(provider, settings) || !hasConsent(settings)) return previous;
   const now = Date.now();
   // Before refetching: did a used window just end?
   await notifyRecoveries(provider, previous, settings, translatorFor(provider, settings), now)
@@ -121,8 +131,9 @@ function repaint() {
   paintQueue = paintQueue.then(async () => {
     const settings = await loadSettings();
     const provider = activeProvider(enabledProviders(PROVIDERS, settings), settings);
-    if (!provider) {
-      await paintIdle(createTranslator(resolveLang(settings.lang, browserLanguage())));
+    if (!provider || !hasConsent(settings)) {
+      const t = createTranslator(resolveLang(settings.lang, browserLanguage()));
+      await paintIdle(t, hasConsent(settings) ? 'popup.noProviders' : 'consent.toolbar');
       await chrome.alarms.clear(BADGE_ALARM);
       return;
     }
@@ -167,7 +178,17 @@ function setUp(reason) {
 
 listenForClicks();
 
-chrome.runtime.onInstalled.addListener(() => setUp('install'));
+/** The data use notice opens in a tab on install, and after an update while it is not agreed. */
+async function welcome(reason) {
+  if (reason !== 'install' && reason !== 'update') return;
+  if (hasConsent(await loadSettings())) return;
+  await chrome.tabs.create({ url: chrome.runtime.getURL(WELCOME_PATH) });
+}
+
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  setUp('install');
+  welcome(reason).catch(error => console.warn('[Web AI Monitor] welcome page failed:', error));
+});
 chrome.runtime.onStartup.addListener(() => setUp('startup'));
 
 chrome.permissions.onAdded.addListener(async ({ permissions = [], origins = [] }) => {
@@ -218,6 +239,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  if (changes[SETTINGS_KEY]) ensurePollAlarm();
+  if (changes[SETTINGS_KEY]) {
+    ensurePollAlarm();
+    // Just agreed to the data use notice: the first fetch.
+    const { oldValue, newValue } = changes[SETTINGS_KEY];
+    if (!hasConsent(normalizeSettings(oldValue)) && hasConsent(normalizeSettings(newValue))) refreshAll('install');
+  }
   if (changes[SETTINGS_KEY] || Object.keys(changes).some(key => providerIdOfKey(key))) repaint();
 });

@@ -1,4 +1,5 @@
 import { ALL_SITES } from '../background/page-hud.js';
+import { PRIVACY_POLICY_URL, WELCOME_PATH, giveConsent, hasConsent, withdrawConsent } from '../core/consent.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
 import { LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
 import {
@@ -15,6 +16,7 @@ import { providerIdOfKey, readSnapshots } from '../core/store.js';
 import { formatDate } from '../core/time.js';
 import { PROVIDERS, originPattern } from '../providers/index.js';
 import { ProviderCard } from '../ui/card.js';
+import { consentNotice } from '../ui/consent.js';
 import { CREST, CREST_PALETTE, h, pixelArt } from '../ui/dom.js';
 import { pixelDate, pixelSelect } from './controls.js';
 
@@ -56,6 +58,7 @@ const tabs = h(doc, 'nav', { class: 'vendor-tabs', role: 'tablist' });
 const statusView = h(doc, 'div', { class: 'status-view' });
 const nothingMonitored = h(doc, 'div', { class: 'notice', role: 'status' });
 const settingsView = h(doc, 'div', { class: 'settings' });
+const consentView = h(doc, 'div', { class: 'consent-view' });
 
 app.append(
   h(doc, 'header', { class: 'guild-head' }, [
@@ -64,6 +67,7 @@ app.append(
     h(doc, 'nav', { class: 'guild-cmds' }, [refreshCmd, settingsCmd]),
   ]),
   h(doc, 'div', { class: 'rule' }),
+  consentView,
   tabs,
   statusView,
   settingsView,
@@ -117,6 +121,8 @@ const langSelect = pixelSelect(doc, { onChange: value => updateSettings(draft =>
 
 const providerChecks = PROVIDERS.map(provider => ({
   provider,
+  // What switching it on reads, said before Chrome asks for the site.
+  hint: provider.optionalPermission ? h(doc, 'span', { class: 'set-hint wrap' }) : null,
   check: checkbox(checked => {
     if (checked && provider.optionalPermission) {
       // Asking for the vendor's site must start inside the click. Once it is
@@ -176,6 +182,7 @@ const hudEverywhere = checkbox(checked => {
     chrome.permissions.remove({ origins: [...ALL_SITES] }).finally(refreshPermissions);
   }
 });
+const hudEverywhereHint = h(doc, 'span', { class: 'set-hint wrap' });
 const notifyRecovered = checkbox(checked => {
   if (checked) {
     chrome.permissions.request({ permissions: ['notifications'] })
@@ -195,17 +202,40 @@ const labels = {
   size: h(doc, 'span', { class: 'set-sub' }),
   notify: h(doc, 'span', { class: 'set-label' }),
   poll: h(doc, 'span', { class: 'set-label' }),
+  data: h(doc, 'span', { class: 'set-label' }),
 };
 const privacyNote = h(doc, 'p', { class: 'set-note' });
+
+/** The data use notice again, the privacy policy, and taking consent back. */
+function openPage(url) {
+  chrome.tabs.create({ url });
+  window.close();
+}
+const dataCmds = {
+  details: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => openPage(chrome.runtime.getURL(WELCOME_PATH)) }),
+  policy: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => openPage(PRIVACY_POLICY_URL) }),
+  withdraw: h(doc, 'button', {
+    class: 'cmd',
+    type: 'button',
+    onclick: () => withdrawConsent().then(next => {
+      state.settings = next;
+      state.snapshots = {};
+      state.view = 'status';
+      render();
+    }),
+  }),
+};
+const withdrawHint = h(doc, 'span', { class: 'set-hint wrap' });
 const row = (label, controls) => h(doc, 'div', { class: 'set-row' }, [label, h(doc, 'div', { class: 'set-col' }, controls)]);
 
 settingsView.append(
   row(labels.lang, langSelect.el),
-  row(labels.providers, [...providerChecks.map(item => item.check.wrap), providersMore]),
+  row(labels.providers, [...providerChecks.flatMap(item => [item.check.wrap, item.hint]), providersMore]),
   row(labels.expiry, [...expiryFields.map(item => item.wrap), expiryHint]),
-  row(labels.hud, [hudShow.wrap, hudEverywhere.wrap, h(doc, 'div', { class: 'set-inline' }, [labels.size, sizeSlider.wrap])]),
+  row(labels.hud, [hudShow.wrap, hudEverywhere.wrap, hudEverywhereHint, h(doc, 'div', { class: 'set-inline' }, [labels.size, sizeSlider.wrap])]),
   row(labels.notify, notifyRecovered.wrap),
   row(labels.poll, pollSlider.wrap),
+  row(labels.data, [dataCmds.details, dataCmds.policy, dataCmds.withdraw, withdrawHint]),
   h(doc, 'div', { class: 'rule' }),
   privacyNote,
 );
@@ -219,6 +249,12 @@ function renderSettings() {
   labels.size.textContent = t('settings.hudSize');
   labels.notify.textContent = t('settings.notify');
   labels.poll.textContent = t('settings.poll');
+  labels.data.textContent = t('settings.data');
+  dataCmds.details.textContent = t('consent.details');
+  dataCmds.policy.textContent = t('consent.policy');
+  dataCmds.withdraw.textContent = t('consent.withdraw');
+  withdrawHint.textContent = t('consent.withdrawHint');
+  hudEverywhereHint.textContent = t('settings.hudEverywhereHint');
   providersMore.textContent = t('settings.providersMore');
   expiryHint.textContent = t('settings.rankExpiryHint');
   privacyNote.textContent = t('settings.privacy');
@@ -231,10 +267,11 @@ function renderSettings() {
   langSelect.setLabel(t('settings.language'));
 
   const watching = monitored();
-  for (const { provider, check } of providerChecks) {
+  for (const { provider, check, hint } of providerChecks) {
     check.input.checked = watching.includes(provider);
     check.text.textContent = provider.name;
     check.extra.textContent = provider.optionalPermission && !check.input.checked ? t('settings.needsPermission') : '';
+    if (hint) hint.textContent = t('settings.vendorHint', { site: provider.site });
   }
   for (const { provider, picker, wrap } of expiryFields) {
     wrap.hidden = !watching.includes(provider);
@@ -273,7 +310,7 @@ function editExpiry(provider) {
 }
 
 function renderTabs(watching, active) {
-  tabs.hidden = watching.length < 2 || state.view !== 'status';
+  tabs.hidden = watching.length < 2 || state.view !== 'status' || !hasConsent(state.settings);
   tabs.setAttribute('aria-label', t('popup.tabs'));
   tabs.replaceChildren(...watching.map(provider => {
     const selected = provider === active;
@@ -325,13 +362,41 @@ function render() {
     doc.documentElement.lang = LANG_TAGS[lang];
   }
   title.textContent = t('guild.title');
+  const agreed = hasConsent(state.settings);
+  renderConsent(agreed, lang);
+  refreshCmd.hidden = !agreed;
+  settingsCmd.hidden = !agreed;
   refreshCmd.textContent = t('action.refresh');
   refreshCmd.disabled = state.refreshing;
   settingsCmd.textContent = t(state.view === 'settings' ? 'action.back' : 'action.settings');
-  statusView.hidden = state.view !== 'status';
-  settingsView.hidden = state.view !== 'settings';
+  statusView.hidden = !agreed || state.view !== 'status';
+  settingsView.hidden = !agreed || state.view !== 'settings';
   renderCards(Date.now());
   renderSettings();
+}
+
+/** Before the data use notice is agreed, the popup shows it in short, and nothing else. */
+let consentLang = null;
+function renderConsent(agreed, lang) {
+  consentView.hidden = agreed;
+  if (agreed || consentLang === lang) return;
+  consentLang = lang;
+  consentView.replaceChildren(
+    consentNotice(doc, t, { compact: true }),
+    h(doc, 'div', { class: 'consent-actions' }, [
+      h(doc, 'button', {
+        class: 'pix-btn',
+        type: 'button',
+        text: t('consent.agree'),
+        onclick: () => giveConsent().then(next => {
+          state.settings = next;
+          render();
+          requestRefresh('popup');
+        }),
+      }),
+      h(doc, 'button', { class: 'cmd', type: 'button', text: t('consent.details'), onclick: () => openPage(chrome.runtime.getURL(WELCOME_PATH)) }),
+    ]),
+  );
 }
 
 async function requestRefresh(reason) {
@@ -397,4 +462,4 @@ const [settings, snapshots, perms] = await Promise.all([
 ]);
 Object.assign(state, { settings, snapshots, perms });
 render();
-requestRefresh('popup');
+if (hasConsent(settings)) requestRefresh('popup');

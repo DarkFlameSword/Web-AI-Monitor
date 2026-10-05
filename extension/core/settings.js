@@ -34,6 +34,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
   hud: Object.freeze({ enabled: true, everywhere: false, collapsed: false, corner: 'br', x: 16, y: 16, scale: 1 }),
   /** Desktop notification when a used gauge is full again (needs the optional permission). */
   notify: Object.freeze({ recovered: false }),
+  /**
+   * The data use notice the user agreed to (core/consent.js), and when.
+   * Version 0: not agreed, so nothing is read.
+   */
+  consent: Object.freeze({ version: 0, at: null }),
 });
 
 function intIn(value, fallback, min, max) {
@@ -51,6 +56,7 @@ export function normalizeSettings(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const hud = src.hud && typeof src.hud === 'object' ? src.hud : {};
   const notify = src.notify && typeof src.notify === 'object' ? src.notify : {};
+  const consent = src.consent && typeof src.consent === 'object' ? src.consent : {};
   const defaults = DEFAULT_SETTINGS.hud;
   const bool = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
   return {
@@ -70,6 +76,10 @@ export function normalizeSettings(raw) {
       scale: scaleOf(hud.scale),
     },
     notify: { recovered: bool(notify.recovered, DEFAULT_SETTINGS.notify.recovered) },
+    consent: {
+      version: intIn(consent.version, 0, 0, 1_000_000),
+      at: Number.isFinite(consent.at) ? consent.at : null,
+    },
   };
 }
 

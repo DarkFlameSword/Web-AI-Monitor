@@ -73,6 +73,7 @@ An entry the account does not have is left out; when neither exists, the whole p
 
 ## Features
 
+- **Consent first**: at install it opens a "Guild registration" data use notice that says what it reads, what it never does and where data stays. Until you click "Agree and start", the extension sends no request and shows no HUD; the popup shows only a short notice and the agree button. "Data & privacy" in settings shows the notice again, opens the [privacy policy](PRIVACY.md), or withdraws consent (which stops reading and deletes the saved usage data).
 - **Popup**: the guild card (adventurer rank and its expiry), gauges with countdowns, the treasure pouch, "Updated Ns ago", and the settings page. When more than one vendor is monitored, vendor tabs (Claude / ChatGPT) appear at the top. The vendor you pick is saved in settings, and the page HUD and the toolbar icon switch with it.
 - **Settings**: the language dropdown and the date picker are custom pixel controls (a small parchment window, pixel arrows and pointer) and work from the keyboard: arrow keys and Enter in the dropdown; in the calendar, arrow keys move the day, PageUp / PageDown change the month, Delete clears, Esc closes.
 - **Page HUD**: by default it only appears on the sites of the vendors you monitor (claude.ai, plus chatgpt.com once that is on). It shows one vendor at a time: whichever vendor is picked in the popup, the HUD in every tab switches at once to that vendor's own panel (MP / HP / SP for Claude, only MP / HP for ChatGPT, and the same for the collapsed tab). Ticking "On every site (asks permission)" in settings is the only time the extension asks Chrome for access to all sites; once allowed, the HUD appears in the tabs already open, and unticking it gives the permission back. Its size is a slider in settings (100% - 200%; the pixels are sharpest at 100% and 200%). Drag it anywhere and it snaps to the nearest corner when released; collapse it into a 30x22 tab; it hides in full screen. It lives in a closed shadow DOM, so page styles do not touch it, and the pixel font works even on sites with a strict CSP.
@@ -93,7 +94,8 @@ An entry the account does not have is left out; when neither exists, the whole p
 2. Open `chrome://extensions` and turn on "Developer mode" (top right).
 3. Click "Load unpacked" and pick the repository's `extension/` folder.
 4. Make sure you are signed in to [claude.ai](https://claude.ai) in Chrome.
-5. claude.ai tabs that were open before the install need one reload before the HUD shows up. To show it on every site, tick "On every site" in the popup's settings.
+5. A data use notice opens after install; click "Agree and start" to begin.
+6. claude.ai tabs that were open before the install need one reload before the HUD shows up. To show it on every site, tick "On every site" in the popup's settings.
 
 There is no build step: `extension/` is everything Chrome loads.
 
@@ -107,6 +109,7 @@ There is no build step: `extension/` is everything Chrome loads.
   - `GET https://chatgpt.com/backend-api/wham/usage` (with `Authorization` and `ChatGPT-Account-Id`): `rate_limit.primary_window` / `secondary_window` (`used_percent`, `limit_window_seconds`, `reset_at` as epoch seconds), `additional_rate_limits[]`, `code_review_rate_limit`, `spend_control.individual_limit`, `credits` (`balance` is a string), `rate_limit_reset_credits.available_count`, `plan_type`.
 - The background service worker asks directly first. If that is blocked (for example, it gets a challenge page), it borrows an open tab of that vendor and asks same-origin as the page (each vendor allows only the paths listed above, read-only GET; ChatGPT allows only the two request headers above to be passed on).
 - Data is only kept locally in `chrome.storage.local` and is never sent to any third-party server.
+- None of this starts before you agree to the data use notice; see the [privacy policy](PRIVACY.md).
 
 ### Permissions
 
@@ -147,15 +150,18 @@ extension/
     i18n.js, messages.js      languages
     time.js                   countdowns and time formats
     settings.js, store.js     settings and snapshots (chrome.storage.local)
+    consent.js                consent to the data use notice: version, agree, withdraw (deletes usage data)
     http.js                   the minimal HTTP interface a provider sees
   ui/                         theme and components (shared by the popup and the HUD)
     theme.css                 the guild card pixel theme
     card.js                   vendor card / gauge components
     pixel-icon.js             the toolbar icon's pixel art
+    consent.js                the data use notice (in full on the welcome page, short in the popup)
   background/                 the only writer of data: polling, reset alarms, the tab proxy, the toolbar icon,
                               recovery notifications (notify.js), all-sites permission and script registration (page-hud.js)
   content/                    the HUD + vendor page hooks (reply finished, proxied requests)
   popup/                      the popup
+  welcome/                    the data use notice that opens at install
 ```
 
 Data flow:
@@ -213,10 +219,13 @@ npm run build:icons      # generates the 16/32/48/128 icons from ui/pixel-icon.j
 npm run build:font       # rebuilds the pixel font subset when UI text changes (needs pip install fonttools brotli)
 npm run preview          # loads the extension with Playwright against a mocked claude.ai, runs end-to-end checks,
                          # and saves screenshots to preview-out/
+npm run package          # checks the store's hard rules and writes dist/web-ai-monitor-<version>.zip
+npm run store:assets     # renders the store screenshots, promo tiles and store icon (docs/store/images/)
 ```
 
 `npm run preview` needs `npm install` and `npx playwright install chromium` first. It loads two copies of the extension in turn, the one as shipped (no optional permissions) and one with the optional permissions granted, and checks that:
 
+- a fresh install opens the data use notice; before agreeing, no request is sent (not even after a reply finishes), nothing is stored, no HUD shows and the popup shows only the short notice; agreeing fetches at once and shows the HUD; withdrawing deletes the usage data and hides the HUD, and agreeing again restores both;
 - by default the HUD appears on claude.ai only, not on other sites, and no script is registered;
 - when the direct background request is blocked, data comes through a claude.ai tab, with both pouch entries parsed correctly;
 - the gauges refresh after a reply finishes;
@@ -226,9 +235,13 @@ npm run preview          # loads the extension with Playwright against a mocked 
 - the pixel dropdown: arrow keys to choose, Enter to save, a click outside to close;
 - ChatGPT: once ticked, data comes through a chatgpt.com tab with the token, and its card only has MP / HP / EX, mana crystals and potions, with no ultimate, gold or emeralds;
 - picking a vendor tab in the popup switches the HUD on chatgpt.com and on ordinary pages, and the toolbar tooltip, to that vendor (the ChatGPT panel has no SP, collapsed or not), and picking Claude switches them all back;
-- the popup and its settings stay inside the card in Chinese, Japanese and English, with dates set and the calendar open;
+- the popup, its settings and the short notice before consent stay inside the card in Chinese, Japanese and English, with dates set and the calendar open;
 - the refresh interval slider (mouse wheel, arrow keys) goes from 1 to 30 minutes and the timer follows; the HUD at 200% is exactly twice the size;
 - switching Claude off shows a hint in the popup and hides the HUD, and switching it back on restores both.
+
+## Publishing to the Chrome Web Store
+
+[docs/store/README.md](docs/store/README.md) (in Chinese, with the English text to paste) walks through the developer dashboard: account setup, packaging, store images, the detailed description in each language, the single purpose and each permission's justification, the data usage answers, test instructions for reviewers, and the review risks with how the extension handles them. The privacy policy is [PRIVACY.md](PRIVACY.md).
 
 ## Font
 

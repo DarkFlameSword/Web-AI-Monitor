@@ -1,3 +1,4 @@
+import { hasConsent } from '../core/consent.js';
 import { buildGaugeViews, viewForRole } from '../core/gauges.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
 import {
@@ -108,26 +109,46 @@ function hookVendorPage() {
     return false;
   });
 
+  // The page's own request timings are only looked at once the data use
+  // notice is agreed, and no longer once it is withdrawn.
   let timer = 0;
-  try {
-    new PerformanceObserver(list => {
-      const spent = list.getEntries().some(entry => {
-        let url;
-        try {
-          url = new URL(entry.name);
-        } catch {
-          return false;
-        }
-        return url.origin === location.origin && providers.some(p => p.isActivity(url.pathname, entry.duration));
+  let observer = null;
+  const follow = settings => {
+    if (hasConsent(settings) && !observer) observer = observeActivity();
+    else if (!hasConsent(settings) && observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  };
+  loadSettings().then(follow);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[SETTINGS_KEY]) follow(normalizeSettings(changes[SETTINGS_KEY].newValue));
+  });
+
+  function observeActivity() {
+    try {
+      const watcher = new PerformanceObserver(list => {
+        const spent = list.getEntries().some(entry => {
+          let url;
+          try {
+            url = new URL(entry.name);
+          } catch {
+            return false;
+          }
+          return url.origin === location.origin && providers.some(p => p.isActivity(url.pathname, entry.duration));
+        });
+        if (!spent) return;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          send({ type: 'wam:refresh', reason: 'activity', providerIds: providers.map(p => p.id) });
+        }, ACTIVITY_SETTLE_MS);
       });
-      if (!spent) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        send({ type: 'wam:refresh', reason: 'activity', providerIds: providers.map(p => p.id) });
-      }, ACTIVITY_SETTLE_MS);
-    }).observe({ type: 'resource', buffered: false });
-  } catch {
-    // No resource timing here; the background poll still runs.
+      watcher.observe({ type: 'resource', buffered: false });
+      return watcher;
+    } catch {
+      // No resource timing here; the background poll still runs.
+      return null;
+    }
   }
 }
 
@@ -284,7 +305,8 @@ class Hud {
     const { hud } = this.settings;
     // Vendors' own sites always qualify; other sites only with "every site" on.
     const allowedHere = this.vendorPage || hud.everywhere;
-    return hud.enabled && allowedHere && this.providers().length > 0 && !document.fullscreenElement;
+    // Nothing shows before the data use notice is agreed.
+    return hasConsent(this.settings) && hud.enabled && allowedHere && this.providers().length > 0 && !document.fullscreenElement;
   }
 
   translatorFor(provider) {

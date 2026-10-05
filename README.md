@@ -71,6 +71,7 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 
 ## 功能一览
 
+- **先同意，再读取**：安装后会打开一页「冒险者登记」数据说明，写明会读取什么、不会做什么、数据存在哪里。点「同意并开始」之前，扩展不发任何请求、不显示悬浮窗；弹窗里也只显示简短说明和同意按钮。设置里的「数据与隐私」可以随时重新查看说明、打开[隐私政策](PRIVACY.md)，或撤回同意（撤回即停止读取并删除已保存的用量数据）。
 - **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT）。选中的厂商保存在设置里，页内悬浮窗和工具栏图标跟着切换。
 - **设置页**：语言下拉框和日期选择都是像素风的自制控件（羊皮纸小窗、像素箭头和指针），支持键盘：下拉框用上下键和回车，日历用方向键移动日期、PageUp / PageDown 翻月、Delete 清除、Esc 关闭。
 - **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com），一次只显示一家：弹窗里选中哪家，所有标签页里的悬浮窗就立即换成那家自己的面板（Claude 是 MP / HP / SP，ChatGPT 只有 MP / HP，收起后的小标签也一样）；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
@@ -91,7 +92,8 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 2. 打开 `chrome://extensions`，打开右上角「开发者模式」。
 3. 点「加载未打包的扩展程序」，选择仓库里的 `extension/` 目录。
 4. 确保已在 Chrome 里登录 [claude.ai](https://claude.ai)。
-5. 安装前已打开的 claude.ai 标签页需要刷新一次才会出现悬浮窗。想在所有网页上显示，到弹窗的设置里勾选「所有网页都显示」。
+5. 安装后会打开数据说明页，点「同意并开始」后开始读取用量。
+6. 安装前已打开的 claude.ai 标签页需要刷新一次才会出现悬浮窗。想在所有网页上显示，到弹窗的设置里勾选「所有网页都显示」。
 
 不需要构建步骤，`extension/` 就是 Chrome 加载的全部内容。
 
@@ -105,6 +107,7 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
   - `GET https://chatgpt.com/backend-api/wham/usage`（带 `Authorization` 和 `ChatGPT-Account-Id`）：`rate_limit.primary_window` / `secondary_window`（`used_percent`、`limit_window_seconds`、`reset_at` 秒级时间戳）、`additional_rate_limits[]`、`code_review_rate_limit`、`spend_control.individual_limit`、`credits`（`balance` 是字符串）、`rate_limit_reset_credits.available_count`、`plan_type`。
 - 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的该厂商标签页，以页面身份同源请求（每家只允许上面列出的路径，只读 GET；ChatGPT 只允许转发上面两个请求头）。
 - 数据只保存在本机的 `chrome.storage.local`，不发送到任何第三方服务器。
+- 以上读取都在你同意数据说明之后才开始；完整说明见[隐私政策](PRIVACY.md)。
 
 ### 权限说明
 
@@ -144,15 +147,18 @@ extension/
     i18n.js, messages.js      多语言
     time.js                   倒计时与时间格式
     settings.js, store.js     设置与快照（chrome.storage.local）
+    consent.js                数据说明的同意状态：版本号、同意、撤回（撤回时删除用量数据）
     http.js                   provider 看到的最小 HTTP 接口
   ui/                         主题与组件（弹窗和悬浮窗共用）
     theme.css                 公会卡像素主题
     card.js                   厂商卡片 / 能量条组件
     pixel-icon.js             工具栏图标的像素画
+    consent.js                数据说明（数据说明页的完整版和弹窗里的简短版）
   background/                 唯一的数据写入者：轮询、重置闹钟、标签页代理、工具栏图标、
                               恢复通知（notify.js）、所有网站权限与脚本注册（page-hud.js）
   content/                    悬浮窗 + 厂商页面钩子（回复结束、代理请求）
   popup/                      弹窗
+  welcome/                    安装时打开的数据说明页
 ```
 
 数据流：
@@ -209,10 +215,13 @@ npm test                 # 单元测试：解析、模板映射、宝物袋、�
 npm run build:icons      # 由 ui/pixel-icon.js 生成 16/32/48/128 图标
 npm run build:font       # 界面文字有变动时重新生成像素字体子集（需要 pip install fonttools brotli）
 npm run preview          # 用 Playwright 加载扩展、模拟 claude.ai，跑端到端检查并截图到 preview-out/
+npm run package          # 检查商店的硬性要求，打包成 dist/web-ai-monitor-<版本>.zip
+npm run store:assets     # 生成商店截图、宣传图和商店图标（docs/store/images/）
 ```
 
 `npm run preview` 需要先 `npm install` 和 `npx playwright install chromium`。它会依次加载两份扩展：原样的（没有任何可选权限）和一份把可选权限设为已授予的副本，检查：
 
+- 首次安装打开数据说明页；同意前不发任何请求（回复结束也不会触发）、不保存数据、不显示悬浮窗，弹窗只显示简短说明；同意后立即取数并显示悬浮窗；撤回同意后删除用量数据、隐藏悬浮窗，再次同意后恢复；
 - 默认只在 claude.ai 上出现悬浮窗，其他网站没有，也没有注册任何脚本；
 - 后台直连被拦时能通过 claude.ai 标签页取数，宝物袋的两行都解析正确；
 - 回复结束后自动刷新；
@@ -222,9 +231,13 @@ npm run preview          # 用 Playwright 加载扩展、模拟 claude.ai，跑�
 - 像素下拉框：键盘上下选择、回车保存、点外面关闭；
 - ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；
 - 弹窗里点厂商标签后，chatgpt.com 和普通网页上的悬浮窗、工具栏提示都切到那一家（ChatGPT 面板没有 SP，收起后也没有 SP 条），再点回 Claude 时一起切回；
-- 中文、日文、英文三种语言下，填了日期、打开日历时，弹窗和设置页的内容都不超出卡片边框；
+- 中文、日文、英文三种语言下，填了日期、打开日历时，弹窗、设置页和同意前的简短说明都不超出卡片边框；
 - 刷新间隔滑块（滚轮、方向键）改到 1 - 30 分钟并同步到定时器；悬浮窗 200% 时正好放大一倍；
 - 关掉 Claude 的监控后弹窗提示、悬浮窗隐藏，重新打开后恢复。
+
+## 上架 Chrome 应用商店
+
+[docs/store/README.md](docs/store/README.md) 按开发者后台的顺序整理了上架需要的全部内容：账号准备、打包、商店素材、各语言的详细说明、单一用途和每个权限的理由、数据使用的勾选项、给审核员的测试说明，以及审核风险和对应措施。隐私政策在 [PRIVACY.md](PRIVACY.md)。
 
 ## 字体
 

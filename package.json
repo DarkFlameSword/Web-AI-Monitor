@@ -1,6 +1,6 @@
 {
   "name": "web-ai-monitor",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "description": "Chrome extension that shows AI usage limits as an isekai adventurer's guild card.",
   "type": "module",
@@ -8,7 +8,9 @@
     "test": "node --test \"test/*.test.mjs\"",
     "build:icons": "node scripts/build-icons.mjs",
     "build:font": "python3 scripts/build-font.py",
-    "preview": "node scripts/preview.mjs"
+    "preview": "node scripts/preview.mjs",
+    "package": "node scripts/package.mjs",
+    "store:assets": "node scripts/store-assets.mjs"
   },
   "engines": {
     "node": ">=22"

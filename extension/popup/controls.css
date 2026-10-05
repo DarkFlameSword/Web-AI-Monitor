@@ -1,0 +1,249 @@
+/*
+ * Pixel form controls (popup/controls.js): the dropdown and the calendar.
+ * Shared by the popup and the welcome page; needs ui/theme.css first.
+ */
+
+/* --------------------------------------------- pixel dropdown */
+
+.pix-dd {
+  position: relative;
+  display: inline-block;
+}
+
+.pix-dd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 112px;
+  height: 18px;
+  margin: 1px;
+  padding: 0 18px 0 6px;
+  border: 0;
+  font: inherit;
+  line-height: 18px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--ink),
+    0 1px 0 0 var(--ink),
+    -1px 0 0 0 var(--ink),
+    1px 0 0 0 var(--ink);
+  cursor: pointer;
+}
+
+.pix-dd-btn:hover {
+  background: var(--paper-3);
+}
+
+.pix-dd-btn:focus-visible {
+  outline: 1px dotted var(--seal);
+  outline-offset: 3px;
+}
+
+/* Pixel arrow pointing down. */
+.pix-dd-btn::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 9px;
+  width: 1px;
+  height: 1px;
+  color: var(--ink);
+  background: currentColor;
+  box-shadow:
+    1px 0, 2px 0, 3px 0, 4px 0,
+    1px 1px, 2px 1px, 3px 1px,
+    2px 2px;
+  pointer-events: none;
+}
+
+.pix-dd-btn[aria-expanded='true']::after {
+  transform: scaleY(-1);
+}
+
+/* The open list: a small parchment window with an offset pixel shadow. */
+.pix-menu,
+.pix-cal {
+  position: absolute;
+  z-index: 10;
+  left: 1px;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--paper);
+  box-shadow:
+    0 -1px 0 0 var(--ink),
+    0 1px 0 0 var(--ink),
+    -1px 0 0 0 var(--ink),
+    1px 0 0 0 var(--ink),
+    3px 3px 0 0 var(--paper-3);
+}
+
+.pix-menu {
+  min-width: calc(100% - 2px);
+}
+
+.pix-opt {
+  position: relative;
+  padding: 1px 10px 1px 14px;
+  white-space: nowrap;
+  color: var(--ink-2);
+  cursor: pointer;
+  outline: none;
+}
+
+.pix-opt[aria-selected='true'] {
+  color: var(--seal);
+}
+
+.pix-opt:focus {
+  color: var(--ink);
+  background: var(--paper-2);
+}
+
+/* Same pixel pointer as the menu commands. */
+.pix-opt:focus::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 1px;
+  height: 1px;
+  color: var(--seal);
+  background: currentColor;
+  box-shadow:
+    0 1px, 0 2px, 0 3px, 0 4px, 0 5px, 0 6px,
+    1px 1px, 1px 2px, 1px 3px, 1px 4px, 1px 5px,
+    2px 2px, 2px 3px, 2px 4px,
+    3px 3px;
+}
+
+/* --------------------------------------------- pixel calendar */
+
+.pix-date-btn {
+  min-width: 104px;
+  padding-right: 6px;
+  justify-content: space-between;
+}
+
+.pix-date-btn::after {
+  display: none;
+}
+
+.pix-date-btn.empty .pix-dd-text {
+  color: var(--ink-3);
+}
+
+.pix-date-btn svg {
+  flex: none;
+}
+
+.pix-cal {
+  left: auto;
+  right: 1px;
+  width: 172px;
+  padding: 6px 6px 4px;
+}
+
+.pix-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.pix-cal-nav {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+.pix-cal-nav:hover,
+.pix-cal-nav:focus-visible {
+  color: var(--seal);
+  outline: none;
+}
+
+/* Pixel triangles: right for next, mirrored for previous. */
+.pix-cal-nav::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  width: 1px;
+  height: 1px;
+  background: currentColor;
+  box-shadow:
+    0 1px, 0 2px, 0 3px, 0 4px, 0 5px, 0 6px,
+    1px 1px, 1px 2px, 1px 3px, 1px 4px, 1px 5px,
+    2px 2px, 2px 3px, 2px 4px,
+    3px 3px;
+}
+
+.pix-cal-nav.prev::before {
+  transform: scaleX(-1);
+}
+
+.pix-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 22px);
+  row-gap: 2px;
+  justify-content: center;
+}
+
+.pix-cal-wd {
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.pix-cal-day {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  line-height: 18px;
+  text-align: center;
+  color: var(--ink);
+  background: none;
+  cursor: pointer;
+}
+
+.pix-cal-day:hover {
+  background: var(--paper-2);
+}
+
+.pix-cal-day.today {
+  box-shadow:
+    inset 0 1px 0 0 var(--frame-2),
+    inset 0 -1px 0 0 var(--frame-2),
+    inset 1px 0 0 0 var(--frame-2),
+    inset -1px 0 0 0 var(--frame-2);
+}
+
+.pix-cal-day.selected {
+  color: var(--seal-ink);
+  background: var(--seal);
+}
+
+.pix-cal-day:focus-visible {
+  outline: 1px dotted var(--seal);
+  outline-offset: 1px;
+}
+
+.pix-cal-foot {
+  display: flex;
+  margin-top: 4px;
+}
+
+/* Clear on the left while a date is set; Today always on the right. */
+.pix-cal-today {
+  margin-left: auto;
+}

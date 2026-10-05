@@ -13,6 +13,7 @@ test('missing settings become the defaults', () => {
     rankExpiry: {},
     hud: { ...DEFAULT_SETTINGS.hud },
     notify: { recovered: false },
+    consent: { version: 0, at: null },
   });
   assert.equal(settings.hud.everywhere, false, 'every-site HUD waits for the permission');
   assert.equal(settings.hud.scale, 1);
@@ -28,6 +29,7 @@ test('bad values are replaced or clamped, good ones kept', () => {
     rankExpiry: { claude: '2026-11-03', other: '2026-02-30', third: 'soon' },
     hud: { enabled: false, everywhere: true, collapsed: 'yes', corner: 'middle', x: 12.6, y: -40, scale: 1.4 },
     notify: { recovered: 'sure' },
+    consent: { version: 1.6, at: 'yesterday' },
     hiddenHosts: ['example.com'],
   });
   assert.deepEqual(settings, {
@@ -38,6 +40,7 @@ test('bad values are replaced or clamped, good ones kept', () => {
     rankExpiry: { claude: '2026-11-03' },
     hud: { enabled: false, everywhere: true, collapsed: false, corner: 'br', x: 13, y: 0, scale: 1.5 },
     notify: { recovered: false },
+    consent: { version: 2, at: null },
   });
   assert.equal(normalizeSettings({ lang: 'fr' }).lang, 'auto');
   assert.equal(normalizeSettings({ activeProvider: '' }).activeProvider, null);

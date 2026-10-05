@@ -1,0 +1,79 @@
+@font-face {
+  font-family: 'WAM Guild Pixel';
+  src: url('../assets/fonts/guild-pixel-12.woff2') format('woff2');
+  font-display: block;
+}
+
+html {
+  background: #2b1a0d;
+}
+
+body {
+  margin: 0;
+  padding: 40px 16px;
+  background: #2b1a0d;
+}
+
+/* Outranks the card's own margin in theme.css, so the card is centred. */
+.wam .sheet.welcome {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 10px 16px 14px;
+}
+
+.welcome .guild-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.welcome .guild-head svg {
+  flex: none;
+}
+
+.welcome .guild-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Twice the pixel font's size, so it stays crisp. */
+.welcome-title {
+  margin: 10px 0 8px;
+  font: inherit;
+  font-size: 24px;
+  line-height: 32px;
+  color: var(--ink);
+}
+
+.welcome-note {
+  margin: 0 0 10px;
+  padding: 4px 6px;
+  color: var(--ink);
+  background: var(--paper-2);
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.welcome-status {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--ink);
+}
+
+.welcome-hint {
+  color: var(--ink-3);
+}
+
+.welcome-foot {
+  margin: 12px 0 0;
+}
+
+.welcome-foot a {
+  color: var(--seal);
+}

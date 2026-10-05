@@ -32,7 +32,7 @@ OUT_FILE = os.path.join(OUT_DIR, 'guild-pixel-12.woff2')
 
 PACKAGE = '@vp-tw/cjk-web-fonts-fusion-pixel-font@0.0.1'
 # Where UI text lives. _locales/ is shown by Chrome in its own font.
-SCAN_DIRS = ['core', 'providers', 'ui', 'popup', 'content']
+SCAN_DIRS = ['core', 'providers', 'ui', 'popup', 'content', 'welcome']
 SCAN_EXTENSIONS = ('.js', '.html', '.css')
 # Which language variant supplies a glyph when several have it.
 VARIANTS = ['zh_hans', 'ja', 'zh_hant', 'latin']

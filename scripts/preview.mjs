@@ -9,246 +9,49 @@
 //   granted  a copy whose optional permissions (every site, notifications)
 //            are granted at install, standing in for the user saying yes.
 import assert from 'node:assert/strict';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 
-import { chromium } from 'playwright';
+import {
+  DAY,
+  HOUR,
+  MIN,
+  ORG,
+  SEC,
+  extensionDir,
+  grantedBuild,
+  hudOn,
+  hudText,
+  launch,
+  overflowing,
+  root,
+  sleep,
+  usageBody,
+  waitFor,
+} from './harness.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const extensionDir = join(root, 'extension');
 const outDir = join(root, 'preview-out');
-
-const SEC = 1000;
-const MIN = 60 * SEC;
-const HOUR = 60 * MIN;
-const DAY = 24 * HOUR;
-const ORG = '7f0c2a52-3b1e-4c55-9d1a-6e2f8b0c4d11';
-
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-/** A usage response in claude.ai's current shape, with both kinds of credits. */
-function usageBody({
-  session, weekly, fable,
-  sessionIn = 2 * HOUR + 13 * MIN + 45 * SEC,
-  weeklyIn = 3 * DAY + 4 * HOUR + 12 * MIN,
-  cloud = { limit: 250, used: 62.5, expiresIn: 1 * DAY + 17 * HOUR + 45 * MIN },
-  extra = { enabled: true, used: 1240, limit: 5000 },
-}) {
-  const at = ms => (ms === null ? null : new Date(Date.now() + ms).toISOString());
-  const limits = [
-    { kind: 'session', group: 'session', percent: session, resets_at: at(sessionIn), scope: null },
-    { kind: 'weekly_all', group: 'weekly', percent: weekly, resets_at: at(weeklyIn), scope: null },
-  ];
-  if (fable !== undefined) {
-    limits.push({
-      kind: 'weekly_scoped',
-      group: 'weekly',
-      percent: fable,
-      resets_at: at(weeklyIn),
-      scope: { model: { display_name: 'Fable' }, surface: null },
-    });
-  }
-  return {
-    limits,
-    iguana_necktie: cloud && {
-      limit_dollars: cloud.limit,
-      used_dollars: cloud.used,
-      remaining_dollars: cloud.limit - cloud.used,
-      utilization: (cloud.used / cloud.limit) * 100,
-      resets_at: at(cloud.expiresIn),
-      locked_reason: null,
-    },
-    extra_usage: extra && {
-      is_enabled: extra.enabled,
-      monthly_limit: extra.limit,
-      used_credits: extra.used,
-      currency: 'USD',
-      decimal_places: 2,
-      spend_limit_reached: false,
-    },
-  };
-}
-
-/** A wham/usage response, as chatgpt.com answers it. */
-function chatgptUsage() {
-  const at = ms => Math.floor((Date.now() + ms) / 1000);
-  return {
-    plan_type: 'plus',
-    rate_limit: {
-      allowed: true,
-      limit_reached: false,
-      primary_window: { used_percent: 41, limit_window_seconds: 18000, reset_after_seconds: 7000, reset_at: at(1 * HOUR + 56 * MIN) },
-      secondary_window: { used_percent: 73, limit_window_seconds: 604800, reset_at: at(4 * DAY + 2 * HOUR) },
-    },
-    additional_rate_limits: [{
-      limit_name: 'GPT-5.3-Codex-Spark',
-      metered_feature: 'codex_spark',
-      rate_limit: { primary_window: { used_percent: 30, limit_window_seconds: 604800, reset_at: at(4 * DAY + 2 * HOUR) } },
-    }],
-    credits: { has_credits: true, unlimited: false, overage_limit_reached: false, balance: '1250' },
-    rate_limit_reset_credits: { available_count: 3 },
-    spend_control: null,
-  };
-}
-
-const ARTICLE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Field notes</title>
-<style>body{margin:0;font:16px/1.6 Georgia,serif;color:#222;background:#fafafa}
-main{max-width:640px;margin:48px auto;padding:0 24px}h1{font-size:32px;margin:0 0 16px}p{margin:0 0 16px;color:#444}</style>
-</head><body><main><h1>Field notes</h1>
-${'<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere erat a ante venenatis dapibus posuere velit aliquet. Donec ullamcorper nulla non metus auctor fringilla.</p>'.repeat(6)}
-</main></body></html>`;
-
-/** A copy of the extension whose optional permissions are granted on install. */
-function grantedBuild() {
-  const dir = mkdtempSync(join(tmpdir(), 'wam-granted-'));
-  cpSync(extensionDir, dir, { recursive: true });
-  const manifestPath = join(dir, 'manifest.json');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  manifest.host_permissions = [...manifest.host_permissions, ...manifest.optional_host_permissions];
-  manifest.permissions = [...manifest.permissions, ...manifest.optional_permissions];
-  delete manifest.optional_host_permissions;
-  delete manifest.optional_permissions;
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  return dir;
-}
-
-async function launch(extensionPath, mock) {
-  const profile = mkdtempSync(join(tmpdir(), 'wam-profile-'));
-  const context = await chromium.launchPersistentContext(profile, {
-    channel: 'chromium',
-    headless: true,
-    deviceScaleFactor: 2,
-    viewport: { width: 960, height: 600 },
-    args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
-  });
-
-  await context.route('https://claude.ai/**', async route => {
-    const request = route.request();
-    const { pathname } = new URL(request.url());
-    const fromWorker = Boolean(request.serviceWorker());
-    if (pathname.startsWith('/api/')) mock.counts[fromWorker ? 'worker' : 'page'] += 1;
-    // Pretend the worker route is stopped by a bot challenge, to exercise the tab fallback.
-    if (fromWorker) return route.fulfill({ status: 403, contentType: 'text/html', body: '<html>challenge</html>' });
-    if (pathname === '/api/organizations') {
-      return route.fulfill({ json: [{ uuid: ORG, name: 'Guild', capabilities: ['chat', 'claude_max'], rate_limit_tier: 'default_claude_max_20x' }] });
-    }
-    if (pathname === `/api/organizations/${ORG}/usage`) return route.fulfill({ json: mock.usage });
-    if (pathname.endsWith('/completion')) return route.fulfill({ contentType: 'text/event-stream', body: 'event: done\ndata: {}\n\n' });
-    return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'claude.ai (mock)') });
-  });
-  await context.route('https://chatgpt.com/**', async route => {
-    const request = route.request();
-    const { pathname } = new URL(request.url());
-    // Like claude.ai: the worker route is stopped, the page route works.
-    if (request.serviceWorker()) return route.fulfill({ status: 403, contentType: 'text/html', body: '<html>challenge</html>' });
-    if (pathname === '/api/auth/session') return route.fulfill({ json: { user: { id: 'u' }, accessToken: mock.chatgptToken } });
-    if (pathname === '/backend-api/wham/usage') {
-      mock.chatgptAuth = request.headers().authorization ?? null;
-      return route.fulfill({ json: chatgptUsage() });
-    }
-    if (pathname.includes('/conversation')) return route.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
-    return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'chatgpt.com (mock)') });
-  });
-  await context.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: ARTICLE }));
-  await context.route('https://strict.example.com/**', route => route.fulfill({
-    contentType: 'text/html',
-    headers: { 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; font-src 'none'; img-src 'none'" },
-    body: ARTICLE.replace('Field notes', 'Strict CSP page'),
-  }));
-
-  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
-  // The worker can be reported before its extension APIs are bound.
-  for (let i = 0; i < 40 && !(await worker.evaluate(() => typeof chrome?.storage?.local === 'object')); i += 1) await sleep(100);
-  const storage = {
-    get: async key => (await worker.evaluate(k => chrome.storage.local.get(k), key))[key],
-    set: data => worker.evaluate(d => chrome.storage.local.set(d), data),
-    clear: () => worker.evaluate(() => chrome.storage.local.clear()),
-  };
-  // Let the install-time refresh and permission sync finish.
-  for (let i = 0; i < 40 && !(await storage.get('snapshot:claude')); i += 1) await sleep(250);
-  await sleep(500);
-
-  const popupUrl = `chrome-extension://${new URL(worker.url()).host}/popup/popup.html`;
-  const openPopup = async () => {
-    const page = await context.newPage();
-    await page.setViewportSize({ width: 312, height: 760 });
-    await page.goto(popupUrl);
-    await page.evaluate(() => document.fonts.ready);
-    await sleep(900);
-    return page;
-  };
-  const close = async () => {
-    await context.close();
-    rmSync(profile, { recursive: true, force: true });
-  };
-  return { context, worker, storage, openPopup, close };
-}
-
-async function waitFor(fn, what, tries = 40) {
-  for (let i = 0; i < tries; i += 1) {
-    const value = await fn();
-    if (value) return value;
-    await sleep(250);
-  }
-  throw new Error(`timed out waiting for ${what}`);
-}
-
-const hudOn = page => page.locator('web-ai-monitor-hud').evaluate(el => window.getComputedStyle(el).display !== 'none').catch(() => false);
-
-/** What in the popup sticks out past the card's padding box (should be nothing). */
-const overflowing = page => page.evaluate(() => {
-  const app = document.getElementById('app');
-  const box = app.getBoundingClientRect();
-  const style = window.getComputedStyle(app);
-  const left = box.left + parseFloat(style.paddingLeft) - 0.5;
-  const right = box.right - parseFloat(style.paddingRight) + 0.5;
-  return [...app.querySelectorAll('*')]
-    .filter(el => el.getClientRects().length && !el.closest('[hidden]'))
-    .map(el => ({ el, r: el.getBoundingClientRect() }))
-    .filter(({ r }) => r.width > 1 && (r.right > right || r.left < left))
-    .map(({ el, r }) => `${el.className || el.tagName} "${(el.textContent ?? '').trim().slice(0, 24)}" ${Math.round(r.left)}-${Math.round(r.right)}`);
-});
-
-/** Text inside the HUD. Its shadow root is closed, so it is read over CDP. */
-async function hudText(page) {
-  const cdp = await page.context().newCDPSession(page);
-  try {
-    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
-    const find = node => {
-      if (node.nodeName === 'WEB-AI-MONITOR-HUD') return node;
-      for (const child of [...(node.children ?? []), ...(node.shadowRoots ?? [])]) {
-        const hit = find(child);
-        if (hit) return hit;
-      }
-      return null;
-    };
-    const host = find(root);
-    const shadow = host?.shadowRoots?.[0];
-    if (!shadow) return '';
-    const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: shadow.backendNodeId });
-    const { result } = await cdp.send('Runtime.callFunctionOn', {
-      objectId: object.objectId,
-      functionDeclaration: 'function () { return [...this.querySelectorAll(".hud-sheet")].map(el => el.innerText).join("\\n"); }',
-      returnByValue: true,
-    });
-    return result.value ?? '';
-  } finally {
-    await cdp.detach();
-  }
-}
 
 async function main() {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   const results = [];
-  const check = async (name, fn) => {
+  // Each check reports as it starts, and fails rather than hangs past its limit.
+  const check = async (name, fn, limitMs = 120_000) => {
+    const started = Date.now();
+    console.log(`...  ${name}`);
+    let timer;
+    const late = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`still running after ${limitMs / 1000} s`)), limitMs);
+    });
     try {
-      await fn();
-      results.push(`ok   ${name}`);
+      await Promise.race([fn(), late]);
+      results.push(`ok   ${name} (${Math.round((Date.now() - started) / 1000)} s)`);
     } catch (error) {
       results.push(`FAIL ${name}: ${error.message}`);
+    } finally {
+      clearTimeout(timer);
+      console.log(results.at(-1));
     }
   };
   const shoot = (target, name) => target.screenshot({ path: join(outDir, `${name}.png`) });
@@ -256,8 +59,78 @@ async function main() {
   // ------------------------------------------------- default build
   {
     const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), counts: { worker: 0, page: 0 } };
-    const app = await launch(extensionDir, mock);
+    // A fresh install: the data use notice is not agreed yet.
+    const app = await launch(extensionDir, mock, { consent: false });
     try {
+      await check('consent: a welcome tab on install; nothing is read until the user agrees there', async () => {
+        const welcome = await waitFor(() => app.context.pages().find(page => page.url().endsWith('/welcome/welcome.html')), 'the welcome tab');
+        await app.storage.set({ settings: { lang: 'zh_CN', consent: { version: 0 } } });
+        const claude = await app.context.newPage();
+        await claude.goto('https://claude.ai/new');
+        // A reply finishing on the page must not start anything either.
+        await claude.evaluate(() => fetch('/api/organizations/x/chat_conversations/y/completion', { method: 'POST' }).catch(() => null));
+        await sleep(2500);
+        assert.equal(mock.counts.worker + mock.counts.page, 1, 'only the page itself asked; the extension asked nothing');
+        assert.equal(await app.storage.get('snapshot:claude'), undefined, 'no usage stored');
+        assert.equal(await hudOn(claude), false, 'no HUD before consent');
+        assert.match(await app.ask(() => chrome.action.getTitle({})), /数据说明/);
+
+        const popup = await app.openPopup();
+        const text = await popup.locator('body').innerText();
+        assert.match(text, /使用前请确认/);
+        assert.doesNotMatch(text, /冒险者资质|设置/, 'only the notice, no cards or settings');
+        assert.deepEqual(await overflowing(popup), []);
+        await shoot(popup.locator('body'), '25-popup-consent');
+
+        await welcome.bringToFront();
+        await welcome.evaluate(() => document.fonts.ready);
+        await waitFor(async () => /冒险者登记/.test(await welcome.locator('body').innerText()), 'the notice in Chinese');
+        for (const expected of [/lastActiveOrg/, /不读取对话内容/, /不修改、绕过或重置任何限额/, /只在内存中/, /与 Anthropic、OpenAI 无关联/]) {
+          assert.match(await welcome.locator('body').innerText(), expected);
+        }
+        await welcome.setViewportSize({ width: 960, height: 1100 });
+        assert.doesNotMatch(await welcome.locator('body').innerText(), /\bnull\b|undefined/);
+        const card = await welcome.locator('#app').boundingBox();
+        assert.ok(Math.abs(card.x + card.width / 2 - 480) <= 2, `the card is centred (${card.x}, ${card.width})`);
+        await shoot(welcome, '26-welcome');
+        await welcome.getByRole('button', { name: '同意并开始' }).click();
+        const snap = await waitFor(async () => {
+          const value = await app.storage.get('snapshot:claude');
+          return value?.status === 'ok' && value;
+        }, 'the first fetch after agreeing');
+        assert.equal(snap.plan, 'max_20x');
+        await waitFor(() => hudOn(claude), 'HUD after agreeing');
+        assert.match(await welcome.locator('body').innerText(), /登记完成/);
+        assert.match(await welcome.locator('body').innerText(), /已于 .* 同意数据说明/);
+        await popup.reload();
+        await sleep(900);
+        assert.match(await popup.locator('body').innerText(), /冒险者资质/);
+        await popup.close();
+        await claude.close();
+      });
+
+      await check('consent: withdrawing stops reading and deletes the usage data; agreeing again resumes', async () => {
+        const claude = await app.context.newPage();
+        await claude.goto('https://claude.ai/new');
+        await waitFor(() => hudOn(claude), 'HUD on claude.ai');
+        const popup = await app.openPopup();
+        await popup.getByRole('button', { name: '设置' }).click();
+        await popup.getByRole('button', { name: '撤回同意' }).click();
+        await waitFor(async () => (await app.storage.get('snapshot:claude')) === undefined, 'usage data deleted');
+        await waitFor(async () => !(await hudOn(claude)), 'HUD hidden');
+        assert.match(await popup.locator('body').innerText(), /使用前请确认/);
+        const asked = mock.counts.worker + mock.counts.page;
+        await popup.close();
+        const again = await app.openPopup();
+        await sleep(1500);
+        assert.equal(mock.counts.worker + mock.counts.page, asked, 'opening the popup reads nothing');
+        await again.getByRole('button', { name: '同意并开始' }).click();
+        await waitFor(async () => (await app.storage.get('snapshot:claude'))?.status === 'ok', 'fetched again');
+        await waitFor(() => hudOn(claude), 'HUD back');
+        await again.close();
+        await claude.close();
+      });
+
       await check('default build: HUD on claude.ai, none elsewhere, nothing registered', async () => {
         const claude = await app.context.newPage();
         await claude.goto('https://claude.ai/new');
@@ -266,7 +139,7 @@ async function main() {
         await other.goto('https://example.com/');
         await sleep(1500);
         assert.equal(await other.locator('web-ai-monitor-hud').count(), 0, 'HUD injected without permission');
-        const registered = await app.worker.evaluate(() => chrome.scripting.getRegisteredContentScripts());
+        const registered = await app.ask(() => chrome.scripting.getRegisteredContentScripts());
         assert.deepEqual(registered, []);
         const settings = await app.storage.get('settings');
         assert.equal(settings?.hud?.everywhere ?? false, false);
@@ -343,7 +216,7 @@ async function main() {
     });
 
     await check('every-site HUD: registered, shown on a strict-CSP page with the pixel font', async () => {
-      const registered = await app.worker.evaluate(() => chrome.scripting.getRegisteredContentScripts());
+      const registered = await app.ask(() => chrome.scripting.getRegisteredContentScripts());
       assert.deepEqual(registered.map(script => script.id).sort(), ['wam-page-hud', 'wam-vendor-chatgpt']);
       const page = await app.context.newPage();
       await page.goto('https://strict.example.com/');
@@ -472,14 +345,14 @@ async function main() {
       await waitFor(async () => (await app.storage.get('settings'))?.activeProvider === 'chatgpt', 'ChatGPT saved as the vendor on show');
       await waitFor(() => shows(gpt, 'chatgpt'), 'the chatgpt.com HUD on the ChatGPT panel');
       await waitFor(() => shows(other, 'chatgpt'), 'the example.com HUD on the ChatGPT panel');
-      await waitFor(async () => (await app.worker.evaluate(() => chrome.action.getTitle({}))).startsWith('ChatGPT'), 'toolbar on ChatGPT');
+      await waitFor(async () => (await app.ask(() => chrome.action.getTitle({}))).startsWith('ChatGPT'), 'toolbar on ChatGPT');
       await sleep(500);
       await shoot(gpt.locator('web-ai-monitor-hud'), '16-hud-chatgpt');
 
       await page.getByRole('tab', { name: 'Claude' }).click();
       await waitFor(() => shows(gpt, 'claude'), 'the chatgpt.com HUD back on the Claude panel');
       await waitFor(() => shows(other, 'claude'), 'the example.com HUD back on the Claude panel');
-      await waitFor(async () => (await app.worker.evaluate(() => chrome.action.getTitle({}))).startsWith('Claude'), 'toolbar on Claude');
+      await waitFor(async () => (await app.ask(() => chrome.action.getTitle({}))).startsWith('Claude'), 'toolbar on Claude');
       await sleep(500);
       await shoot(gpt.locator('web-ai-monitor-hud'), '17-hud-claude');
 
@@ -510,10 +383,16 @@ async function main() {
         await page.locator('.guild-cmds .cmd').last().click(); // settings
         await sleep(300);
         assert.deepEqual(await overflowing(page), [], `${lang} settings`);
+        await shoot(page.locator('body'), `27-settings-${lang}`);
         await page.locator('.pix-date-btn').first().click();
         await page.getByRole('dialog').first().waitFor();
         assert.deepEqual(await overflowing(page), [], `${lang} calendar`);
         await page.close();
+        // And the short data use notice, before agreeing.
+        await app.storage.set({ settings: { ...settings, lang, consent: { version: 0 } } });
+        const notice = await app.openPopup();
+        assert.deepEqual(await overflowing(notice), [], `${lang} notice`);
+        await notice.close();
       }
       await app.storage.set({ settings });
     });
@@ -569,7 +448,7 @@ async function main() {
       for (let i = 0; i < 40; i += 1) await page.keyboard.press('ArrowRight');
       await waitFor(async () => (await app.storage.get('settings'))?.pollMinutes === 30, 'pollMinutes clamped at 30');
       const alarm = await waitFor(async () => {
-        const value = await app.worker.evaluate(() => chrome.alarms.get('wam:poll'));
+        const value = await app.ask(() => chrome.alarms.get('wam:poll'));
         return value?.periodInMinutes === 30 && value;
       }, 'the poll alarm at 30 minutes');
       assert.equal(alarm.periodInMinutes, 30);
@@ -615,7 +494,7 @@ async function main() {
       });
       const page = await app.openPopup(); // triggers a refresh, which looks for recoveries first
       const ids = await waitFor(async () => {
-        const all = await app.worker.evaluate(() => chrome.notifications.getAll());
+        const all = await app.ask(() => chrome.notifications.getAll());
         const found = Object.keys(all).filter(id => id.startsWith('wam:recovered:claude:'));
         return found.length && found;
       }, 'a recovery notification');
@@ -625,7 +504,7 @@ async function main() {
       await app.storage.set({ 'snapshot:claude': { ...again, meters: snap.meters.map(m => (m.id === 'session' ? { ...m, used: 55, resetsAt: ended } : m)), attemptedAt: 0 } });
       await page.evaluate(() => chrome.runtime.sendMessage({ type: 'wam:refresh', reason: 'manual' }));
       await sleep(800);
-      const all = await app.worker.evaluate(() => chrome.notifications.getAll());
+      const all = await app.ask(() => chrome.notifications.getAll());
       assert.equal(Object.keys(all).filter(id => id.startsWith('wam:recovered:claude:')).length, 1);
       await page.close();
     });
@@ -677,7 +556,7 @@ async function main() {
     });
 
     await check('the toolbar tooltip follows the numbers', async () => {
-      const title = await app.worker.evaluate(() => chrome.action.getTitle({}));
+      const title = await app.ask(() => chrome.action.getTitle({}));
       assert.match(title, /MP \d+\/100/);
     });
   } finally {
