@@ -18,9 +18,8 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
-import { chromium } from 'playwright';
-
 import { DAY, grantedBuild, hudOn, hudText, launch, root, sleep, usageBody, waitFor } from './harness.mjs';
+import { chromium } from './playwright.mjs';
 
 const outDir = join(root, 'docs', 'store', 'images');
 const FONT_PACKAGE = '@vp-tw/cjk-web-fonts-fusion-pixel-font@0.0.1';

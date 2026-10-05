@@ -48,8 +48,12 @@ npm run package          # -> dist/web-ai-monitor-<version>.zip，manifest.json 
 ## 3. 商店素材
 
 ```sh
-npm run store:assets     # 重新生成 docs/store/images/ 下的全部图片
+npm install                       # 第一次用前装一次：Playwright
+npx playwright install chromium   # 第一次用前装一次：Playwright 用的 Chromium（约 150 MB）
+npm run store:assets              # 重新生成 docs/store/images/ 下的全部图片
 ```
+
+第一次运行还会用 `npm pack` 下载完整的 Fusion Pixel Font（放在 `.cache/`），所以需要联网。
 
 截图里的弹窗和悬浮窗都是扩展本身在 Chromium 里渲染的真实界面（数据来自模拟的 claude.ai / chatgpt.com），说明文字用完整的 Fusion Pixel Font 排版。脚本会检查每张图里文字不超出说明框、各块互不重叠。
 

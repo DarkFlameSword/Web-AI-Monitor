@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { chromium } from 'playwright';
+import { chromium } from './playwright.mjs';
 
 import { DATA_PRACTICES_VERSION } from '../extension/core/consent.js';
 
