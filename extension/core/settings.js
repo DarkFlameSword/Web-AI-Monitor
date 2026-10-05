@@ -19,6 +19,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
    * permission are only switched on once it is granted.
    */
   providers: Object.freeze({}),
+  /**
+   * The vendor on show, picked from the popup's tabs. The popup, the page
+   * HUD and the toolbar icon all follow it. Null: the first monitored one.
+   */
+  activeProvider: null,
   /** Adventurer rank expiry per provider, entered by the user: { [providerId]: 'YYYY-MM-DD' }. */
   rankExpiry: Object.freeze({}),
   /**
@@ -52,6 +57,7 @@ export function normalizeSettings(raw) {
     lang: src.lang === 'auto' || LANGS.includes(src.lang) ? src.lang : DEFAULT_SETTINGS.lang,
     pollMinutes: intIn(src.pollMinutes, DEFAULT_SETTINGS.pollMinutes, POLL_RANGE.min, POLL_RANGE.max),
     providers: providerSwitches(src),
+    activeProvider: typeof src.activeProvider === 'string' && src.activeProvider ? src.activeProvider : null,
     rankExpiry: Object.fromEntries(Object.entries(src.rankExpiry && typeof src.rankExpiry === 'object' ? src.rankExpiry : {})
       .filter(([id, day]) => id && parseDay(day))),
     hud: {
@@ -86,6 +92,11 @@ export function isProviderEnabled(provider, settings) {
 /** The providers the user monitors, in registry order. */
 export function enabledProviders(providers, settings) {
   return providers.filter(provider => isProviderEnabled(provider, settings));
+}
+
+/** The vendor on show among `monitored`: the one picked, else the first. */
+export function activeProvider(monitored, settings) {
+  return monitored.find(provider => provider.id === settings.activeProvider) ?? monitored[0] ?? null;
 }
 
 export async function loadSettings() {

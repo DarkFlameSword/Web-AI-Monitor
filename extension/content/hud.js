@@ -1,6 +1,13 @@
 import { buildGaugeViews, viewForRole } from '../core/gauges.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, enabledProviders, loadSettings, normalizeSettings, updateSettings } from '../core/settings.js';
+import {
+  SETTINGS_KEY,
+  activeProvider,
+  enabledProviders,
+  loadSettings,
+  normalizeSettings,
+  updateSettings,
+} from '../core/settings.js';
 import { providerIdOfKey, readSnapshots } from '../core/store.js';
 import { PROVIDERS, providersForOrigin } from '../providers/index.js';
 import { ProviderCard } from '../ui/card.js';
@@ -50,7 +57,8 @@ function readCookie(name) {
 
 /**
  * GET one of the provider's allow-listed API paths as this page (its cookies,
- * its origin), with only the headers the provider allows.
+ * its origin), with only the headers the provider allows, and hand back only
+ * what the provider keeps of the reply.
  */
 async function proxyGet(provider, path, headers) {
   if (typeof path !== 'string' || !provider.proxyPaths.some(pattern => pattern.test(path))) {
@@ -71,7 +79,8 @@ async function proxyGet(provider, path, headers) {
       return { ok: false, error: { status: response.status, code: 'not_json' } };
     }
     if (!response.ok) return { ok: false, error: { status: response.status, code: null } };
-    return { ok: true, body: await response.json() };
+    const body = await response.json();
+    return { ok: true, body: provider.proxyBody ? provider.proxyBody(path, body) : body };
   } catch {
     return { ok: false, error: { status: 0, code: 'network' } };
   }
@@ -259,6 +268,11 @@ class Hud {
     return enabledProviders(PROVIDERS, this.settings);
   }
 
+  /** The one on show: whichever vendor the popup's tabs picked. */
+  active() {
+    return activeProvider(this.providers(), this.settings);
+  }
+
   refreshIfStale() {
     if (document.hidden || !this.shouldShow()) return;
     const now = Date.now();
@@ -293,11 +307,12 @@ class Hud {
     // Size: a zoom on the whole window; the pixel art stays crisp at 100% and 200%.
     this.root.style.setProperty('zoom', String(this.settings.hud.scale));
 
+    // One vendor at a time, the same one the popup shows.
     const now = Date.now();
-    const monitored = new Set(this.providers().map(provider => provider.id));
+    const active = this.active();
     for (const provider of PROVIDERS) {
       let card = this.cards.get(provider.id);
-      if (!monitored.has(provider.id)) {
+      if (provider !== active) {
         card?.el.remove();
         this.cards.delete(provider.id);
         continue;
@@ -309,7 +324,7 @@ class Hud {
         });
         this.cards.set(provider.id, card);
       }
-      this.cardsEl.append(card.el); // keeps registry order
+      if (!card.el.isConnected) this.cardsEl.append(card.el);
       card.rankExpiry = this.settings.rankExpiry[provider.id] ?? null;
       card.render(this.snapshots[provider.id] ?? null, this.translatorFor(provider), now);
     }
@@ -317,9 +332,9 @@ class Hud {
     this.applyVisibility();
   }
 
-  /** The collapsed tab mirrors the first monitored provider's MP / HP / SP. */
+  /** The collapsed tab mirrors the vendor on show: its MP / HP / SP, where it has them. */
   renderChip(now) {
-    const [provider] = this.providers();
+    const provider = this.active();
     if (!provider) return;
     const views = buildGaugeViews(provider.template, this.snapshots[provider.id]?.meters ?? [], now);
     const t = this.translatorFor(provider);
@@ -327,7 +342,8 @@ class Hud {
     for (const mini of this.minis) {
       const view = viewForRole(views, mini.role);
       const shown = view?.state === 'ok';
-      mini.el.hidden = !shown && view?.state === 'sealed';
+      // A gauge the vendor's scheme does not have (ChatGPT has no SP) gets no mini bar.
+      mini.el.hidden = !shown && (!view || view.state === 'sealed');
       mini.el.className = `mini role-${mini.role} level-${view?.level ?? 'empty'}`;
       mini.fill.style.width = `${shown ? view.value : 0}%`;
       if (shown) summary.push(`${mini.role.toUpperCase()} ${view.value}`);
@@ -367,7 +383,8 @@ class Hud {
       this.renderChip(now);
       return;
     }
-    for (const provider of this.providers()) this.cards.get(provider.id)?.tick(this.translatorFor(provider), now);
+    const active = this.active();
+    if (active) this.cards.get(active.id)?.tick(this.translatorFor(active), now);
   }
 
   setCollapsed(collapsed) {

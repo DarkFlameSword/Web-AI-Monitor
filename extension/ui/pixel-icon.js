@@ -28,13 +28,18 @@ function fade(color) {
   return color.map((channel, i) => Math.round((channel + COLORS.paper[i]) / 2));
 }
 
+const GAUGE_COLORS = Object.freeze({ mp: () => COLORS.mp, hp: hpColor, sp: () => COLORS.sp });
+/** Top rows of the 2px bars inside the ink box (rows 3-12), evenly spaced for one to three gauges. */
+const ROWS = Object.freeze({ 1: [7], 2: [5, 9], 3: [4, 7, 10] });
+
 /**
- * @param {{mp: number|null, hp: number|null, sp: number|null}} levels  Remaining 0-100, null when unknown.
+ * @param {{mp?: number|null, hp?: number|null, sp?: number|null}} levels  Remaining 0-100, null when unknown.
  * @param {number} size  Edge in device pixels; a multiple of 16.
- * @param {{dim?: boolean}} [options]
+ * @param {{dim?: boolean, roles?: string[]}} [options]  `roles`: the gauges the vendor's scheme
+ *   has, top to bottom (default MP, HP, SP). A vendor without SP gets two bars, not an empty third.
  * @returns {Uint8ClampedArray} RGBA, row-major.
  */
-export function iconPixels(levels, size, { dim = false } = {}) {
+export function iconPixels(levels, size, { dim = false, roles = ['mp', 'hp', 'sp'] } = {}) {
   const scale = Math.max(1, Math.round(size / 16));
   const pixels = new Uint8ClampedArray(size * size * 4);
   const offset = Math.floor((size - 16 * scale) / 2);
@@ -67,14 +72,12 @@ export function iconPixels(levels, size, { dim = false } = {}) {
   fill(2, 1, 12, 14, COLORS.paper);
   fill(1, 2, 14, 12, COLORS.paper);
 
-  // Three gauges in one inked box: rows 4-5, 7-8, 10-11, ten pixels wide.
+  // The gauges in one inked box, ten pixels wide: rows 4-5, 7-8, 10-11 for three.
   fill(2, 3, 12, 10, COLORS.ink);
-  const gauges = [
-    ['mp', 4, () => COLORS.mp],
-    ['hp', 7, hpColor],
-    ['sp', 10, () => COLORS.sp],
-  ];
-  for (const [role, y, colorOf] of gauges) {
+  const shown = roles.filter(role => role in GAUGE_COLORS).slice(0, 3);
+  for (const [i, role] of shown.entries()) {
+    const y = ROWS[shown.length][i];
+    const colorOf = GAUGE_COLORS[role];
     fill(3, y, 10, 2, COLORS.empty);
     const value = levels?.[role];
     if (typeof value !== 'number' || value <= 0) continue;

@@ -5,6 +5,7 @@ import {
   POLL_RANGE,
   SCALE_RANGE,
   SETTINGS_KEY,
+  activeProvider,
   enabledProviders,
   loadSettings,
   normalizeSettings,
@@ -19,7 +20,6 @@ import { pixelDate, pixelSelect } from './controls.js';
 
 const doc = document;
 const app = doc.getElementById('app');
-const TAB_KEY = 'wam.activeProvider';
 
 const state = {
   settings: normalizeSettings(null),
@@ -28,29 +28,11 @@ const state = {
   refreshing: false,
   /** Optional permissions currently granted; vendors by provider id. */
   perms: { allSites: false, notify: false, vendors: {} },
-  /** The vendor tab on show when several are monitored. */
-  active: readTab(),
 };
 
 let t = createTranslator('zh_CN');
 const translators = new Map();
 const cards = new Map();
-
-function readTab() {
-  try {
-    return localStorage.getItem(TAB_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function saveTab(id) {
-  try {
-    localStorage.setItem(TAB_KEY, id);
-  } catch {
-    // Only a convenience.
-  }
-}
 
 /** Monitored: switched on, and for vendors behind a permission, allowed. */
 function monitored() {
@@ -293,20 +275,21 @@ function editExpiry(provider) {
   expiryFields.find(item => item.provider === provider)?.picker.button.click();
 }
 
-function renderTabs(watching) {
+function renderTabs(watching, active) {
   tabs.hidden = watching.length < 2 || state.view !== 'status';
   tabs.setAttribute('aria-label', t('popup.tabs'));
   tabs.replaceChildren(...watching.map(provider => {
-    const selected = provider.id === state.active;
+    const selected = provider === active;
     return h(doc, 'button', {
       class: selected ? 'cmd tab selected' : 'cmd tab',
       type: 'button',
       role: 'tab',
       'aria-selected': String(selected),
+      // Saved in settings, so the page HUD and the toolbar icon switch too.
       onclick: () => {
-        state.active = provider.id;
-        saveTab(provider.id);
+        state.settings = { ...state.settings, activeProvider: provider.id };
         render();
+        updateSettings(draft => { draft.activeProvider = provider.id; });
       },
     }, provider.name);
   }));
@@ -314,10 +297,10 @@ function renderTabs(watching) {
 
 function renderCards(now) {
   const watching = monitored();
-  if (!watching.some(provider => provider.id === state.active)) state.active = watching[0]?.id ?? null;
+  const active = activeProvider(watching, state.settings);
   nothingMonitored.hidden = watching.length > 0;
   nothingMonitored.textContent = t('popup.noProviders');
-  renderTabs(watching);
+  renderTabs(watching, active);
   for (const provider of PROVIDERS) {
     let card = cards.get(provider.id);
     if (!watching.includes(provider)) {
@@ -330,7 +313,7 @@ function renderCards(now) {
       cards.set(provider.id, card);
     }
     statusView.append(card.el); // keeps registry order
-    card.el.hidden = provider.id !== state.active;
+    card.el.hidden = provider !== active;
     card.busy = state.refreshing;
     card.rankExpiry = state.settings.rankExpiry[provider.id] ?? null;
     card.render(state.snapshots[provider.id] ?? null, translatorFor(provider), now);

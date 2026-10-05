@@ -6,9 +6,9 @@
 | --- | --- |
 | ![Claude 卡片](docs/screenshots/popup-zh.png) | ![ChatGPT 卡片](docs/screenshots/popup-chatgpt.png) |
 
-| 页内悬浮窗 | 设置（像素下拉框 / 日历） |
+| 页内悬浮窗（跟随弹窗里选中的厂商） | 设置（像素下拉框 / 日历） |
 | --- | --- |
-| ![悬浮窗](docs/screenshots/hud-two-vendors.png)<br><br>收起后：![收起](docs/screenshots/hud-collapsed.png) | ![下拉框](docs/screenshots/settings-dropdown.png)<br><br>![日历](docs/screenshots/settings-calendar.png) |
+| ![Claude 悬浮窗](docs/screenshots/hud-claude.png)<br><br>![ChatGPT 悬浮窗](docs/screenshots/hud-chatgpt.png)<br><br>收起后：![Claude 收起](docs/screenshots/hud-collapsed.png) ![ChatGPT 收起](docs/screenshots/hud-collapsed-chatgpt.png) | ![下拉框](docs/screenshots/settings-dropdown.png)<br><br>![日历](docs/screenshots/settings-calendar.png) |
 
 ## 能量条对应关系（Claude）
 
@@ -69,12 +69,12 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 
 ## 功能一览
 
-- **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT），记住上次看的那家。
+- **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT）。选中的厂商保存在设置里，页内悬浮窗和工具栏图标跟着切换。
 - **设置页**：语言下拉框和日期选择都是像素风的自制控件（羊皮纸小窗、像素箭头和指针），支持键盘：下拉框用上下键和回车，日历用方向键移动日期、PageUp / PageDown 翻月、Esc 关闭。
-- **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com），同时监控多家时上下排列；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
-- **监控对象**：设置里每个已接入的 AI 厂商都有开关（Claude 默认开；ChatGPT 默认关，勾选时申请 chatgpt.com 权限）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。工具栏图标显示第一个被监控的厂商。
+- **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com），一次只显示一家：弹窗里选中哪家，所有标签页里的悬浮窗就立即换成那家自己的面板（Claude 是 MP / HP / SP，ChatGPT 只有 MP / HP，收起后的小标签也一样）；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
+- **监控对象**：设置里每个已接入的 AI 厂商都有开关（Claude 默认开；ChatGPT 默认关，勾选时申请 chatgpt.com 权限）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。工具栏图标同样显示弹窗里选中的厂商；选中的厂商被关掉时，弹窗、悬浮窗和工具栏一起回到第一个被监控的厂商。
 - **恢复通知**（默认关）：勾选「能量完全恢复时提醒」时才申请通知权限。用过的 MP / HP / SP 在重置时刻回满后，发一条桌面通知（每个窗口只发一次；浏览器关着时错过超过 1 小时的不再补发）；点通知打开 claude.ai。
-- **工具栏图标**：图标本身就是三条迷你能量条，实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
+- **工具栏图标**：图标本身就是当前厂商的迷你能量条（Claude 三条；ChatGPT 没有 SP，只画两条），实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
 - **刷新时机**：
   - 后台定时（默认 5 分钟；设置里用滑块在 1 - 30 分钟之间任选，可以拖动、滚动鼠标滚轮或按方向键）；
   - 在 claude.ai / chatgpt.com 上每次回复（或 Codex 任务）结束约 1 秒后；
@@ -99,7 +99,7 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
   - `GET https://claude.ai/api/organizations`：找到当前组织（优先 `lastActiveOrg` cookie）并推断方案；
   - `GET https://claude.ai/api/organizations/{org}/usage`：用量。新格式 `limits[]`（`session` / `weekly_all` / `weekly_scoped` + `scope.model.display_name`）和旧格式 `five_hour` / `seven_day` / `seven_day_*` 都能解析，不认识的字段会被跳过。宝物袋来自同一个响应：`extra_usage`（金额以最小货币单位给出，按 `decimal_places` 换算）和云端会话额度（目前是代号字段 `iguana_necktie`，以美元给出，`resets_at` 是失效时间；代号改名时会按 `cloud` / `ccr` / `remote_session` 关键字兜底）。
 - 读取 chatgpt.com 网页自己用的接口（同样非公开）：
-  - `GET https://chatgpt.com/api/auth/session`：拿到访问令牌和账户 id（令牌只在内存里用来发下一个请求，不保存）。有报道说新版页面这里已经不给令牌，此时下一个请求只带 cookie 发出；
+  - `GET https://chatgpt.com/api/auth/session`：拿到访问令牌、账户 id 和方案（`accessToken`、`account.id`、`account.planType`；令牌只在内存里用来发下一个请求，不保存）。经标签页转发时，页面只把这三项交回后台，`sessionToken`、邮箱、姓名等其余字段不离开页面。有报道说新版页面这里已经不给令牌，此时下一个请求只带 cookie 发出；
   - `GET https://chatgpt.com/backend-api/wham/usage`（带 `Authorization` 和 `ChatGPT-Account-Id`）：`rate_limit.primary_window` / `secondary_window`（`used_percent`、`limit_window_seconds`、`reset_at` 秒级时间戳）、`additional_rate_limits[]`、`code_review_rate_limit`、`spend_control.individual_limit`、`credits`（`balance` 是字符串）、`rate_limit_reset_credits.available_count`、`plan_type`。
 - 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的该厂商标签页，以页面身份同源请求（每家只允许上面列出的路径，只读 GET；ChatGPT 只允许转发上面两个请求头）。
 - 数据只保存在本机的 `chrome.storage.local`，不发送到任何第三方服务器。
@@ -191,7 +191,7 @@ extension/
    };
    ```
 
-2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyHeaders?, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http)` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。需要额外请求头（比如 Bearer token）时用 `http.getJson(path, { headers })`，并在 `proxyHeaders` 里列出允许经标签页转发的头。
+2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http)` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。需要额外请求头（比如 Bearer token）时用 `http.getJson(path, { headers })`，并在 `proxyHeaders` 里列出允许经标签页转发的头；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
 3. 在 `extension/providers/index.js` 里注册。权限二选一：
    - 安装即用：把域名加进 `manifest.json` 的 `host_permissions` 和 `content_scripts.matches`；
    - 按需申请（推荐，ChatGPT 就是这样）：在 provider 里写 `enabledByDefault: false, optionalPermission: true`，把域名加进 `optional_host_permissions`。勾选时弹窗会申请权限，后台自动注册该站的页面脚本。
@@ -218,7 +218,8 @@ npm run preview          # 用 Playwright 加载扩展、模拟 claude.ai，跑�
 - 用过的能量重置后发且只发一次「完全恢复」通知；
 - 资质过期时间：未填写时点提示直接打开设置里的像素日历，选中日期后保存并显示，可清除；
 - 像素下拉框：键盘上下选择、回车保存、点外面关闭；
-- ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；悬浮窗里两家上下排列；
+- ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；
+- 弹窗里点厂商标签后，chatgpt.com 和普通网页上的悬浮窗、工具栏提示都切到那一家（ChatGPT 面板没有 SP，收起后也没有 SP 条），再点回 Claude 时一起切回；
 - 刷新间隔滑块（滚轮、方向键）改到 1 - 30 分钟并同步到定时器；悬浮窗 200% 时正好放大一倍；
 - 关掉 Claude 的监控后弹窗提示、悬浮窗隐藏，重新打开后恢复。
 

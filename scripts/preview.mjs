@@ -197,6 +197,34 @@ async function waitFor(fn, what, tries = 40) {
 
 const hudOn = page => page.locator('web-ai-monitor-hud').evaluate(el => window.getComputedStyle(el).display !== 'none').catch(() => false);
 
+/** Text inside the HUD. Its shadow root is closed, so it is read over CDP. */
+async function hudText(page) {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const find = node => {
+      if (node.nodeName === 'WEB-AI-MONITOR-HUD') return node;
+      for (const child of [...(node.children ?? []), ...(node.shadowRoots ?? [])]) {
+        const hit = find(child);
+        if (hit) return hit;
+      }
+      return null;
+    };
+    const host = find(root);
+    const shadow = host?.shadowRoots?.[0];
+    if (!shadow) return '';
+    const { object } = await cdp.send('DOM.resolveNode', { backendNodeId: shadow.backendNodeId });
+    const { result } = await cdp.send('Runtime.callFunctionOn', {
+      objectId: object.objectId,
+      functionDeclaration: 'function () { return [...this.querySelectorAll(".hud-sheet")].map(el => el.innerText).join("\\n"); }',
+      returnByValue: true,
+    });
+    return result.value ?? '';
+  } finally {
+    await cdp.detach();
+  }
+}
+
 async function main() {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
@@ -396,12 +424,52 @@ async function main() {
       }
       assert.doesNotMatch(text, /绿宝石|金币|奥义|Fable/);
       await shoot(page.locator('body'), '15-popup-chatgpt');
-      await waitFor(() => hudOn(gpt), 'HUD on chatgpt.com');
-      await sleep(800);
-      await shoot(gpt.locator('web-ai-monitor-hud'), '16-hud-two-vendors');
-      await page.getByRole('tab', { name: 'Claude' }).click();
       await page.close();
       await gpt.close();
+    });
+
+    await check('the popup tab picks the vendor the HUD and the toolbar icon show', async () => {
+      const gpt = await app.context.newPage();
+      await gpt.goto('https://chatgpt.com/');
+      const other = await app.context.newPage();
+      await other.goto('https://example.com/');
+      await waitFor(() => hudOn(gpt), 'HUD on chatgpt.com');
+      await waitFor(() => hudOn(other), 'HUD on example.com');
+      const page = await app.openPopup();
+      const shows = async (target, vendor) => {
+        // The HUD card is compact: vendor, rank, plan, then its gauges.
+        const lines = (await hudText(target)).split('\n');
+        return vendor === 'chatgpt'
+          ? lines[0] === 'ChatGPT' && lines.includes('Plus') && lines.includes('HP') && !lines.includes('SP')
+          : lines[0] === 'Claude' && lines.includes('SP') && !lines.includes('ChatGPT');
+      };
+
+      await page.getByRole('tab', { name: 'ChatGPT' }).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.activeProvider === 'chatgpt', 'ChatGPT saved as the vendor on show');
+      await waitFor(() => shows(gpt, 'chatgpt'), 'the chatgpt.com HUD on the ChatGPT panel');
+      await waitFor(() => shows(other, 'chatgpt'), 'the example.com HUD on the ChatGPT panel');
+      await waitFor(async () => (await app.worker.evaluate(() => chrome.action.getTitle({}))).startsWith('ChatGPT'), 'toolbar on ChatGPT');
+      await sleep(500);
+      await shoot(gpt.locator('web-ai-monitor-hud'), '16-hud-chatgpt');
+
+      await page.getByRole('tab', { name: 'Claude' }).click();
+      await waitFor(() => shows(gpt, 'claude'), 'the chatgpt.com HUD back on the Claude panel');
+      await waitFor(() => shows(other, 'claude'), 'the example.com HUD back on the Claude panel');
+      await waitFor(async () => (await app.worker.evaluate(() => chrome.action.getTitle({}))).startsWith('Claude'), 'toolbar on Claude');
+      await sleep(500);
+      await shoot(gpt.locator('web-ai-monitor-hud'), '17-hud-claude');
+
+      // Collapsed, the chip has no SP bar for a vendor without one.
+      await page.getByRole('tab', { name: 'ChatGPT' }).click();
+      await waitFor(() => shows(other, 'chatgpt'), 'the HUD on ChatGPT again');
+      const settings = await app.storage.get('settings');
+      await app.storage.set({ settings: { ...settings, hud: { ...settings.hud, collapsed: true } } });
+      await sleep(600);
+      await shoot(other.locator('web-ai-monitor-hud'), '18-chip-chatgpt');
+      await app.storage.set({ settings: { ...settings, activeProvider: 'claude' } });
+      await page.close();
+      await gpt.close();
+      await other.close();
     });
 
     await check('refresh interval: the mouse wheel and arrow keys move it, the alarm follows', async () => {

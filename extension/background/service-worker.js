@@ -1,6 +1,6 @@
 import { HttpError, isAuthError } from '../core/http.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, enabledProviders, isProviderEnabled, loadSettings, updateSettings } from '../core/settings.js';
+import { SETTINGS_KEY, activeProvider, enabledProviders, isProviderEnabled, loadSettings, updateSettings } from '../core/settings.js';
 import { providerIdOfKey, readSnapshot, writeSnapshot } from '../core/store.js';
 import { PROVIDERS, getProvider, originPattern } from '../providers/index.js';
 import { paintAction, paintIdle } from './action-icon.js';
@@ -114,13 +114,13 @@ async function ensurePollAlarm() {
   await chrome.alarms.create(POLL_ALARM, { periodInMinutes: pollMinutes, delayInMinutes: pollMinutes });
 }
 
-// The toolbar shows the first monitored provider. Repaints are queued so they never interleave.
+// The toolbar shows the vendor on show (picked in the popup). Repaints are queued so they never interleave.
 let paintQueue = Promise.resolve();
 
 function repaint() {
   paintQueue = paintQueue.then(async () => {
     const settings = await loadSettings();
-    const [provider] = enabledProviders(PROVIDERS, settings);
+    const provider = activeProvider(enabledProviders(PROVIDERS, settings), settings);
     if (!provider) {
       await paintIdle(createTranslator(resolveLang(settings.lang, browserLanguage())));
       await chrome.alarms.clear(BADGE_ALARM);

@@ -174,6 +174,24 @@ async function sessionOf(http) {
 }
 
 /**
+ * What a ChatGPT tab hands back for the session request: only the token and
+ * the account it belongs to. The rest of that body (session cookie, email,
+ * name) never leaves the page.
+ */
+export function proxyBody(path, body) {
+  if (path !== SESSION_PATH) return body;
+  if (!isObject(body)) return null;
+  const pick = {};
+  if (typeof body.accessToken === 'string') pick.accessToken = body.accessToken;
+  if (isObject(body.account)) {
+    pick.account = {};
+    if (typeof body.account.id === 'string') pick.account.id = body.account.id;
+    if (typeof body.account.planType === 'string') pick.account.planType = body.account.planType;
+  }
+  return pick;
+}
+
+/**
  * @param {import('../../core/http.js').Http} http
  */
 async function fetchUsage(http) {
@@ -202,6 +220,7 @@ export default Object.freeze({
   proxyPaths: Object.freeze([/^\/api\/auth\/session$/, /^\/backend-api\/wham\/usage$/]),
   /** Headers the usage request needs on the tab route. */
   proxyHeaders: Object.freeze(['authorization', 'chatgpt-account-id']),
+  proxyBody,
   /** A reply or a Codex task just finished streaming. */
   isActivity(path, durationMs) {
     if (!path.startsWith('/backend-api/') || path === USAGE_PATH) return false;

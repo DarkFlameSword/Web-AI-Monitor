@@ -139,3 +139,49 @@ test('replies and Codex tasks count as activity; only the two API paths may be p
   assert.deepEqual([...chatgpt.proxyHeaders], ['authorization', 'chatgpt-account-id']);
   assert.equal(chatgpt.enabledByDefault, false);
 });
+
+/** The field layout of GET /api/auth/session on a signed-in page. */
+const SESSION = {
+  WARNING_BANNER: '!!! never share this !!!',
+  user: { id: 'user-1', name: 'A', email: 'a@example.com', image: 'i', picture: 'p', iat: 1, amr: ['pwd'], mfa: false },
+  expires: '2026-12-31T00:00:00.000Z',
+  account: {
+    id: 'acct-9',
+    createdTime: '2025-01-01',
+    planType: 'pro',
+    structure: 'personal',
+    isUsageBasedSeatEnabled: false,
+    isConversationClassifierEnabledForWorkspace: false,
+    hasFloraFeature: false,
+    isFedrampCompliantWorkspace: false,
+    isDelinquent: false,
+    residencyRegion: 'no_constraint',
+    computeResidency: 'no_constraint',
+  },
+  accessToken: TOKEN,
+  authProvider: 'openai',
+  sessionToken: 'secret-session-cookie',
+  rumViewTags: { light_account: { fetched: true } },
+};
+
+test('the real session shape: token, account id and plan come from it', async () => {
+  const http = fakeHttp({ '/api/auth/session': SESSION, '/backend-api/wham/usage': { ...USAGE, plan_type: undefined } });
+  const result = await chatgpt.fetchUsage(http);
+  assert.deepEqual(http.calls[1], ['/backend-api/wham/usage', { authorization: `Bearer ${TOKEN}`, 'chatgpt-account-id': 'acct-9' }]);
+  assert.equal(result.plan, 'pro', 'account.planType when the usage reply has none');
+});
+
+test('a tab hands back only the token and account of the session, nothing else', async () => {
+  const trimmed = chatgpt.proxyBody('/api/auth/session', SESSION);
+  assert.deepEqual(trimmed, { accessToken: TOKEN, account: { id: 'acct-9', planType: 'pro' } });
+  assert.doesNotMatch(JSON.stringify(trimmed), /secret-session-cookie|a@example\.com|never share/);
+  assert.deepEqual(chatgpt.proxyBody('/api/auth/session', null), null);
+  assert.deepEqual(chatgpt.proxyBody('/api/auth/session', {}), {});
+  assert.equal(chatgpt.proxyBody('/backend-api/wham/usage', USAGE), USAGE, 'usage passes through');
+
+  // The trimmed body is still enough for the usage request.
+  const http = fakeHttp({ '/api/auth/session': trimmed, '/backend-api/wham/usage': { ...USAGE, plan_type: undefined } });
+  const result = await chatgpt.fetchUsage(http);
+  assert.deepEqual(http.calls[1][1], { authorization: `Bearer ${TOKEN}`, 'chatgpt-account-id': 'acct-9' });
+  assert.equal(result.plan, 'pro');
+});

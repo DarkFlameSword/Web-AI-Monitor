@@ -6,6 +6,7 @@
  *   fetchUsage(http) -> {meters, plan}   vendor API -> normalized meters
  *   proxyPaths   API paths an open vendor tab may fetch for the background
  *   proxyHeaders request headers allowed on that route (optional)
+ *   proxyBody(path, body)  trims a reply before the tab hands it back (optional)
  *   isActivity(path, durationMs)         did a finished page request spend quota?
  *   enabledByDefault, optionalPermission  monitored out of the box, or only once
  *                the user switches it on and grants its site (optional)

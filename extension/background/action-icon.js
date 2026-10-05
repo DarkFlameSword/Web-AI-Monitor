@@ -29,8 +29,10 @@ export async function paintAction(provider, snapshot, t, now) {
   };
   const levels = { mp: levelOf('mp'), hp: levelOf('hp'), sp: levelOf('sp') };
   const dim = !snapshot || snapshot.status !== 'ok';
+  // Only the bars this vendor's scheme has (ChatGPT: MP and HP).
+  const roles = ['mp', 'hp', 'sp'].filter(role => provider.template.gauges.some(gauge => gauge.role === role));
   const imageData = {};
-  for (const size of [16, 32]) imageData[size] = new ImageData(iconPixels(levels, size, { dim }), size, size);
+  for (const size of [16, 32]) imageData[size] = new ImageData(iconPixels(levels, size, { dim, roles }), size, size);
   await chrome.action.setIcon({ imageData });
 
   const mp = viewForRole(views, 'mp');
