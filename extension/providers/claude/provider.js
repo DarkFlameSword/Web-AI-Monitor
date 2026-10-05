@@ -16,6 +16,9 @@ const LEGACY_KEYS = Object.freeze({
   seven_day_cowork: { kind: 'weekly_scoped', scope: 'Cowork' },
 });
 
+/** Codename keys that have carried the cloud session credit (amounts in dollars). */
+const CLOUD_CREDIT_KEYS = ['iguana_necktie'];
+
 /** Fields that mark an entry as a money balance rather than a rate limit. */
 const MONEY_FIELDS = ['limit_dollars', 'monthly_limit', 'used_credits', 'currency'];
 
@@ -99,6 +102,75 @@ export function parseUsage(raw) {
   return meters;
 }
 
+const isObject = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const finite = value => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/** Claude Code cloud session credit: a granted dollar balance that expires. */
+function cloudCredit(raw) {
+  let entry = CLOUD_CREDIT_KEYS.map(key => raw[key]).find(isObject);
+  if (!entry) {
+    // Codenames get renamed; accept a key that says what it is.
+    const key = Object.keys(raw).find(name => /cloud|ccr|remote_session/i.test(name) && isObject(raw[name]) && 'limit_dollars' in raw[name]);
+    entry = key ? raw[key] : null;
+  }
+  if (!entry) return null;
+  const total = finite(entry.limit_dollars);
+  let balance = finite(entry.remaining_dollars);
+  let spent = finite(entry.used_dollars);
+  if (balance === null && total !== null && spent !== null) balance = Math.max(0, total - spent);
+  if (spent === null && total !== null && balance !== null) spent = Math.max(0, total - balance);
+  if (total === null && balance === null) return null;
+  return {
+    id: 'cloud_session',
+    kind: 'grant',
+    currency: 'USD',
+    balance,
+    total,
+    spent,
+    cap: null,
+    expiresAt: isoOrNull(entry.resets_at ?? entry.expires_at),
+    enabled: true,
+    locked: Boolean(entry.locked_reason),
+    capReached: false,
+  };
+}
+
+/** Usage credits (extra usage): money spent this month, in minor units, against an optional cap. */
+function usageCredits(raw) {
+  const entry = raw.extra_usage;
+  if (!isObject(entry)) return null;
+  const places = Number.isInteger(entry.decimal_places) && entry.decimal_places >= 0 && entry.decimal_places <= 4
+    ? entry.decimal_places
+    : 2;
+  const major = value => {
+    const amount = finite(value);
+    return amount === null ? null : amount / 10 ** places;
+  };
+  return {
+    id: 'usage_credits',
+    kind: 'spend',
+    currency: typeof entry.currency === 'string' && entry.currency ? entry.currency.toUpperCase() : 'USD',
+    balance: null,
+    total: null,
+    spent: major(entry.used_credits) ?? 0,
+    cap: major(entry.monthly_limit),
+    expiresAt: null,
+    enabled: entry.is_enabled === true,
+    locked: false,
+    capReached: entry.spend_limit_reached === true,
+  };
+}
+
+/**
+ * The money next to the limits in the same usage response.
+ *
+ * @returns {import('../../core/wallets.js').Wallet[]}
+ */
+export function parseWallets(raw) {
+  if (!isObject(raw)) return [];
+  return [cloudCredit(raw), usageCredits(raw)].filter(Boolean);
+}
+
 /** The organization to read: the one claude.ai last used, else the first chat one. */
 export function pickOrg(orgs, preferredId) {
   const list = Array.isArray(orgs) ? orgs.filter(org => org && typeof org.uuid === 'string') : [];
@@ -147,7 +219,7 @@ async function fetchUsage(http) {
     org = fallback;
     usage = await http.getJson(usagePath(org.uuid));
   }
-  return { meters: parseUsage(usage), plan: detectPlan(org) };
+  return { meters: parseUsage(usage), wallets: parseWallets(usage), plan: detectPlan(org) };
 }
 
 export default Object.freeze({

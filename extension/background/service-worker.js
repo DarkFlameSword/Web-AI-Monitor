@@ -1,9 +1,11 @@
 import { HttpError, isAuthError } from '../core/http.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, loadSettings } from '../core/settings.js';
+import { SETTINGS_KEY, loadSettings, updateSettings } from '../core/settings.js';
 import { providerIdOfKey, readSnapshot, writeSnapshot } from '../core/store.js';
 import { PROVIDERS, getProvider } from '../providers/index.js';
 import { paintAction } from './action-icon.js';
+import { listenForClicks, notifyRecoveries } from './notify.js';
+import { ALL_SITES, injectOpenTabs, syncPageScripts } from './page-hud.js';
 import { fetchUsage } from './transport.js';
 
 /*
@@ -40,9 +42,16 @@ function classify(error) {
   return 'unreachable';
 }
 
+function translatorFor(provider, settings) {
+  return createTranslator(resolveLang(settings.lang, browserLanguage()), provider.template.messages);
+}
+
 async function runRefresh(provider, reason) {
-  const previous = await readSnapshot(provider.id);
+  const [previous, settings] = await Promise.all([readSnapshot(provider.id), loadSettings()]);
   const now = Date.now();
+  // Before refetching: did a used window just end?
+  await notifyRecoveries(provider, previous, settings, translatorFor(provider, settings), now)
+    .catch(error => console.warn('[Web AI Monitor] notification failed:', error));
   const lastAttempt = previous?.attemptedAt ?? 0;
   if (now - lastAttempt < (FRESH_ENOUGH_MS[reason] ?? 10_000)) return previous;
   if (reason === 'poll' && previous?.status === 'signed_out' && now - lastAttempt < SIGNED_OUT_POLL_BACKOFF_MS) {
@@ -50,11 +59,16 @@ async function runRefresh(provider, reason) {
   }
 
   // On failure keep the last good numbers; the UI dims them.
-  const kept = { meters: previous?.meters ?? [], plan: previous?.plan ?? null, fetchedAt: previous?.fetchedAt ?? null };
+  const kept = {
+    meters: previous?.meters ?? [],
+    wallets: previous?.wallets ?? [],
+    plan: previous?.plan ?? null,
+    fetchedAt: previous?.fetchedAt ?? null,
+  };
   let result;
   try {
-    const { meters, plan } = await fetchUsage(provider);
-    result = meters.length ? { status: 'ok', meters, plan, fetchedAt: now } : { ...kept, status: 'no_data' };
+    const { meters, wallets = [], plan } = await fetchUsage(provider);
+    result = meters.length ? { status: 'ok', meters, wallets, plan, fetchedAt: now } : { ...kept, status: 'no_data' };
   } catch (error) {
     result = { ...kept, status: classify(error) };
   }
@@ -102,24 +116,56 @@ function repaint() {
   paintQueue = paintQueue.then(async () => {
     const provider = PROVIDERS[0];
     const [snapshot, settings] = await Promise.all([readSnapshot(provider.id), loadSettings()]);
-    const t = createTranslator(resolveLang(settings.lang, browserLanguage()), provider.template.messages);
-    const ticking = await paintAction(provider, snapshot, t, Date.now());
+    const ticking = await paintAction(provider, snapshot, translatorFor(provider, settings), Date.now());
     if (!ticking) await chrome.alarms.clear(BADGE_ALARM);
     else if (!(await chrome.alarms.get(BADGE_ALARM))) await chrome.alarms.create(BADGE_ALARM, { periodInMinutes: 1 });
   }).catch(error => console.warn('[Web AI Monitor] toolbar repaint failed:', error));
   return paintQueue;
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+/**
+ * Optional permissions and the settings that depend on them must agree:
+ * "every site" is on exactly while all sites are allowed, and the recovery
+ * notice is off without the notifications permission.
+ */
+async function syncPermissions({ added = false } = {}) {
+  const everywhere = await syncPageScripts();
+  const notifications = await chrome.permissions.contains({ permissions: ['notifications'] });
+  const settings = await loadSettings();
+  if (settings.hud.everywhere !== everywhere || (settings.notify.recovered && !notifications)) {
+    await updateSettings(draft => {
+      draft.hud.everywhere = everywhere;
+      if (everywhere) draft.hud.enabled = true;
+      if (!notifications) draft.notify.recovered = false;
+    });
+  }
+  if (added && everywhere) await injectOpenTabs();
+}
+
+function setUp(reason) {
+  listenForClicks();
   ensurePollAlarm();
+  syncPermissions().catch(error => console.warn('[Web AI Monitor] permission sync failed:', error));
   repaint();
-  refreshAll('install');
+  refreshAll(reason);
+}
+
+listenForClicks();
+
+chrome.runtime.onInstalled.addListener(() => setUp('install'));
+chrome.runtime.onStartup.addListener(() => setUp('startup'));
+
+chrome.permissions.onAdded.addListener(async ({ permissions = [], origins = [] }) => {
+  if (permissions.includes('notifications')) {
+    listenForClicks();
+    // Granted from the settings checkbox (the popup may have closed meanwhile).
+    await updateSettings(draft => { draft.notify.recovered = true; });
+  }
+  if (origins.some(origin => ALL_SITES.includes(origin))) await syncPermissions({ added: true });
 });
 
-chrome.runtime.onStartup.addListener(() => {
-  ensurePollAlarm();
-  repaint();
-  refreshAll('startup');
+chrome.permissions.onRemoved.addListener(() => {
+  syncPermissions().catch(error => console.warn('[Web AI Monitor] permission sync failed:', error));
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {

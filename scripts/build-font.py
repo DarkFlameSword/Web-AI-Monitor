@@ -37,7 +37,7 @@ SCAN_EXTENSIONS = ('.js', '.html', '.css')
 # Which language variant supplies a glyph when several have it.
 VARIANTS = ['zh_hans', 'ja', 'zh_hant', 'latin']
 # A few characters the UI may print that are not literally in the sources.
-EXTRA = '0123456789:/%-+.,()[]!?…·'
+EXTRA = '0123456789:/%-+.,()[]!?…·$€£¥￥\u00a0'
 
 FAMILY = 'WAM Guild Pixel'
 POSTSCRIPT = 'WAMGuildPixel-Regular'

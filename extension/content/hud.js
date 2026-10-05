@@ -157,6 +157,7 @@ class Hud {
     this.translators = new Map();
     this.cards = new Map();
     this.drag = null;
+    this.vendorPage = providersForOrigin(location.origin).length > 0;
 
     this.host = document.createElement(HOST_TAG);
     const style = this.host.style;
@@ -254,7 +255,9 @@ class Hud {
 
   shouldShow() {
     const { hud, hiddenHosts } = this.settings;
-    return hud.enabled && !hiddenHosts.includes(location.hostname) && !document.fullscreenElement;
+    // Vendors' own sites always qualify; other sites only with "every site" on.
+    const allowedHere = this.vendorPage || hud.everywhere;
+    return hud.enabled && allowedHere && !hiddenHosts.includes(location.hostname) && !document.fullscreenElement;
   }
 
   translatorFor(provider) {

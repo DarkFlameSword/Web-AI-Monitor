@@ -1,3 +1,4 @@
+import { ALL_SITES } from '../background/page-hud.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
 import { LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
 import { DEFAULT_SETTINGS, POLL_CHOICES, SETTINGS_KEY, loadSettings, normalizeSettings, updateSettings } from '../core/settings.js';
@@ -16,6 +17,8 @@ const state = {
   /** Hostname of the active tab when it is a web page, for "hide on this site". */
   host: null,
   refreshing: false,
+  /** Optional permissions currently granted. */
+  perms: { allSites: false, notify: false },
 };
 
 let t = createTranslator('zh_CN');
@@ -65,6 +68,28 @@ function checkbox(onChange) {
 const langSelect = select(['auto', ...LANGS], value => updateSettings(draft => { draft.lang = value; }));
 const pollSelect = select(POLL_CHOICES, value => updateSettings(draft => { draft.pollMinutes = Number(value); }));
 const hudShow = checkbox(checked => updateSettings(draft => { draft.hud.enabled = checked; }));
+// Permission requests must start inside the click. The worker also mirrors
+// grants into settings, in case the popup closes while Chrome asks.
+const hudEverywhere = checkbox(checked => {
+  if (checked) {
+    chrome.permissions.request({ origins: [...ALL_SITES] })
+      .then(granted => granted && updateSettings(draft => { draft.hud.enabled = true; draft.hud.everywhere = true; }))
+      .finally(refreshPermissions);
+  } else {
+    updateSettings(draft => { draft.hud.everywhere = false; });
+    chrome.permissions.remove({ origins: [...ALL_SITES] }).finally(refreshPermissions);
+  }
+});
+const notifyRecovered = checkbox(checked => {
+  if (checked) {
+    chrome.permissions.request({ permissions: ['notifications'] })
+      .then(granted => granted && updateSettings(draft => { draft.notify.recovered = true; }))
+      .finally(refreshPermissions);
+  } else {
+    updateSettings(draft => { draft.notify.recovered = false; });
+    chrome.permissions.remove({ permissions: ['notifications'] }).finally(refreshPermissions);
+  }
+});
 const hudHideHere = checkbox(checked => updateSettings(draft => {
   const hosts = new Set(draft.hiddenHosts);
   if (checked) hosts.add(state.host);
@@ -80,11 +105,16 @@ const hudReset = h(doc, 'button', {
 const langLabel = h(doc, 'span', { class: 'set-label' });
 const hudLabel = h(doc, 'span', { class: 'set-label' });
 const pollLabel = h(doc, 'span', { class: 'set-label' });
+const notifyLabel = h(doc, 'span', { class: 'set-label' });
 const privacyNote = h(doc, 'p', { class: 'set-note' });
 
 settingsView.append(
   h(doc, 'div', { class: 'set-row' }, [langLabel, h(doc, 'div', { class: 'set-col' }, langSelect.wrap)]),
-  h(doc, 'div', { class: 'set-row' }, [hudLabel, h(doc, 'div', { class: 'set-col' }, [hudShow.wrap, hudHideHere.wrap, hudReset])]),
+  h(doc, 'div', { class: 'set-row' }, [
+    hudLabel,
+    h(doc, 'div', { class: 'set-col' }, [hudShow.wrap, hudEverywhere.wrap, hudHideHere.wrap, hudReset]),
+  ]),
+  h(doc, 'div', { class: 'set-row' }, [notifyLabel, h(doc, 'div', { class: 'set-col' }, notifyRecovered.wrap)]),
   h(doc, 'div', { class: 'set-row' }, [pollLabel, h(doc, 'div', { class: 'set-col' }, pollSelect.wrap)]),
   h(doc, 'div', { class: 'rule' }),
   privacyNote,
@@ -95,6 +125,7 @@ function renderSettings() {
   langLabel.textContent = t('settings.language');
   hudLabel.textContent = t('settings.hud');
   pollLabel.textContent = t('settings.poll');
+  notifyLabel.textContent = t('settings.notify');
   privacyNote.textContent = t('settings.privacy');
 
   for (const option of langSelect.el.options) {
@@ -106,6 +137,11 @@ function renderSettings() {
 
   hudShow.input.checked = settings.hud.enabled;
   hudShow.text.textContent = t('settings.hudShow');
+  hudEverywhere.input.checked = settings.hud.everywhere && state.perms.allSites;
+  hudEverywhere.input.disabled = !settings.hud.enabled;
+  hudEverywhere.text.textContent = t('settings.hudEverywhere');
+  notifyRecovered.input.checked = settings.notify.recovered && state.perms.notify;
+  notifyRecovered.text.textContent = t('settings.notifyRecovered');
   hudHideHere.wrap.hidden = !state.host;
   hudHideHere.input.checked = Boolean(state.host) && settings.hiddenHosts.includes(state.host);
   hudHideHere.text.textContent = t('settings.hudHideHere', { host: state.host ?? '' });
@@ -166,6 +202,19 @@ async function requestRefresh(reason) {
   render();
 }
 
+async function readPermissions() {
+  const [allSites, notify] = await Promise.all([
+    chrome.permissions.contains({ origins: [...ALL_SITES] }),
+    chrome.permissions.contains({ permissions: ['notifications'] }),
+  ]);
+  return { allSites, notify };
+}
+
+async function refreshPermissions() {
+  state.perms = await readPermissions();
+  render();
+}
+
 async function activeHost() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -193,16 +242,20 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (dirty) render();
 });
 
+chrome.permissions.onAdded.addListener(refreshPermissions);
+chrome.permissions.onRemoved.addListener(refreshPermissions);
+
 setInterval(() => {
   const now = Date.now();
   for (const provider of PROVIDERS) cards.get(provider.id)?.tick(translatorFor(provider), now);
 }, 1000);
 
-const [settings, snapshots, host] = await Promise.all([
+const [settings, snapshots, host, perms] = await Promise.all([
   loadSettings(),
   readSnapshots(PROVIDERS.map(provider => provider.id)),
   activeHost(),
+  readPermissions(),
 ]);
-Object.assign(state, { settings, snapshots, host });
+Object.assign(state, { settings, snapshots, host, perms });
 render();
 requestRefresh('popup');

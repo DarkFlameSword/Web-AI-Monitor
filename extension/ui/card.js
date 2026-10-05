@@ -2,7 +2,8 @@ import { buildGaugeViews } from '../core/gauges.js';
 import { label } from '../core/i18n.js';
 import { roleOf } from '../core/roles.js';
 import { formatAgo, formatClock, formatCountdown, formatCountdownShort } from '../core/time.js';
-import { h } from './dom.js';
+import { buildWalletViews } from '../core/wallets.js';
+import { POUCH, POUCH_PALETTE, h, pixelArt } from './dom.js';
 
 /**
  * One gauge row. `compact` is the single-line page HUD form; otherwise it is
@@ -101,6 +102,113 @@ class GaugeRow {
   }
 }
 
+function money(amount, currency, t) {
+  try {
+    return new Intl.NumberFormat(t.tag, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+const WALLET_STATE_KEYS = Object.freeze({
+  disabled: 'wallet.disabled',
+  locked: 'wallet.locked',
+  expired: 'wallet.expired',
+  empty: 'wallet.empty',
+  capped: 'wallet.capped',
+});
+
+/** One line of the gold pouch: name and amount, then cap, expiry or state. */
+class WalletRow {
+  constructor(doc) {
+    this.view = null;
+    this.label = h(doc, 'span', { class: 'w-label' });
+    this.amount = h(doc, 'span', { class: 'w-amount' });
+    this.status = h(doc, 'span', { class: 'w-status' });
+    this.el = h(doc, 'div', { class: 'wallet' }, [
+      h(doc, 'div', { class: 'w-top' }, [this.label, this.amount]),
+      h(doc, 'div', { class: 'w-bot' }, this.status),
+    ]);
+  }
+
+  update(view, t, now) {
+    this.view = view;
+    const classes = ['wallet', `kind-${view.kind}`, `state-${view.state}`];
+    if (view.low) classes.push('low');
+    this.el.className = classes.join(' ');
+    this.label.textContent = label(t, view.label);
+    const cash = amount => money(amount ?? 0, view.currency, t);
+    if (view.state === 'disabled') {
+      this.amount.textContent = t('wallet.disabled');
+    } else if (view.kind === 'grant') {
+      this.amount.textContent = t('wallet.left', { amount: cash(view.balance), total: cash(view.total) });
+    } else {
+      this.amount.textContent = t('wallet.spent', { amount: cash(view.spent) });
+    }
+    this.el.title = view.expiresAt ? t('wallet.expiresAt', { t: formatClock(view.expiresAt, t.tag, now) }) : '';
+    this.tick(t, now);
+  }
+
+  tick(t, now) {
+    const view = this.view;
+    if (!view) return;
+    let text = '';
+    if (view.state === 'disabled') text = '';
+    else if (view.state === 'capped' && view.cap !== null) text = `${t('wallet.capped')} ${money(view.cap, view.currency, t)}`;
+    else if (view.state !== 'active') text = t(WALLET_STATE_KEYS[view.state]);
+    else if (view.kind === 'grant' && view.expiresAt !== null) text = t('wallet.expiresIn', { t: formatCountdown(view.expiresAt - now, t) });
+    else if (view.kind === 'spend') text = view.cap !== null ? t('wallet.cap', { amount: money(view.cap, view.currency, t) }) : t('wallet.noCap');
+    if (this.status.textContent !== text) this.status.textContent = text;
+    this.status.hidden = !text;
+  }
+}
+
+/** The gold pouch under the gauges: credits the account can spend. */
+class Pouch {
+  constructor(doc) {
+    this.doc = doc;
+    this.rows = new Map();
+    this.title = h(doc, 'span', { class: 'pouch-title' });
+    this.list = h(doc, 'div', { class: 'pouch-rows' });
+    this.el = h(doc, 'div', { class: 'pouch' }, [
+      h(doc, 'div', { class: 'pouch-head' }, [pixelArt(this.doc, POUCH, POUCH_PALETTE), this.title]),
+      this.list,
+    ]);
+  }
+
+  update(views, t, now) {
+    this.el.hidden = views.length === 0;
+    this.title.textContent = t('pouch.title');
+    const keep = new Set();
+    for (const view of views) {
+      let row = this.rows.get(view.key);
+      if (!row) {
+        row = new WalletRow(this.doc);
+        this.rows.set(view.key, row);
+      }
+      row.update(view, t, now);
+      this.list.append(row.el);
+      keep.add(view.key);
+    }
+    for (const [key, row] of this.rows) {
+      if (!keep.has(key)) {
+        row.el.remove();
+        this.rows.delete(key);
+      }
+    }
+  }
+
+  /** @returns {boolean} true when a grant just expired and the views need rebuilding. */
+  tick(t, now) {
+    let expired = false;
+    for (const row of this.rows.values()) {
+      if (row.view?.state === 'active' && row.view.expiresAt !== null && row.view.expiresAt <= now) expired = true;
+      else row.tick(t, now);
+    }
+    return expired;
+  }
+}
+
 /** The notice a card shows for its snapshot status, or null when all is well. */
 function noticeFor(snapshot) {
   if (!snapshot) return { key: 'updated.loading', tone: 'info' };
@@ -147,8 +255,16 @@ export class ProviderCard {
     this.noticeAction = h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => this.onOpenSite?.(provider) });
     this.notice = h(doc, 'div', { class: 'notice', role: 'status' }, [this.noticeText, this.noticeAction]);
     this.gauges = h(doc, 'div', { class: 'gauges' });
+    // The page HUD has no room for money; the popup shows it under the gauges.
+    this.pouch = compact ? null : new Pouch(doc);
     this.footer = compact ? null : h(doc, 'div', { class: 'card-foot' });
-    this.el = h(doc, 'section', { class: compact ? 'card compact' : 'card' }, [this.head, this.notice, this.gauges, this.footer]);
+    this.el = h(doc, 'section', { class: compact ? 'card compact' : 'card' }, [
+      this.head,
+      this.notice,
+      this.gauges,
+      this.pouch?.el ?? null,
+      this.footer,
+    ]);
   }
 
   render(snapshot, t, now) {
@@ -197,6 +313,7 @@ export class ProviderCard {
         this.rows.delete(key);
       }
     }
+    this.pouch?.update(buildWalletViews(template, snapshot?.wallets ?? [], now), t, now);
     this.tickFooter(t, now);
   }
 
@@ -204,7 +321,7 @@ export class ProviderCard {
   tick(t, now) {
     // A window that just ended flips its gauge to full; rebuild the views then.
     const ended = [...this.rows.values()].some(row => row.view?.resetsAt !== null && row.view?.resetsAt <= now);
-    if (ended) {
+    if (ended || this.pouch?.tick(t, now)) {
       this.render(this.snapshot, t, now);
       return true;
     }

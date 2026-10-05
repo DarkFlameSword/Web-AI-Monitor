@@ -1,4 +1,5 @@
 import { ROLES, roleOf } from './roles.js';
+import { parseIso } from './time.js';
 
 /**
  * A limit as every provider reports it, whatever the vendor's own format is.
@@ -81,12 +82,6 @@ export function extraLabel(template, meter) {
   return { key, vars: { name } };
 }
 
-function parseTime(iso) {
-  if (!iso) return null;
-  const ms = Date.parse(iso);
-  return Number.isFinite(ms) ? ms : null;
-}
-
 function gaugeView(def, meter, now) {
   const role = ROLES[def.role] ? def.role : 'ex';
   const base = {
@@ -110,7 +105,7 @@ function gaugeView(def, meter, now) {
   }
 
   let used = clampPercent(meter.used) ?? 0;
-  let resetsAt = parseTime(meter.resetsAt);
+  let resetsAt = parseIso(meter.resetsAt);
   let recovering = false;
   // Once the window is over the pool is full again, even before we refetch.
   if (resetsAt !== null && now >= resetsAt) {
@@ -140,19 +135,35 @@ function gaugeView(def, meter, now) {
  * @returns {GaugeView[]}
  */
 export function buildGaugeViews(template, meters, now) {
+  const { pairs, rest } = pairGauges(template, meters);
+  return [
+    ...pairs.map(({ def, meter }) => gaugeView(def, meter, now)),
+    ...rest.map(meter => gaugeView({ key: meter.id, role: 'ex', label: extraLabel(template, meter), primary: false }, meter, now)),
+  ];
+}
+
+/** Each template gauge with the meter it claims (or null), plus the unclaimed meters. */
+function pairGauges(template, meters) {
   const list = Array.isArray(meters) ? meters : [];
   const taken = new Set();
-  const views = [];
-  for (const def of template.gauges) {
-    const meter = list.find(m => !taken.has(m.id) && matchMeter(m, def.match));
+  const pairs = template.gauges.map(def => {
+    const meter = list.find(m => !taken.has(m.id) && matchMeter(m, def.match)) ?? null;
     if (meter) taken.add(meter.id);
-    views.push(gaugeView(def, meter, now));
-  }
-  for (const meter of list) {
-    if (taken.has(meter.id)) continue;
-    views.push(gaugeView({ key: meter.id, role: 'ex', label: extraLabel(template, meter), primary: false }, meter, now));
-  }
-  return views;
+    return { def, meter };
+  });
+  return { pairs, rest: list.filter(meter => !taken.has(meter.id)) };
+}
+
+/**
+ * The template's gauges whose window has ended by `now` after some use:
+ * they are full again. Used for the "fully restored" notification.
+ *
+ * @returns {{def: object, meter: Meter, resetsAt: number}[]}
+ */
+export function recoveredGauges(template, meters, now) {
+  return pairGauges(template, meters).pairs
+    .map(({ def, meter }) => ({ def, meter, resetsAt: parseIso(meter?.resetsAt) }))
+    .filter(({ meter, resetsAt }) => meter && resetsAt !== null && resetsAt <= now && meter.used > 0);
 }
 
 /** The view for one role, e.g. the MP gauge for the toolbar badge. */

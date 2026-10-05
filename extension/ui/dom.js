@@ -79,3 +79,19 @@ export const CREST = [
   '....fff....',
 ];
 export const CREST_PALETTE = { f: 'var(--ink)', g: 'var(--seal)', h: 'var(--sp-hi)' };
+
+/** The gold pouch: a leather bag with a coin on it. */
+export const POUCH = [
+  '...k...k...',
+  '....kkk....',
+  '...kohok...',
+  '..koooook..',
+  '.kohoooook.',
+  'koooyyyoook',
+  'kooyyyyyook',
+  'koooyyyoook',
+  'koooooooook',
+  '.koooooook.',
+  '..kkkkkkk..',
+];
+export const POUCH_PALETTE = { k: 'var(--ink)', o: 'var(--frame-2)', h: 'var(--paper-3)', y: 'var(--sp-hi)' };

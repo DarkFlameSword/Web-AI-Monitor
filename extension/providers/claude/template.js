@@ -29,6 +29,12 @@ export default Object.freeze({
     },
   ],
 
+  /** The gold pouch: money next to the limits, in this order. */
+  wallets: [
+    { key: 'cloud', match: { id: 'cloud_session' }, label: { key: 'claude.cloudCredits' } },
+    { key: 'usage', match: { id: 'usage_credits' }, label: { key: 'claude.usageCredits' } },
+  ],
+
   /** Plan id (from provider.js) -> name shown on the card and guild rank. */
   plans: {
     free: { name: 'Free', rank: 'F' },
@@ -42,8 +48,20 @@ export default Object.freeze({
 
   /** Strings only this vendor needs. */
   messages: {
-    zh_CN: { 'claude.fableSealed': '当前方案没有 Fable 周额度' },
-    ja: { 'claude.fableSealed': '現在のプランには Fable の週間枠がありません' },
-    en: { 'claude.fableSealed': 'Your plan has no weekly Fable limit' },
+    zh_CN: {
+      'claude.fableSealed': '当前方案没有 Fable 周额度',
+      'claude.cloudCredits': '云端会话额度',
+      'claude.usageCredits': '用量额度',
+    },
+    ja: {
+      'claude.fableSealed': '現在のプランには Fable の週間枠がありません',
+      'claude.cloudCredits': 'クラウドセッション枠',
+      'claude.usageCredits': '利用クレジット',
+    },
+    en: {
+      'claude.fableSealed': 'Your plan has no weekly Fable limit',
+      'claude.cloudCredits': 'Cloud session credits',
+      'claude.usageCredits': 'Usage credits',
+    },
   },
 });

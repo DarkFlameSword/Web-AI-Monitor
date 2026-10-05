@@ -3,7 +3,7 @@
   "name": "__MSG_extName__",
   "short_name": "__MSG_extShortName__",
   "description": "__MSG_extDescription__",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "120",
   "icons": {
@@ -24,12 +24,31 @@
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
-  "permissions": ["storage", "alarms", "cookies", "activeTab"],
-  "host_permissions": ["https://claude.ai/*"],
+  "permissions": [
+    "storage",
+    "alarms",
+    "cookies",
+    "activeTab",
+    "scripting"
+  ],
+  "optional_permissions": [
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://claude.ai/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content/loader.js"],
+      "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "content/loader.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -44,7 +63,10 @@
         "ui/*",
         "assets/fonts/*"
       ],
-      "matches": ["http://*/*", "https://*/*"]
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
     }
   ]
 }

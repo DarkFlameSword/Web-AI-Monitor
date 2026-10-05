@@ -9,8 +9,14 @@ export const DEFAULT_SETTINGS = Object.freeze({
   lang: 'auto',
   /** Minutes between background refreshes. */
   pollMinutes: 5,
-  /** The floating window on web pages. x/y are the gap to the corner it is pinned to. */
-  hud: Object.freeze({ enabled: true, collapsed: false, corner: 'br', x: 16, y: 16 }),
+  /**
+   * The floating window. It shows on the vendors' own sites; `everywhere`
+   * extends it to every site once the user grants that permission.
+   * x/y are the gap to the corner it is pinned to.
+   */
+  hud: Object.freeze({ enabled: true, everywhere: false, collapsed: false, corner: 'br', x: 16, y: 16 }),
+  /** Desktop notification when a used gauge is full again (needs the optional permission). */
+  notify: Object.freeze({ recovered: false }),
   /** Hostnames where the floating window stays hidden. */
   hiddenHosts: Object.freeze([]),
 });
@@ -23,17 +29,21 @@ function intIn(value, fallback, min, max) {
 export function normalizeSettings(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const hud = src.hud && typeof src.hud === 'object' ? src.hud : {};
+  const notify = src.notify && typeof src.notify === 'object' ? src.notify : {};
   const defaults = DEFAULT_SETTINGS.hud;
+  const bool = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
   return {
     lang: src.lang === 'auto' || LANGS.includes(src.lang) ? src.lang : DEFAULT_SETTINGS.lang,
     pollMinutes: POLL_CHOICES.includes(src.pollMinutes) ? src.pollMinutes : DEFAULT_SETTINGS.pollMinutes,
     hud: {
-      enabled: typeof hud.enabled === 'boolean' ? hud.enabled : defaults.enabled,
-      collapsed: typeof hud.collapsed === 'boolean' ? hud.collapsed : defaults.collapsed,
+      enabled: bool(hud.enabled, defaults.enabled),
+      everywhere: bool(hud.everywhere, defaults.everywhere),
+      collapsed: bool(hud.collapsed, defaults.collapsed),
       corner: CORNERS.includes(hud.corner) ? hud.corner : defaults.corner,
       x: intIn(hud.x, defaults.x, 0, 10000),
       y: intIn(hud.y, defaults.y, 0, 10000),
     },
+    notify: { recovered: bool(notify.recovered, DEFAULT_SETTINGS.notify.recovered) },
     hiddenHosts: Array.isArray(src.hiddenHosts)
       ? [...new Set(src.hiddenHosts.filter(host => typeof host === 'string' && host))]
       : [],

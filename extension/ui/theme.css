@@ -357,6 +357,71 @@
   padding: 2px 4px;
 }
 
+/* ----------------------------------------------------------- gold pouch */
+
+.wam .pouch {
+  margin-top: 12px;
+  padding-top: 10px;
+  background: repeating-linear-gradient(90deg, var(--frame-2) 0 2px, transparent 2px 4px) top / 100% 1px no-repeat;
+}
+
+.wam .pouch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wam .pouch-head svg {
+  flex: none;
+}
+
+.wam .pouch-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.wam .w-top,
+.wam .w-bot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wam .w-bot {
+  justify-content: flex-end;
+  margin-top: 2px;
+  color: var(--ink-2);
+}
+
+.wam .w-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+
+.wam .w-amount {
+  flex: none;
+  white-space: nowrap;
+}
+
+.wam .wallet.low .w-amount,
+.wam .wallet.state-expired .w-status,
+.wam .wallet.state-locked .w-status,
+.wam .wallet.state-empty .w-status,
+.wam .wallet.state-capped .w-status {
+  color: var(--seal);
+}
+
+.wam .wallet.state-disabled .w-amount,
+.wam .wallet.state-expired .w-amount {
+  color: var(--ink-3);
+}
+
 /* ------------------------------------------------------------ commands */
 
 /* Text commands with a pixel pointer, like an RPG menu. */

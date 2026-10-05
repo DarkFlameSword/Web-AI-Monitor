@@ -137,6 +137,11 @@ body {
   cursor: pointer;
 }
 
+.pix-check:has(input:disabled) {
+  color: var(--ink-3);
+  cursor: default;
+}
+
 .pix-check input {
   position: absolute;
   opacity: 0;
