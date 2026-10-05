@@ -9,6 +9,11 @@ import { chromium } from 'playwright';
 
 import { DATA_PRACTICES_VERSION } from '../extension/core/consent.js';
 
+// Playwright only reports a service worker's own requests (so the mocks can
+// answer them) with this switch on; without it they would reach the real
+// sites. It is read when a worker attaches, so setting it here is in time.
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS ??= '1';
+
 export const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const extensionDir = join(root, 'extension');
 

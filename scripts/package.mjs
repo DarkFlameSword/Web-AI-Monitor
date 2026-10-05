@@ -6,8 +6,8 @@
 // The zip is reproducible (sorted entries, fixed timestamps) and built with
 // Node alone, so it works the same on every system.
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join, relative, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -181,4 +181,11 @@ function main() {
   console.log(`${posix(relative(root, out))}: ${entries.length} files, ${(size / 1024).toFixed(1)} KB`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+/** Run directly (npm run package), not imported by the tests. Windows paths differ in case only. */
+function invokedDirectly() {
+  if (!process.argv[1]) return false;
+  const invoked = pathToFileURL(resolve(process.argv[1])).href;
+  return process.platform === 'win32' ? invoked.toLowerCase() === import.meta.url.toLowerCase() : invoked === import.meta.url;
+}
+
+if (invokedDirectly()) main();

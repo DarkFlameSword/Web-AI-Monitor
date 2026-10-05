@@ -49,7 +49,9 @@ def fetch_package():
     if os.path.isdir(package):
         return package
     os.makedirs(cache, exist_ok=True)
-    tarball = subprocess.check_output(['npm', 'pack', PACKAGE, '--silent'], cwd=cache, text=True).strip().splitlines()[-1]
+    # On Windows npm is npm.cmd, which only starts through a shell.
+    tarball = subprocess.check_output(['npm', 'pack', PACKAGE, '--silent'], cwd=cache, text=True,
+                                      shell=os.name == 'nt').strip().splitlines()[-1]
     with tarfile.open(os.path.join(cache, tarball)) as archive:
         archive.extractall(cache, filter='data')
     return package
@@ -127,6 +129,12 @@ def main():
     rename(font, version)
 
     os.makedirs(OUT_DIR, exist_ok=True)
+    # The upstream font's own timestamp keeps the build reproducible: the same
+    # text gives the same bytes (merging would otherwise stamp the current time).
+    stamp = TTFont(chunks[0], lazy=True)['head'].modified
+    font.recalcTimestamp = False
+    font['head'].created = stamp
+    font['head'].modified = stamp
     font.flavor = 'woff2'
     font.save(OUT_FILE)
 

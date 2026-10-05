@@ -70,7 +70,9 @@ function fontPackage() {
   const dir = join(cache, 'package');
   if (existsSync(dir)) return dir;
   mkdirSync(cache, { recursive: true });
-  const tarball = execFileSync('npm', ['pack', FONT_PACKAGE, '--silent'], { cwd: cache, encoding: 'utf8' }).trim().split('\n').pop();
+  // On Windows npm is npm.cmd, which only starts through a shell.
+  const tarball = execFileSync('npm', ['pack', FONT_PACKAGE, '--silent'], { cwd: cache, encoding: 'utf8', shell: process.platform === 'win32' })
+    .trim().split(/\r?\n/).pop();
   execFileSync('tar', ['-xzf', tarball], { cwd: cache });
   return dir;
 }
