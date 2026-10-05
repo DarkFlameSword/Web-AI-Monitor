@@ -57,22 +57,37 @@ npm run store:assets              # 重新生成 docs/store/images/ 下的全部
 
 截图里的弹窗和悬浮窗都是扩展本身在 Chromium 里渲染的真实界面（数据来自模拟的 claude.ai / chatgpt.com），说明文字用完整的 Fusion Pixel Font 排版。脚本会检查每张图里文字不超出说明框、各块互不重叠。
 
-| 后台字段 | 文件 | 规格 |
-| --- | --- | --- |
-| Store icon | `images/store-icon.png` | 128x128 PNG，图案 96x96 + 每边 16px 透明边距 |
-| Screenshots（按语言上传） | `images/zh_CN/screenshot-1..5.png`、`images/en/...`、`images/ja/...` | 1280x800，最多 5 张 |
-| Small promo tile | `images/promo-small.png` | 440x280，宣传图不能按语言区分，所以只有一张，只放名称和图标 |
-| Marquee promo tile | `images/promo-marquee.png` | 1400x560 |
+截图和宣传图都是 24 位 PNG、无透明通道（后台要求「JPEG or 24-bit PNG (no alpha)」）；商店图标按规范带透明边距。五张截图依次是：能量条、页内悬浮窗、Claude 和 ChatGPT 各自的卡片、悬浮窗跟随切换、设置。
 
-五张截图依次是：能量条、页内悬浮窗、Claude 和 ChatGPT 各自的卡片、悬浮窗跟随切换、设置。
+后台「Graphic assets」一节分三块，按下表上传（路径都在 `docs/store/images/` 下）：
+
+| 后台区块 / 字段 | 上传 | 说明 |
+| --- | --- | --- |
+| Store icon | `store-icon.png` | 128x128，图案 96x96 + 每边 16px 透明边距 |
+| Global assets → Global screenshots（必填） | `en/screenshot-1..5.png` | 所有没有单独上传截图的语言都显示这一组，所以放英文 |
+| Global assets → Small promo tile | `promo-small.png` | 440x280；宣传图不能按语言区分，所以只放名称和图标 |
+| Global assets → Marquee promo tile | `promo-marquee.png` | 1400x560，可选 |
+| Localized assets → Localized screenshots | 中文：`zh_CN/screenshot-1..5.png`；日文：`ja/screenshot-1..5.png` | **每种语言分别上传**，见下 |
+| 两个 promo video | 留空 | 可选 |
+
+**按语言上传（Localized assets）**：Localized assets 一次只显示一种语言，切换语言要用 Store listing 页面**顶部的语言下拉框**。官方说明：「Begin by selecting the language from the dropdown list at the top of the store listing details. Each locale corresponds to one of the `_locales/LOCALE_CODE` directories included in the extension.」（[Localize your listing](https://developer.chrome.com/docs/webstore/cws-dashboard-listing#localize-your-listing)）
+
+1. 顶部下拉框选「English」：填英文详细说明。Localized screenshots 可以留空，会用上面的 Global screenshots。
+2. 切到「中文（中国）」：填中文详细说明，在 Localized screenshots 上传 `zh_CN/` 的 5 张。
+3. 切到「日本語」：填日文详细说明，在 Localized screenshots 上传 `ja/` 的 5 张。
+
+下拉框里的语言来自上传的 zip 里的 `_locales/`（en、zh_CN、ja）。如果只看到一种语言，说明上传的包不对，重新 `npm run package` 后上传 `dist/` 里的 zip。
 
 ## 4. 后台「商品详情」（Store listing）
 
 - **名称、简介**：来自 `extension/_locales/<语言>/messages.json`（`extName`、`extDescription`），后台不能单独改。
 - **类别**：`Tools`（或 `Workflow & Planning`）。
-- **语言**：默认语言是英文（`default_locale: en`），后台的默认商品详情填英文版。浏览器语言是中文、日文的用户看到对应语言的名称、简介和界面；其他语言的用户看到英文。中文、日文的详细说明和截图在后台「添加语言」里分别上传。
-- **官方网址 / 主页**：`https://github.com/DarkFlameSword/Web-AI-Monitor`
-- **支持网址**：`https://github.com/DarkFlameSword/Web-AI-Monitor/issues`
+- **语言**：默认语言是英文（`default_locale: en`），后台的默认商品详情填英文版。浏览器语言是中文、日文的用户看到对应语言的名称、简介和界面；其他语言的用户看到英文。中文、日文的详细说明和截图用页面顶部的语言下拉框切换后分别填写（见第 3 节）。
+- **Additional fields**：
+  - Official URL：选 `None`。这一项要求先在 Google Search Console 验证你拥有该网站，GitHub 仓库地址没法验证，留空不影响审核。
+  - Homepage URL：`https://github.com/DarkFlameSword/Web-AI-Monitor`
+  - Support URL：`https://github.com/DarkFlameSword/Web-AI-Monitor/issues`
+  - Mature content：关闭。
 - **详细说明**：按语言粘贴下面的文字。不要堆砌关键词（同一个词不超过 5 次），不要写「解锁」「绕过」「破解限额」之类的词。
 
 ### 详细说明：简体中文
