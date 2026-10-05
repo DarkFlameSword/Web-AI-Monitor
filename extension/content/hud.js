@@ -1,6 +1,6 @@
 import { buildGaugeViews, viewForRole } from '../core/gauges.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, loadSettings, normalizeSettings, updateSettings } from '../core/settings.js';
+import { SETTINGS_KEY, enabledProviders, loadSettings, normalizeSettings, updateSettings } from '../core/settings.js';
 import { providerIdOfKey, readSnapshots } from '../core/store.js';
 import { PROVIDERS, providersForOrigin } from '../providers/index.js';
 import { ProviderCard } from '../ui/card.js';
@@ -246,18 +246,23 @@ class Hud {
     if (dirty) this.render();
   }
 
+  /** The providers the user monitors. */
+  providers() {
+    return enabledProviders(PROVIDERS, this.settings);
+  }
+
   refreshIfStale() {
     if (document.hidden || !this.shouldShow()) return;
     const now = Date.now();
-    const stale = PROVIDERS.some(p => !this.snapshots[p.id] || now - (this.snapshots[p.id].attemptedAt ?? 0) > STALE_AFTER_MS);
+    const stale = this.providers().some(p => !this.snapshots[p.id] || now - (this.snapshots[p.id].attemptedAt ?? 0) > STALE_AFTER_MS);
     if (stale) send({ type: 'wam:refresh', reason: 'visible' });
   }
 
   shouldShow() {
-    const { hud, hiddenHosts } = this.settings;
+    const { hud } = this.settings;
     // Vendors' own sites always qualify; other sites only with "every site" on.
     const allowedHere = this.vendorPage || hud.everywhere;
-    return hud.enabled && allowedHere && !hiddenHosts.includes(location.hostname) && !document.fullscreenElement;
+    return hud.enabled && allowedHere && this.providers().length > 0 && !document.fullscreenElement;
   }
 
   translatorFor(provider) {
@@ -277,26 +282,36 @@ class Hud {
     this.toggle.setAttribute('aria-label', t('action.collapse'));
     this.chip.setAttribute('aria-label', `${t('hud.label')}: ${t('action.expand')}`);
 
+    // Size: a zoom on the whole window; the pixel art stays crisp at 100% and 200%.
+    this.root.style.setProperty('zoom', String(this.settings.hud.scale));
+
     const now = Date.now();
+    const monitored = new Set(this.providers().map(provider => provider.id));
     for (const provider of PROVIDERS) {
       let card = this.cards.get(provider.id);
+      if (!monitored.has(provider.id)) {
+        card?.el.remove();
+        this.cards.delete(provider.id);
+        continue;
+      }
       if (!card) {
         card = new ProviderCard(document, provider, {
           compact: true,
           onOpenSite: p => window.open(p.homeUrl, '_blank', 'noopener'),
         });
         this.cards.set(provider.id, card);
-        this.cardsEl.append(card.el);
       }
+      this.cardsEl.append(card.el); // keeps registry order
       card.render(this.snapshots[provider.id] ?? null, this.translatorFor(provider), now);
     }
     this.renderChip(now);
     this.applyVisibility();
   }
 
-  /** The collapsed tab mirrors the first provider's MP / HP / SP. */
+  /** The collapsed tab mirrors the first monitored provider's MP / HP / SP. */
   renderChip(now) {
-    const provider = PROVIDERS[0];
+    const [provider] = this.providers();
+    if (!provider) return;
     const views = buildGaugeViews(provider.template, this.snapshots[provider.id]?.meters ?? [], now);
     const t = this.translatorFor(provider);
     const summary = [provider.name];
@@ -343,7 +358,7 @@ class Hud {
       this.renderChip(now);
       return;
     }
-    for (const provider of PROVIDERS) this.cards.get(provider.id)?.tick(this.translatorFor(provider), now);
+    for (const provider of this.providers()) this.cards.get(provider.id)?.tick(this.translatorFor(provider), now);
   }
 
   setCollapsed(collapsed) {

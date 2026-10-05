@@ -65,3 +65,10 @@ export async function paintAction(provider, snapshot, t, now) {
   await chrome.action.setTitle({ title: lines.join('\n') });
   return ticking;
 }
+
+/** Nothing monitored: the plain icon, no badge, and a hint in the tooltip. */
+export async function paintIdle(t) {
+  await chrome.action.setIcon({ path: { 16: '/assets/icons/icon-16.png', 32: '/assets/icons/icon-32.png' } });
+  await chrome.action.setBadgeText({ text: '' });
+  await chrome.action.setTitle({ title: t('popup.noProviders') });
+}

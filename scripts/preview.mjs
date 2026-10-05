@@ -113,6 +113,10 @@ async function launch(extensionPath, mock) {
       return route.fulfill({ json: [{ uuid: ORG, name: 'Guild', capabilities: ['chat', 'claude_max'], rate_limit_tier: 'default_claude_max_20x' }] });
     }
     if (pathname === `/api/organizations/${ORG}/usage`) return route.fulfill({ json: mock.usage });
+    if (pathname === `/api/organizations/${ORG}/subscription_details`) {
+      const { endsIn, renews } = mock.subscription;
+      return route.fulfill({ json: { status: 'active', next_charge_date: new Date(Date.now() + endsIn).toISOString(), cancel_at_period_end: !renews } });
+    }
     if (pathname.endsWith('/completion')) return route.fulfill({ contentType: 'text/event-stream', body: 'event: done\ndata: {}\n\n' });
     return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'claude.ai (mock)') });
   });
@@ -178,7 +182,7 @@ async function main() {
 
   // ------------------------------------------------- default build
   {
-    const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), counts: { worker: 0, page: 0 } };
+    const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), subscription: { endsIn: 29 * DAY, renews: true }, counts: { worker: 0, page: 0 } };
     const app = await launch(extensionDir, mock);
     try {
       await check('default build: HUD on claude.ai, none elsewhere, nothing registered', async () => {
@@ -214,7 +218,7 @@ async function main() {
 
   // ------------------------------------------------- granted build
   const build = grantedBuild();
-  const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), counts: { worker: 0, page: 0 } };
+  const mock = { usage: usageBody({ session: 38, weekly: 19, fable: 0 }), subscription: { endsIn: 29 * DAY, renews: true }, counts: { worker: 0, page: 0 } };
   const app = await launch(build, mock);
   try {
     const claude = await app.context.newPage();
@@ -235,7 +239,14 @@ async function main() {
       await sleep(700);
       await shoot(page.locator('body'), '01-popup-zh');
       const text = await page.locator('body').innerText();
-      for (const expected of [/62\/100/, /81\/100/, /READY!/, /距恢复 2:1\d:\d\d/, /金币袋/, /剩余 \$187\.50 \/ \$250\.00/, /距失效 1天 17:4\d:\d\d/, /本月已用 \$12\.40/, /上限 \$50\.00/]) {
+      const expiry = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() + 29 * DAY));
+      assert.equal(snap.subscription?.endsAt?.slice(0, 10), new Date(Date.now() + 29 * DAY).toISOString().slice(0, 10));
+      for (const expected of [
+        /62\/100/, /81\/100/, /READY!/, /距恢复 2:1\d:\d\d/,
+        /冒险者资质\s*A/, new RegExp(`资质过期时间 ${expiry}`),
+        /宝物袋/, /绿宝石/, /剩余 \$187\.50 \/ \$250\.00/, /距失效 1天 17:4\d:\d\d/,
+        /金币/, /本月已用 \$12\.40/, /上限 \$50\.00/,
+      ]) {
         assert.match(text, expected);
       }
       await page.close();
@@ -274,6 +285,57 @@ async function main() {
       await waitFor(async () => !(await hudOn(page)), 'HUD hidden on example.com');
       assert.equal(await hudOn(claude), true);
       await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true } } });
+      await page.close();
+    });
+
+    await check('refresh interval: the mouse wheel and arrow keys move it, the alarm follows', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true }, pollMinutes: 5 } });
+      const page = await app.openPopup();
+      await page.getByRole('button', { name: '设置' }).click();
+      const range = page.locator('.pix-range input').last();
+      await range.hover();
+      await page.mouse.wheel(0, -100);
+      await page.mouse.wheel(0, -100);
+      await page.mouse.wheel(0, -100);
+      await waitFor(async () => (await app.storage.get('settings'))?.pollMinutes === 8, 'pollMinutes 8 after three wheel steps');
+      await range.focus();
+      for (let i = 0; i < 40; i += 1) await page.keyboard.press('ArrowRight');
+      await waitFor(async () => (await app.storage.get('settings'))?.pollMinutes === 30, 'pollMinutes clamped at 30');
+      const alarm = await waitFor(async () => {
+        const value = await app.worker.evaluate(() => chrome.alarms.get('wam:poll'));
+        return value?.periodInMinutes === 30 && value;
+      }, 'the poll alarm at 30 minutes');
+      assert.equal(alarm.periodInMinutes, 30);
+      assert.match(await page.locator('.pix-range-value').last().innerText(), /30 分钟/);
+      await page.close();
+    });
+
+    await check('HUD size: 200% doubles the floating window', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true, scale: 1 } } });
+      const page = await app.context.newPage();
+      await page.goto('https://example.com/');
+      await waitFor(() => hudOn(page), 'HUD on example.com');
+      await sleep(800);
+      const small = await page.locator('web-ai-monitor-hud').boundingBox();
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true, scale: 2 } } });
+      await sleep(800);
+      const big = await page.locator('web-ai-monitor-hud').boundingBox();
+      assert.ok(Math.abs(big.width / small.width - 2) < 0.05, `${small.width} -> ${big.width}`);
+      assert.ok(big.x + big.width <= 960 && big.y + big.height <= 600, 'stays inside the window');
+      await shoot(page, '12-hud-200');
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true, scale: 1 } } });
+      await page.close();
+    });
+
+    await check('switching Claude off empties the popup and hides the HUD', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true }, disabledProviders: ['claude'] } });
+      const page = await app.openPopup();
+      assert.match(await page.locator('body').innerText(), /没有正在监控的 AI/);
+      await waitFor(async () => !(await hudOn(claude)), 'HUD hidden on claude.ai');
+      await page.getByRole('button', { name: '设置' }).click();
+      await page.locator('label.pix-check', { hasText: 'Claude' }).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.disabledProviders?.length === 0, 'Claude back on');
+      await waitFor(() => hudOn(claude), 'HUD back on claude.ai');
       await page.close();
     });
 
@@ -319,7 +381,9 @@ async function main() {
     };
     await scene('02-popup-low-ja', { lang: 'ja' }, usageBody({ session: 88, weekly: 64, fable: 72, cloud: { limit: 250, used: 221, expiresIn: 9 * HOUR } }), 'max_5x');
     await scene('03-popup-empty-en', { lang: 'en' }, usageBody({ session: 100, weekly: 83, fable: 100, sessionIn: 47 * MIN, cloud: null, extra: { enabled: true, used: 5000, limit: 5000 } }));
+    mock.subscription = { endsIn: 2 * DAY + 3 * HOUR, renews: false };
     await scene('04-popup-pro-sealed', { lang: 'zh_CN' }, usageBody({ session: 12, weekly: 40, sessionIn: null, cloud: { limit: 100, used: 0, expiresIn: 2 * DAY }, extra: { enabled: false, used: 0, limit: null } }), 'pro');
+    mock.subscription = { endsIn: 29 * DAY, renews: true };
 
     await check('scene 08-popup-signed-out', async () => {
       await app.storage.set({ 'snapshot:claude': { provider: 'claude', status: 'signed_out', meters: [], wallets: [], plan: null, fetchedAt: null, attemptedAt: Date.now() } });

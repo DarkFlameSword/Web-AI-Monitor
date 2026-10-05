@@ -1,9 +1,9 @@
 import { HttpError, isAuthError } from '../core/http.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, loadSettings, updateSettings } from '../core/settings.js';
+import { SETTINGS_KEY, enabledProviders, loadSettings, updateSettings } from '../core/settings.js';
 import { providerIdOfKey, readSnapshot, writeSnapshot } from '../core/store.js';
 import { PROVIDERS, getProvider } from '../providers/index.js';
-import { paintAction } from './action-icon.js';
+import { paintAction, paintIdle } from './action-icon.js';
 import { listenForClicks, notifyRecoveries } from './notify.js';
 import { ALL_SITES, injectOpenTabs, syncPageScripts } from './page-hud.js';
 import { fetchUsage } from './transport.js';
@@ -48,6 +48,8 @@ function translatorFor(provider, settings) {
 
 async function runRefresh(provider, reason) {
   const [previous, settings] = await Promise.all([readSnapshot(provider.id), loadSettings()]);
+  // Switched off in settings: leave it alone.
+  if (settings.disabledProviders.includes(provider.id)) return previous;
   const now = Date.now();
   // Before refetching: did a used window just end?
   await notifyRecoveries(provider, previous, settings, translatorFor(provider, settings), now)
@@ -63,12 +65,15 @@ async function runRefresh(provider, reason) {
     meters: previous?.meters ?? [],
     wallets: previous?.wallets ?? [],
     plan: previous?.plan ?? null,
+    subscription: previous?.subscription ?? null,
     fetchedAt: previous?.fetchedAt ?? null,
   };
   let result;
   try {
-    const { meters, wallets = [], plan } = await fetchUsage(provider);
-    result = meters.length ? { status: 'ok', meters, wallets, plan, fetchedAt: now } : { ...kept, status: 'no_data' };
+    const { meters, wallets = [], plan, subscription = null } = await fetchUsage(provider, { previous });
+    result = meters.length
+      ? { status: 'ok', meters, wallets, plan, subscription, fetchedAt: now }
+      : { ...kept, status: 'no_data' };
   } catch (error) {
     result = { ...kept, status: classify(error) };
   }
@@ -86,8 +91,9 @@ function refresh(provider, reason) {
   return job;
 }
 
-function refreshAll(reason) {
-  return Promise.allSettled(PROVIDERS.map(provider => refresh(provider, reason)));
+async function refreshAll(reason) {
+  const providers = enabledProviders(PROVIDERS, await loadSettings());
+  return Promise.allSettled(providers.map(provider => refresh(provider, reason)));
 }
 
 /** Wake up a few seconds after the earliest window resets, to show the refill. */
@@ -109,13 +115,19 @@ async function ensurePollAlarm() {
   await chrome.alarms.create(POLL_ALARM, { periodInMinutes: pollMinutes, delayInMinutes: pollMinutes });
 }
 
-// The toolbar shows the first provider. Repaints are queued so they never interleave.
+// The toolbar shows the first monitored provider. Repaints are queued so they never interleave.
 let paintQueue = Promise.resolve();
 
 function repaint() {
   paintQueue = paintQueue.then(async () => {
-    const provider = PROVIDERS[0];
-    const [snapshot, settings] = await Promise.all([readSnapshot(provider.id), loadSettings()]);
+    const settings = await loadSettings();
+    const [provider] = enabledProviders(PROVIDERS, settings);
+    if (!provider) {
+      await paintIdle(createTranslator(resolveLang(settings.lang, browserLanguage())));
+      await chrome.alarms.clear(BADGE_ALARM);
+      return;
+    }
+    const snapshot = await readSnapshot(provider.id);
     const ticking = await paintAction(provider, snapshot, translatorFor(provider, settings), Date.now());
     if (!ticking) await chrome.alarms.clear(BADGE_ALARM);
     else if (!(await chrome.alarms.get(BADGE_ALARM))) await chrome.alarms.create(BADGE_ALARM, { periodInMinutes: 1 });
@@ -184,10 +196,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== 'wam:refresh') return false;
   let reason = Object.hasOwn(FRESH_ENOUGH_MS, message.reason) ? message.reason : 'visible';
   if (sender.tab && !PAGE_REASONS.has(reason)) reason = 'visible';
-  const providers = Array.isArray(message.providerIds)
-    ? message.providerIds.map(getProvider).filter(Boolean)
-    : PROVIDERS;
-  Promise.allSettled(providers.map(provider => refresh(provider, reason))).then(() => sendResponse({ ok: true }));
+  loadSettings()
+    .then(settings => {
+      const wanted = Array.isArray(message.providerIds) ? message.providerIds.map(getProvider).filter(Boolean) : PROVIDERS;
+      const providers = enabledProviders(wanted, settings);
+      return Promise.allSettled(providers.map(provider => refresh(provider, reason)));
+    })
+    .then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
   return true;
 });
 

@@ -1,7 +1,16 @@
 import { ALL_SITES } from '../background/page-hud.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
 import { LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
-import { DEFAULT_SETTINGS, POLL_CHOICES, SETTINGS_KEY, loadSettings, normalizeSettings, updateSettings } from '../core/settings.js';
+import {
+  DEFAULT_SETTINGS,
+  POLL_RANGE,
+  SCALE_RANGE,
+  SETTINGS_KEY,
+  enabledProviders,
+  loadSettings,
+  normalizeSettings,
+  updateSettings,
+} from '../core/settings.js';
 import { providerIdOfKey, readSnapshots } from '../core/store.js';
 import { PROVIDERS } from '../providers/index.js';
 import { ProviderCard } from '../ui/card.js';
@@ -14,8 +23,6 @@ const state = {
   settings: normalizeSettings(null),
   snapshots: {},
   view: 'status',
-  /** Hostname of the active tab when it is a web page, for "hide on this site". */
-  host: null,
   refreshing: false,
   /** Optional permissions currently granted. */
   perms: { allSites: false, notify: false },
@@ -38,6 +45,7 @@ const settingsCmd = h(doc, 'button', {
   },
 });
 const statusView = h(doc, 'div', { class: 'status-view' });
+const nothingMonitored = h(doc, 'div', { class: 'notice', role: 'status' });
 const settingsView = h(doc, 'div', { class: 'settings' });
 
 app.append(
@@ -50,6 +58,7 @@ app.append(
   statusView,
   settingsView,
 );
+statusView.append(nothingMonitored);
 
 // --------------------------------------------------------------- settings
 
@@ -65,8 +74,64 @@ function checkbox(onChange) {
   return { wrap: h(doc, 'label', { class: 'pix-check' }, [input, h(doc, 'span', { class: 'box' }), text]), input, text };
 }
 
+/**
+ * A pixel slider: drag it, use the arrow keys, or roll the mouse wheel over
+ * it. The label follows at once; the setting is saved when it settles.
+ */
+function slider({ min, max, step, format, onCommit }) {
+  const input = h(doc, 'input', { type: 'range', min: String(min), max: String(max), step: String(step) });
+  const value = h(doc, 'span', { class: 'pix-range-value' });
+  let timer = 0;
+  const commit = () => {
+    clearTimeout(timer);
+    onCommit(Number(input.value));
+  };
+  const show = () => { value.textContent = format(Number(input.value)); };
+  input.addEventListener('input', show);
+  input.addEventListener('change', commit);
+  input.addEventListener('wheel', event => {
+    event.preventDefault();
+    const next = Number(input.value) + (event.deltaY < 0 ? step : -step);
+    input.value = String(Math.min(max, Math.max(min, next)));
+    show();
+    clearTimeout(timer);
+    timer = setTimeout(commit, 350);
+  }, { passive: false });
+  return {
+    wrap: h(doc, 'span', { class: 'pix-range' }, [input, value]),
+    input,
+    set(current) {
+      // Do not yank the thumb from under the user.
+      if (doc.activeElement !== input) input.value = String(current);
+      show();
+    },
+  };
+}
+
 const langSelect = select(['auto', ...LANGS], value => updateSettings(draft => { draft.lang = value; }));
-const pollSelect = select(POLL_CHOICES, value => updateSettings(draft => { draft.pollMinutes = Number(value); }));
+const pollSlider = slider({
+  ...POLL_RANGE,
+  step: 1,
+  format: n => t('settings.minutes', { n }),
+  onCommit: n => updateSettings(draft => { draft.pollMinutes = n; }),
+});
+const sizeSlider = slider({
+  ...SCALE_RANGE,
+  format: n => `${Math.round(n * 100)}%`,
+  onCommit: n => updateSettings(draft => { draft.hud.scale = n; }),
+});
+const providerChecks = PROVIDERS.map(provider => ({
+  provider,
+  check: checkbox(checked => {
+    updateSettings(draft => {
+      const off = new Set(draft.disabledProviders);
+      if (checked) off.delete(provider.id);
+      else off.add(provider.id);
+      draft.disabledProviders = [...off];
+    }).then(() => checked && requestRefresh('manual'));
+  }),
+}));
+const providersMore = h(doc, 'span', { class: 'set-hint' });
 const hudShow = checkbox(checked => updateSettings(draft => { draft.hud.enabled = checked; }));
 // Permission requests must start inside the click. The worker also mirrors
 // grants into settings, in case the popup closes while Chrome asks.
@@ -90,12 +155,6 @@ const notifyRecovered = checkbox(checked => {
     chrome.permissions.remove({ permissions: ['notifications'] }).finally(refreshPermissions);
   }
 });
-const hudHideHere = checkbox(checked => updateSettings(draft => {
-  const hosts = new Set(draft.hiddenHosts);
-  if (checked) hosts.add(state.host);
-  else hosts.delete(state.host);
-  draft.hiddenHosts = [...hosts];
-}));
 const hudReset = h(doc, 'button', {
   class: 'cmd',
   type: 'button',
@@ -106,16 +165,27 @@ const langLabel = h(doc, 'span', { class: 'set-label' });
 const hudLabel = h(doc, 'span', { class: 'set-label' });
 const pollLabel = h(doc, 'span', { class: 'set-label' });
 const notifyLabel = h(doc, 'span', { class: 'set-label' });
+const providersLabel = h(doc, 'span', { class: 'set-label' });
+const sizeLabel = h(doc, 'span', { class: 'set-sub' });
 const privacyNote = h(doc, 'p', { class: 'set-note' });
 
 settingsView.append(
   h(doc, 'div', { class: 'set-row' }, [langLabel, h(doc, 'div', { class: 'set-col' }, langSelect.wrap)]),
   h(doc, 'div', { class: 'set-row' }, [
+    providersLabel,
+    h(doc, 'div', { class: 'set-col' }, [...providerChecks.map(item => item.check.wrap), providersMore]),
+  ]),
+  h(doc, 'div', { class: 'set-row' }, [
     hudLabel,
-    h(doc, 'div', { class: 'set-col' }, [hudShow.wrap, hudEverywhere.wrap, hudHideHere.wrap, hudReset]),
+    h(doc, 'div', { class: 'set-col' }, [
+      hudShow.wrap,
+      hudEverywhere.wrap,
+      h(doc, 'div', { class: 'set-inline' }, [sizeLabel, sizeSlider.wrap]),
+      hudReset,
+    ]),
   ]),
   h(doc, 'div', { class: 'set-row' }, [notifyLabel, h(doc, 'div', { class: 'set-col' }, notifyRecovered.wrap)]),
-  h(doc, 'div', { class: 'set-row' }, [pollLabel, h(doc, 'div', { class: 'set-col' }, pollSelect.wrap)]),
+  h(doc, 'div', { class: 'set-row' }, [pollLabel, h(doc, 'div', { class: 'set-col' }, pollSlider.wrap)]),
   h(doc, 'div', { class: 'rule' }),
   privacyNote,
 );
@@ -126,14 +196,23 @@ function renderSettings() {
   hudLabel.textContent = t('settings.hud');
   pollLabel.textContent = t('settings.poll');
   notifyLabel.textContent = t('settings.notify');
+  providersLabel.textContent = t('settings.providers');
+  sizeLabel.textContent = t('settings.hudSize');
+  providersMore.textContent = t('settings.providersMore');
   privacyNote.textContent = t('settings.privacy');
+
+  for (const { provider, check } of providerChecks) {
+    check.input.checked = !settings.disabledProviders.includes(provider.id);
+    check.text.textContent = provider.name;
+  }
 
   for (const option of langSelect.el.options) {
     option.textContent = option.value === 'auto' ? t('settings.langAuto') : LANG_NAMES[option.value];
   }
   langSelect.el.value = settings.lang;
-  for (const option of pollSelect.el.options) option.textContent = t('settings.minutes', { n: option.value });
-  pollSelect.el.value = String(settings.pollMinutes);
+  pollSlider.set(settings.pollMinutes);
+  sizeSlider.set(settings.hud.scale);
+  sizeSlider.input.disabled = !settings.hud.enabled;
 
   hudShow.input.checked = settings.hud.enabled;
   hudShow.text.textContent = t('settings.hudShow');
@@ -142,9 +221,6 @@ function renderSettings() {
   hudEverywhere.text.textContent = t('settings.hudEverywhere');
   notifyRecovered.input.checked = settings.notify.recovered && state.perms.notify;
   notifyRecovered.text.textContent = t('settings.notifyRecovered');
-  hudHideHere.wrap.hidden = !state.host;
-  hudHideHere.input.checked = Boolean(state.host) && settings.hiddenHosts.includes(state.host);
-  hudHideHere.text.textContent = t('settings.hudHideHere', { host: state.host ?? '' });
   hudReset.textContent = t('settings.hudResetPos');
 }
 
@@ -160,13 +236,21 @@ function openSite(provider) {
 }
 
 function renderCards(now) {
+  const monitored = enabledProviders(PROVIDERS, state.settings);
+  nothingMonitored.hidden = monitored.length > 0;
+  nothingMonitored.textContent = t('popup.noProviders');
   for (const provider of PROVIDERS) {
     let card = cards.get(provider.id);
+    if (!monitored.includes(provider)) {
+      card?.el.remove();
+      cards.delete(provider.id);
+      continue;
+    }
     if (!card) {
       card = new ProviderCard(doc, provider, { onOpenSite: openSite });
       cards.set(provider.id, card);
-      statusView.append(card.el);
     }
+    statusView.append(card.el); // keeps registry order
     card.busy = state.refreshing;
     card.render(state.snapshots[provider.id] ?? null, translatorFor(provider), now);
   }
@@ -215,16 +299,6 @@ async function refreshPermissions() {
   render();
 }
 
-async function activeHost() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const url = new URL(tab?.url ?? '');
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.hostname : null;
-  } catch {
-    return null;
-  }
-}
-
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   let dirty = false;
@@ -250,12 +324,11 @@ setInterval(() => {
   for (const provider of PROVIDERS) cards.get(provider.id)?.tick(translatorFor(provider), now);
 }, 1000);
 
-const [settings, snapshots, host, perms] = await Promise.all([
+const [settings, snapshots, perms] = await Promise.all([
   loadSettings(),
   readSnapshots(PROVIDERS.map(provider => provider.id)),
-  activeHost(),
   readPermissions(),
 ]);
-Object.assign(state, { settings, snapshots, host, perms });
+Object.assign(state, { settings, snapshots, perms });
 render();
 requestRefresh('popup');

@@ -95,3 +95,37 @@ export const POUCH = [
   '..kkkkkkk..',
 ];
 export const POUCH_PALETTE = { k: 'var(--ink)', o: 'var(--frame-2)', h: 'var(--paper-3)', y: 'var(--sp-hi)' };
+
+/** Usage credits: a gold coin. */
+export const COIN = [
+  '..kkkkk..',
+  '.kyyyyyk.',
+  'kyhhyyyok',
+  'kyhyyyyok',
+  'kyyyyyyok',
+  'kyyyyyyok',
+  'kyyyyyook',
+  '.koooook.',
+  '..kkkkk..',
+];
+export const COIN_PALETTE = { k: 'var(--ink)', y: 'var(--sp-hi)', h: 'var(--lag)', o: 'var(--sp)' };
+
+/** Cloud session credits: a cut emerald. */
+export const EMERALD = [
+  '..kkkkk..',
+  '.khhgggk.',
+  'khhggggdk',
+  'khgggggdk',
+  'kggggggdk',
+  'kgggggddk',
+  '.kgggddk.',
+  '..kgddk..',
+  '...kkk...',
+];
+export const EMERALD_PALETTE = { k: 'var(--ink)', g: 'var(--emerald)', h: 'var(--emerald-hi)', d: 'var(--emerald-lo)' };
+
+/** Pixel art for each treasure in core/roles.js TREASURES. */
+export const TREASURE_ART = Object.freeze({
+  coin: [COIN, COIN_PALETTE],
+  emerald: [EMERALD, EMERALD_PALETTE],
+});

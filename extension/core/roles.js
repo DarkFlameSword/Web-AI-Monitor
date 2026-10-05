@@ -17,3 +17,18 @@ export const ROLES = Object.freeze({
 export function roleOf(id) {
   return ROLES[id] ?? ROLES.ex;
 }
+
+/**
+ * Treasures in the pouch: what a kind of credit looks like. A plan template
+ * says which wallet is which treasure, as it does for gauges and roles.
+ */
+export const TREASURES = Object.freeze({
+  /** Ordinary money: usage credits paid as you go. */
+  coin: Object.freeze({ nameKey: 'treasure.coin' }),
+  /** A rarer grant: e.g. the Claude Code cloud session credit. */
+  emerald: Object.freeze({ nameKey: 'treasure.emerald' }),
+});
+
+export function treasureOf(id) {
+  return TREASURES[id] ?? TREASURES.coin;
+}

@@ -34,6 +34,9 @@
   --sp: #d98e1f;
   --sp-hi: #f6c35a;
   --sp-lo: #96590c;
+  --emerald: #2f9a5f;
+  --emerald-hi: #8fdcae;
+  --emerald-lo: #1d6340;
   --ex: #8c7b63;
   --ex-hi: #b4a387;
   --ex-lo: #5f523f;
@@ -107,6 +110,29 @@
   align-items: center;
   gap: 6px;
   color: var(--ink-2);
+}
+
+.wam .qualification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--ink-2);
+}
+
+.wam .q-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wam .q-expiry {
+  white-space: nowrap;
+}
+
+.wam .q-expiry.soon {
+  color: var(--seal);
 }
 
 /* Rank as a small wax seal. */
@@ -357,7 +383,7 @@
   padding: 2px 4px;
 }
 
-/* ----------------------------------------------------------- gold pouch */
+/* ------------------------------------------------------- treasure pouch */
 
 .wam .pouch {
   margin-top: 12px;
@@ -391,9 +417,20 @@
 }
 
 .wam .w-bot {
-  justify-content: flex-end;
   margin-top: 2px;
   color: var(--ink-2);
+}
+
+.wam .w-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wam .w-icon {
+  display: inline-flex;
+  flex: none;
 }
 
 .wam .w-label {
@@ -401,7 +438,11 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--ink-2);
+}
+
+.wam .w-status {
+  flex: none;
+  white-space: nowrap;
 }
 
 .wam .w-amount {

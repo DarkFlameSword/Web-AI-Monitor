@@ -1,9 +1,13 @@
 import { buildGaugeViews } from '../core/gauges.js';
 import { label } from '../core/i18n.js';
-import { roleOf } from '../core/roles.js';
-import { formatAgo, formatClock, formatCountdown, formatCountdownShort } from '../core/time.js';
+import { qualificationExpiry, qualificationOf } from '../core/rank.js';
+import { roleOf, treasureOf } from '../core/roles.js';
+import { formatAgo, formatClock, formatCountdown, formatCountdownShort, formatDate } from '../core/time.js';
 import { buildWalletViews } from '../core/wallets.js';
-import { POUCH, POUCH_PALETTE, h, pixelArt } from './dom.js';
+import { POUCH, POUCH_PALETTE, TREASURE_ART, h, pixelArt } from './dom.js';
+
+/** A qualification about to lapse (and not renewing) is shown in red this early. */
+const RANK_EXPIRY_WARNING_MS = 3 * 24 * 60 * 60_000;
 
 /**
  * One gauge row. `compact` is the single-line page HUD form; otherwise it is
@@ -118,24 +122,36 @@ const WALLET_STATE_KEYS = Object.freeze({
   capped: 'wallet.capped',
 });
 
-/** One line of the gold pouch: name and amount, then cap, expiry or state. */
+/**
+ * One line of the treasure pouch, laid out like a gauge: treasure and amount,
+ * then what it really is and its cap, expiry or state.
+ */
 class WalletRow {
   constructor(doc) {
+    this.doc = doc;
     this.view = null;
+    this.icon = h(doc, 'span', { class: 'w-icon' });
+    this.name = h(doc, 'span', { class: 'w-name' });
     this.label = h(doc, 'span', { class: 'w-label' });
     this.amount = h(doc, 'span', { class: 'w-amount' });
     this.status = h(doc, 'span', { class: 'w-status' });
     this.el = h(doc, 'div', { class: 'wallet' }, [
-      h(doc, 'div', { class: 'w-top' }, [this.label, this.amount]),
-      h(doc, 'div', { class: 'w-bot' }, this.status),
+      h(doc, 'div', { class: 'w-top' }, [h(doc, 'span', { class: 'w-title' }, [this.icon, this.name]), this.amount]),
+      h(doc, 'div', { class: 'w-bot' }, [this.label, this.status]),
     ]);
   }
 
   update(view, t, now) {
+    const treasureChanged = this.view?.treasure !== view.treasure;
     this.view = view;
-    const classes = ['wallet', `kind-${view.kind}`, `state-${view.state}`];
+    const classes = ['wallet', `kind-${view.kind}`, `state-${view.state}`, `treasure-${view.treasure}`];
     if (view.low) classes.push('low');
     this.el.className = classes.join(' ');
+    if (treasureChanged) {
+      const [art, palette] = TREASURE_ART[view.treasure] ?? TREASURE_ART.coin;
+      this.icon.replaceChildren(pixelArt(this.doc, art, palette));
+    }
+    this.name.textContent = t(treasureOf(view.treasure).nameKey);
     this.label.textContent = label(t, view.label);
     const cash = amount => money(amount ?? 0, view.currency, t);
     if (view.state === 'disabled') {
@@ -163,7 +179,7 @@ class WalletRow {
   }
 }
 
-/** The gold pouch under the gauges: credits the account can spend. */
+/** The treasure pouch under the gauges: credits the account can spend. */
 class Pouch {
   constructor(doc) {
     this.doc = doc;
@@ -247,10 +263,25 @@ export class ProviderCard {
     this.nameEl = h(doc, 'span', { class: 'm-name', text: provider.name });
     this.sealEl = h(doc, 'span', { class: 'seal' });
     this.planEl = h(doc, 'span', { class: 'm-plan' });
-    this.head = h(doc, 'div', { class: 'member' }, [
-      this.nameEl,
-      h(doc, 'span', { class: 'm-rank' }, [this.sealEl, this.planEl]),
-    ]);
+    if (compact) {
+      // HUD: name, rank seal and plan on one line; the expiry is in the tooltip.
+      this.head = h(doc, 'div', { class: 'member' }, [
+        this.nameEl,
+        h(doc, 'span', { class: 'm-rank' }, [this.sealEl, this.planEl]),
+      ]);
+    } else {
+      // Popup: name and plan, then adventurer rank and when it lapses.
+      this.rankLabel = h(doc, 'span', { class: 'q-label' });
+      this.expiryEl = h(doc, 'span', { class: 'q-expiry' });
+      this.qualification = h(doc, 'div', { class: 'qualification' }, [
+        h(doc, 'span', { class: 'q-rank' }, [this.rankLabel, this.sealEl]),
+        this.expiryEl,
+      ]);
+      this.head = h(doc, 'div', { class: 'member-block' }, [
+        h(doc, 'div', { class: 'member' }, [this.nameEl, this.planEl]),
+        this.qualification,
+      ]);
+    }
     this.noticeText = h(doc, 'span');
     this.noticeAction = h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => this.onOpenSite?.(provider) });
     this.notice = h(doc, 'div', { class: 'notice', role: 'status' }, [this.noticeText, this.noticeAction]);
@@ -272,11 +303,7 @@ export class ProviderCard {
     this.t = t;
     const { template } = this.provider;
 
-    const plan = snapshot?.plan ? template.plans?.[snapshot.plan] : null;
-    this.sealEl.textContent = plan?.rank ?? '';
-    this.sealEl.hidden = !plan?.rank;
-    this.sealEl.title = plan?.rank ? `${t('rank')} ${plan.rank}` : '';
-    this.planEl.textContent = plan?.name ?? '';
+    this.renderQualification(snapshot, t, now);
 
     const notice = noticeFor(snapshot);
     this.notice.hidden = !notice;
@@ -315,6 +342,30 @@ export class ProviderCard {
     }
     this.pouch?.update(buildWalletViews(template, snapshot?.wallets ?? [], now), t, now);
     this.tickFooter(t, now);
+  }
+
+  /** Adventurer rank from the plan, and the date it lapses (the subscription's end). */
+  renderQualification(snapshot, t, now) {
+    const qual = qualificationOf(this.provider.template, snapshot?.plan);
+    const { expiresAt, renews } = qualificationExpiry(snapshot?.subscription);
+    const rank = qual?.rank ?? null;
+    this.sealEl.textContent = rank ?? '';
+    this.sealEl.hidden = !rank;
+    this.planEl.textContent = qual?.name ?? '';
+
+    const paid = Boolean(qual) && snapshot?.plan !== 'free';
+    const date = expiresAt !== null ? formatDate(expiresAt, t.tag) : '--';
+    const expiryText = paid ? t('rank.expires', { date }) : '';
+    const renewText = renews === true ? t('rank.renews') : renews === false ? t('rank.ends') : '';
+    this.sealEl.title = [rank ? `${t('rank')} ${rank}` : '', expiryText, renewText].filter(Boolean).join('\n');
+
+    if (!this.qualification) return;
+    this.qualification.hidden = !rank;
+    this.rankLabel.textContent = t('rank');
+    this.expiryEl.textContent = expiryText;
+    this.expiryEl.title = renewText;
+    const soon = expiresAt !== null && renews !== true && expiresAt - now < RANK_EXPIRY_WARNING_MS;
+    this.expiryEl.classList.toggle('soon', soon);
   }
 
   /** Called every second: countdowns and "updated ago". */

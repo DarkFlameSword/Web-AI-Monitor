@@ -20,25 +20,41 @@
 - 会话没开始时 MP 显示「待机中」；倒计时走完会先显示「恢复中...」并把条回满，后台随即重新拉取。
 - Pro / 标准 Team 席位没有 Fable 周额度时，SP 显示为「封印中」。
 
-## 金币袋（额度）
+## 冒险者资质
 
-弹窗里能量条下方是「金币袋」，分两行：
+弹窗里名字下方显示「冒险者资质」和「资质过期时间」：
 
-| 行 | 来源 | 显示 |
+| 方案 | 资质 |
+| --- | --- |
+| Max 20x（个人方案最高档） | A |
+| Max 5x | B |
+| Pro | C |
+| Free | D |
+| Team / Enterprise（组织方案，不在个人阶梯上） | B / S |
+
+- 规则写在厂商模板里：`ladder` 按个人方案从高到低排列，第一档是 A，每低一档降一个字母；接别家时照样列出它的个人方案即可。组织方案在模板里单独写明资质。
+- 资质过期时间 = 订阅的到期或续费日期。先在组织信息里找到期字段，找不到再读一次账单详情（`subscription_details`），结果缓存 6 小时。读不到时显示 `--`。三天内到期且不会自动续期时变红；悬停可以看到「到期自动续期 / 到期后不再续期」。Free 不显示过期时间。
+
+## 宝物袋（额度）
+
+弹窗里能量条下方是「宝物袋」。两种额度写法和能量条一样：上一行是宝物名和数额，下一行是它实际对应的额度和状态。
+
+| 宝物 | 实际额度 | 显示 |
 | --- | --- | --- |
-| 云端会话额度 | Claude Code 云端会话的赠送额度（美元） | 剩余 / 总额，失效倒计时；不足 20% 变红；失效、锁定、用完时注明 |
-| 用量额度 | 用量额度（Usage credits / extra usage） | 本月已用，以及月度上限或「无上限」；未开启显示「未启用」，花到上限显示「已达上限」 |
+| 绿宝石 | 云端会话额度（Claude Code cloud session credits，美元） | 剩余 / 总额，失效倒计时；不足 20% 变红；失效、锁定、用完时注明 |
+| 金币 | 用量额度（Usage credits / extra usage） | 本月已用，以及月度上限或「无上限」；未开启显示「未启用」，花到上限显示「已达上限」 |
 
-账户没有某一项时，那一行不显示；两项都没有时整个金币袋不显示。悬浮窗里不显示金币袋，保持简洁。
+账户没有某一项时，那一行不显示；两项都没有时整个宝物袋不显示。悬浮窗里不放宝物袋，保持简洁。
 
 ## 功能一览
 
-- **弹窗**：公会卡（等级印章 = 方案，Max 20x 是 A 级），三条能量 + 倒计时 + 金币袋 + 「x 秒前更新」，以及设置页。
-- **页内悬浮窗**：默认只在 claude.ai 上显示；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；可按网站隐藏；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
+- **弹窗**：公会卡（冒险者资质 + 资质过期时间），三条能量 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。
+- **页内悬浮窗**：默认只在 claude.ai 上显示；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
+- **监控对象**：设置里每个已接入的 AI 厂商都有开关（目前只有 Claude，其余显示「筹备中」）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。
 - **恢复通知**（默认关）：勾选「能量完全恢复时提醒」时才申请通知权限。用过的 MP / HP / SP 在重置时刻回满后，发一条桌面通知（每个窗口只发一次；浏览器关着时错过超过 1 小时的不再补发）；点通知打开 claude.ai。
 - **工具栏图标**：图标本身就是三条迷你能量条，实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
 - **刷新时机**：
-  - 后台定时（默认 5 分钟，可选 1 / 3 / 5 / 10 / 15 / 30）；
+  - 后台定时（默认 5 分钟；设置里用滑块在 1 - 30 分钟之间任选，可以拖动、滚动鼠标滚轮或按方向键）；
   - 在 claude.ai 上每次回复结束约 1 秒后；
   - 任一窗口到达重置时刻时；
   - 打开弹窗、切回标签页（数据较旧时）；
@@ -59,8 +75,9 @@
 
 - 读取 claude.ai 网页自己用的接口（非公开 API，可能随时变动）：
   - `GET https://claude.ai/api/organizations`：找到当前组织（优先 `lastActiveOrg` cookie）并推断方案；
-  - `GET https://claude.ai/api/organizations/{org}/usage`：用量。新格式 `limits[]`（`session` / `weekly_all` / `weekly_scoped` + `scope.model.display_name`）和旧格式 `five_hour` / `seven_day` / `seven_day_*` 都能解析，不认识的字段会被跳过。金币袋来自同一个响应：`extra_usage`（金额以最小货币单位给出，按 `decimal_places` 换算）和云端会话额度（目前是代号字段 `iguana_necktie`，以美元给出，`resets_at` 是失效时间；代号改名时会按 `cloud` / `ccr` / `remote_session` 关键字兜底）。
-- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的 claude.ai 标签页，以页面身份同源请求（只允许上面两个路径，只读 GET）。
+  - `GET https://claude.ai/api/organizations/{org}/subscription_details`：付费方案的到期 / 续费日期（组织信息里没有时才请求，最多 6 小时一次）；
+  - `GET https://claude.ai/api/organizations/{org}/usage`：用量。新格式 `limits[]`（`session` / `weekly_all` / `weekly_scoped` + `scope.model.display_name`）和旧格式 `five_hour` / `seven_day` / `seven_day_*` 都能解析，不认识的字段会被跳过。宝物袋来自同一个响应：`extra_usage`（金额以最小货币单位给出，按 `decimal_places` 换算）和云端会话额度（目前是代号字段 `iguana_necktie`，以美元给出，`resets_at` 是失效时间；代号改名时会按 `cloud` / `ccr` / `remote_session` 关键字兜底）。
+- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的 claude.ai 标签页，以页面身份同源请求（只允许上面三个路径，只读 GET）。
 - 数据只保存在本机的 `chrome.storage.local`，不发送到任何第三方服务器。
 
 ### 权限说明
@@ -73,7 +90,6 @@
 | `storage` | 保存用量快照和设置 |
 | `alarms` | 定时刷新、在重置时刻刷新 |
 | `cookies` | 读取 claude.ai 的 `lastActiveOrg`，跟随你在网页上切换的组织 |
-| `activeTab` | 弹窗里的「在当前网站隐藏」需要知道当前标签页的域名 |
 | `scripting` | 获得所有网站权限后，注册悬浮窗脚本并放进已打开的标签页 |
 
 | 按需申请（可选权限） | 什么时候申请 |
@@ -93,8 +109,9 @@ extension/
     claude/template.js        限制计划模板（纯数据）：哪个限制扮演哪个角色、方案 -> 等级、厂商专用文案
   core/                       与厂商无关
     gauges.js                 Meter[] + 模板 -> 卡片上的每一行（剩余量、等级、READY、封印、恢复中）
-    wallets.js                Wallet[] + 模板 -> 金币袋的每一行（余额、上限、失效、状态）
-    roles.js                  角色词表：mp / hp / sp / ex
+    wallets.js                Wallet[] + 模板 -> 宝物袋的每一行（余额、上限、失效、状态）
+    rank.js                   方案 + 模板阶梯 -> 冒险者资质；订阅 -> 资质过期时间
+    roles.js                  角色词表：mp / hp / sp / ex；宝物：coin（金币）/ emerald（绿宝石）
     i18n.js, messages.js      多语言
     time.js                   倒计时与时间格式
     settings.js, store.js     设置与快照（chrome.storage.local）
@@ -116,7 +133,7 @@ extension/
                                                                           |
                          popup / 各网页的悬浮窗 <---------- 监听变化 ---------+
                          buildGaugeViews(厂商模板, Meter[])   -> MP / HP / SP 能量条
-                         buildWalletViews(厂商模板, Wallet[]) -> 金币袋
+                         buildWalletViews(厂商模板, Wallet[]) -> 宝物袋
 ```
 
 三层各管一件事：
@@ -136,8 +153,9 @@ extension/
        { key: 'weekly', role: 'hp', match: { kind: 'weekly', scope: null }, label: { key: 'meter.weeklyAll' } },
        { key: 'pro', role: 'sp', match: { kind: 'weekly', scope: 'pro-model' }, label: { key: 'acme.pro' }, optional: true },
      ],
-     wallets: [{ key: 'credits', match: { id: 'prepaid' }, label: { key: 'acme.credits' } }], // 可选
-     plans: { plus: { name: 'Plus', rank: 'C' }, pro: { name: 'Pro', rank: 'A' } },
+     wallets: [{ key: 'credits', treasure: 'coin', match: { id: 'prepaid' }, label: { key: 'acme.credits' } }], // 可选
+     ladder: ['pro', 'plus', 'free'],   // 个人方案从高到低：pro = A, plus = B, free = C
+     plans: { pro: { name: 'Pro' }, plus: { name: 'Plus' }, free: { name: 'Free' }, business: { name: 'Business', rank: 'S' } },
      messages: {
        zh_CN: { 'acme.short': '3 小时窗口', 'acme.pro': '每周 / Pro 模型', 'acme.credits': '预付额度' },
        ja: { 'acme.short': '3 時間枠', 'acme.pro': '週間 / Pro モデル', 'acme.credits': 'プリペイド' },
@@ -146,7 +164,7 @@ extension/
    };
    ```
 
-2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。
+2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http, { previous })` 返回 `{ meters, wallets, plan, subscription }`（`wallets` 可以是空数组，`subscription` 可以是 null）。
 3. 在 `extension/providers/index.js` 里注册，在 `manifest.json` 的 `host_permissions` 和 `content_scripts.matches` 里加上它的域名。
 4. 如果模板里出现了新的界面文字，运行 `npm run build:font` 重新生成字体子集。
 
@@ -155,7 +173,7 @@ extension/
 需要 Node 22+。
 
 ```sh
-npm test                 # 单元测试：解析、模板映射、金币袋、恢复判定、倒计时、多语言、设置
+npm test                 # 单元测试：解析、模板映射、宝物袋、资质、恢复判定、倒计时、多语言、设置
 npm run build:icons      # 由 ui/pixel-icon.js 生成 16/32/48/128 图标
 npm run build:font       # 界面文字有变动时重新生成像素字体子集（需要 pip install fonttools brotli）
 npm run preview          # 用 Playwright 加载扩展、模拟 claude.ai，跑端到端检查并截图到 preview-out/
@@ -164,11 +182,13 @@ npm run preview          # 用 Playwright 加载扩展、模拟 claude.ai，跑�
 `npm run preview` 需要先 `npm install` 和 `npx playwright install chromium`。它会依次加载两份扩展：原样的（没有任何可选权限）和一份把可选权限设为已授予的副本，检查：
 
 - 默认只在 claude.ai 上出现悬浮窗，其他网站没有，也没有注册任何脚本；
-- 后台直连被拦时能通过 claude.ai 标签页取数，金币袋的两行都解析正确；
+- 后台直连被拦时能通过 claude.ai 标签页取数，宝物袋的两行都解析正确；
 - 回复结束后自动刷新；
 - 授权后其他网站（包括严格 CSP 的）出现悬浮窗和像素字体，关掉「所有网页」后隐藏；
-- 用过的能量重置后发且只发一次「完全恢复」通知。
+- 用过的能量重置后发且只发一次「完全恢复」通知；
+- 刷新间隔滑块（滚轮、方向键）改到 1 - 30 分钟并同步到定时器；悬浮窗 200% 时正好放大一倍；
+- 关掉 Claude 的监控后弹窗提示、悬浮窗隐藏，重新打开后恢复。
 
 ## 字体
 
-界面字体是 [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font)（缝合像素字体，12px 比例宽度版，含方舟像素字体的字形），SIL Open Font License 1.1。仓库里只放了界面用到的约 350 个字形（约 11 KB），重命名为 `WAM Guild Pixel`；授权文件在 `extension/assets/fonts/`。
+界面字体是 [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font)（缝合像素字体，12px 比例宽度版，含方舟像素字体的字形），SIL Open Font License 1.1。仓库里只放了界面用到的约 380 个字形（约 12 KB），重命名为 `WAM Guild Pixel`；授权文件在 `extension/assets/fonts/`。

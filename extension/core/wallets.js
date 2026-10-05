@@ -24,6 +24,7 @@ import { parseIso } from './time.js';
  * @typedef {object} WalletView
  * @property {string} key
  * @property {{key: string, vars?: object}} label
+ * @property {string} treasure         Key into TREASURES (coin, emerald).
  * @property {'grant'|'spend'} kind
  * @property {string} currency
  * @property {number|null} balance
@@ -48,6 +49,7 @@ function walletView(def, wallet, now) {
   return {
     key: def.key,
     label: def.label,
+    treasure: def.treasure ?? 'coin',
     kind: wallet.kind,
     currency: wallet.currency,
     balance: wallet.balance,

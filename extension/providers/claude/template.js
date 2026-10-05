@@ -29,19 +29,23 @@ export default Object.freeze({
     },
   ],
 
-  /** The gold pouch: money next to the limits, in this order. */
+  /** The treasure pouch: money next to the limits, in this order. */
   wallets: [
-    { key: 'cloud', match: { id: 'cloud_session' }, label: { key: 'claude.cloudCredits' } },
-    { key: 'usage', match: { id: 'usage_credits' }, label: { key: 'claude.usageCredits' } },
+    { key: 'cloud', treasure: 'emerald', match: { id: 'cloud_session' }, label: { key: 'claude.cloudCredits' } },
+    { key: 'usage', treasure: 'coin', match: { id: 'usage_credits' }, label: { key: 'claude.usageCredits' } },
   ],
 
-  /** Plan id (from provider.js) -> name shown on the card and guild rank. */
+  /** Personal plans from the top: the best is adventurer rank A, then B, C, D. */
+  ladder: ['max_20x', 'max_5x', 'pro', 'free'],
+
+  /** Plan id (from provider.js) -> name on the card; plans off the ladder say their rank. */
   plans: {
-    free: { name: 'Free', rank: 'F' },
-    pro: { name: 'Pro', rank: 'C' },
-    max: { name: 'Max', rank: 'B' },
-    max_5x: { name: 'Max 5x', rank: 'B' },
-    max_20x: { name: 'Max 20x', rank: 'A' },
+    max_20x: { name: 'Max 20x' },
+    max_5x: { name: 'Max 5x' },
+    pro: { name: 'Pro' },
+    free: { name: 'Free' },
+    // Max with an unknown multiplier counts as the lower Max tier.
+    max: { name: 'Max', rankAs: 'max_5x' },
     team: { name: 'Team', rank: 'B' },
     enterprise: { name: 'Enterprise', rank: 'S' },
   },

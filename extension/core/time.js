@@ -60,3 +60,8 @@ export function formatAgo(ms, t) {
   if (minutes < 60) return t('updated.minutes', { n: minutes });
   return t('updated.hours', { n: Math.floor(minutes / 60) });
 }
+
+/** Calendar date, e.g. 2026/11/03. */
+export function formatDate(ms, tag) {
+  return new Intl.DateTimeFormat(tag, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+}

@@ -14,12 +14,6 @@
   cursor: grab;
   user-select: none;
   touch-action: none;
-  opacity: 0.96;
-}
-
-.hud-sheet:hover,
-.hud.dragging .hud-sheet {
-  opacity: 1;
 }
 
 .hud.dragging .hud-sheet,

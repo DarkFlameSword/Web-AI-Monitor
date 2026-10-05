@@ -1,28 +1,37 @@
 import { LANGS } from './messages.js';
 
 export const SETTINGS_KEY = 'settings';
-export const POLL_CHOICES = Object.freeze([1, 3, 5, 10, 15, 30]);
+/** Background refresh, in whole minutes. */
+export const POLL_RANGE = Object.freeze({ min: 1, max: 30 });
+/** Floating window size, as a zoom factor. */
+export const SCALE_RANGE = Object.freeze({ min: 1, max: 2, step: 0.25 });
 export const CORNERS = Object.freeze(['tl', 'tr', 'bl', 'br']);
 
 export const DEFAULT_SETTINGS = Object.freeze({
   /** 'auto' follows the browser; otherwise one of LANGS. */
   lang: 'auto',
-  /** Minutes between background refreshes. */
+  /** Minutes between background refreshes, POLL_RANGE.min to POLL_RANGE.max. */
   pollMinutes: 5,
+  /** Providers the user switched off; everything else is monitored. */
+  disabledProviders: Object.freeze([]),
   /**
    * The floating window. It shows on the vendors' own sites; `everywhere`
    * extends it to every site once the user grants that permission.
-   * x/y are the gap to the corner it is pinned to.
+   * x/y are the gap to the corner it is pinned to; scale is its zoom.
    */
-  hud: Object.freeze({ enabled: true, everywhere: false, collapsed: false, corner: 'br', x: 16, y: 16 }),
+  hud: Object.freeze({ enabled: true, everywhere: false, collapsed: false, corner: 'br', x: 16, y: 16, scale: 1 }),
   /** Desktop notification when a used gauge is full again (needs the optional permission). */
   notify: Object.freeze({ recovered: false }),
-  /** Hostnames where the floating window stays hidden. */
-  hiddenHosts: Object.freeze([]),
 });
 
 function intIn(value, fallback, min, max) {
   return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : fallback;
+}
+
+function scaleOf(value) {
+  if (!Number.isFinite(value)) return DEFAULT_SETTINGS.hud.scale;
+  const { min, max, step } = SCALE_RANGE;
+  return Math.min(max, Math.max(min, Math.round(value / step) * step));
 }
 
 /** Fill in defaults and drop anything malformed, so readers never have to check. */
@@ -34,7 +43,10 @@ export function normalizeSettings(raw) {
   const bool = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
   return {
     lang: src.lang === 'auto' || LANGS.includes(src.lang) ? src.lang : DEFAULT_SETTINGS.lang,
-    pollMinutes: POLL_CHOICES.includes(src.pollMinutes) ? src.pollMinutes : DEFAULT_SETTINGS.pollMinutes,
+    pollMinutes: intIn(src.pollMinutes, DEFAULT_SETTINGS.pollMinutes, POLL_RANGE.min, POLL_RANGE.max),
+    disabledProviders: Array.isArray(src.disabledProviders)
+      ? [...new Set(src.disabledProviders.filter(id => typeof id === 'string' && id))]
+      : [],
     hud: {
       enabled: bool(hud.enabled, defaults.enabled),
       everywhere: bool(hud.everywhere, defaults.everywhere),
@@ -42,12 +54,15 @@ export function normalizeSettings(raw) {
       corner: CORNERS.includes(hud.corner) ? hud.corner : defaults.corner,
       x: intIn(hud.x, defaults.x, 0, 10000),
       y: intIn(hud.y, defaults.y, 0, 10000),
+      scale: scaleOf(hud.scale),
     },
     notify: { recovered: bool(notify.recovered, DEFAULT_SETTINGS.notify.recovered) },
-    hiddenHosts: Array.isArray(src.hiddenHosts)
-      ? [...new Set(src.hiddenHosts.filter(host => typeof host === 'string' && host))]
-      : [],
   };
+}
+
+/** The providers the user monitors, in registry order. */
+export function enabledProviders(providers, settings) {
+  return providers.filter(provider => !settings.disabledProviders.includes(provider.id));
 }
 
 export async function loadSettings() {
