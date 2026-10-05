@@ -181,22 +181,53 @@ Shows the signed-in user's own AI usage limits (Claude, and optionally ChatGPT) 
 
 ### 权限理由（Permission justification）
 
-每个权限一栏，按下面填写：
+后台按下面的顺序列出输入框，每个框的上限是 1,000 字符。所有主机权限（必需的 claude.ai，以及可选的 chatgpt.com 和所有网站）共用一个「Host permission justification」框。页面上「Due to the Host Permission, your extension may require an in-depth review」的黄色提示是正常的，有主机权限的扩展都会显示。
 
-| 权限 | 理由 |
-| --- | --- |
-| `storage` | `Keeps the user's settings and the latest usage snapshot (percent used, reset times, plan, credit balances) on the device, so the popup and the HUD can show them. Nothing is sent anywhere.` |
-| `alarms` | `Refreshes the usage on the interval the user picks (1-30 minutes) and right when a limit window resets, so the gauges and countdowns stay correct.` |
-| `cookies` | `Reads exactly one cookie, lastActiveOrg on claude.ai, so the usage request asks for the organization the user is currently in. No other cookie is read, and the value is only used in that request to claude.ai: never stored or sent anywhere else.` |
-| `scripting` | `Used only after the user turns on "show the HUD on every site" or switches on ChatGPT: registers the packaged HUD content script for those sites and adds it to tabs already open. No remote code. The script only displays the HUD and reads no page content.` |
-| 主机权限 `https://claude.ai/*` | `Reads the user's own usage from claude.ai with their existing session, and shows the HUD on claude.ai. On claude.ai pages it notes when a reply finishes (request URL and timing only, never content) to refresh right away. Read-only: it never changes or bypasses limits.` |
-| 可选主机权限 `https://chatgpt.com/*` | `Requested only when the user ticks ChatGPT in settings. Reads the user's own Codex usage from chatgpt.com. The session access token from chatgpt.com/api/auth/session is kept in memory for that one request and never stored or sent anywhere else.` |
-| 可选主机权限 `http://*/*`、`https://*/*` | `Requested only when the user ticks "show the HUD on every site". Used solely to display the usage HUD on pages the user visits. The extension reads no page content, URLs or browsing history from these sites.` |
-| 可选权限 `notifications` | `Requested only when the user ticks "tell me when a gauge is full again": one desktop notice when a used limit resets.` |
+**storage justification**（187 字符）
+
+```text
+Keeps the user's settings and the latest usage snapshot (percent used, reset times, plan, credit balances) on the device, so the popup and the HUD can show them. Nothing is sent anywhere.
+```
+
+**alarms justification**（146 字符）
+
+```text
+Refreshes the usage on the interval the user picks (1-30 minutes) and right when a limit window resets, so the gauges and countdowns stay correct.
+```
+
+**cookies justification**（244 字符）
+
+```text
+Reads exactly one cookie, lastActiveOrg on claude.ai, so the usage request asks for the organization the user is currently in. No other cookie is read, and the value is only used in that request to claude.ai: never stored or sent anywhere else.
+```
+
+**scripting justification**（254 字符）
+
+```text
+Used only after the user turns on "show the HUD on every site" or switches on ChatGPT: registers the packaged HUD content script for those sites and adds it to tabs already open. No remote code. The script only displays the HUD and reads no page content.
+```
+
+**notifications justification**（188 字符）
+
+```text
+Optional permission, requested only when the user ticks "tell me when a gauge is full again" in settings: shows one desktop notice when a used limit resets. No other notifications, no ads.
+```
+
+**Host permission justification**（840 字符）
+
+```text
+https://claude.ai/* (required): reads the user's own usage from claude.ai with their existing session, and shows the usage HUD on claude.ai. On claude.ai pages it notes when a reply finishes (request URL and timing only, never content) to refresh right away.
+
+https://chatgpt.com/* (optional): requested only when the user ticks ChatGPT in settings. Reads the user's own Codex usage. The session access token from chatgpt.com/api/auth/session is kept in memory for that one request and never stored or sent anywhere else.
+
+http://*/* and https://*/* (optional): requested only when the user ticks "show the HUD on every site". Used solely to display the usage HUD on pages the user visits; the extension reads no page content, URLs or browsing history from these sites.
+
+Read-only throughout: it never changes, bypasses or resets any limit.
+```
 
 ### 远程代码（Remote code）
 
-选 **No, I am not using remote code**。
+「Are you using remote code?」选 **No, I am not using remote code**。选 No 后下面的 Justification 框会消失。本扩展所有脚本都在包内；内容脚本用 `import(chrome.runtime.getURL(...))` 加载的也是包内文件，不算远程代码。
 
 ### 数据使用（Data usage）
 
