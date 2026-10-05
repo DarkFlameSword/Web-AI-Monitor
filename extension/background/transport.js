@@ -8,13 +8,13 @@ import { HttpError, deserializeError, isAuthError } from '../core/http.js';
  */
 export function directHttp(provider) {
   return {
-    async getJson(path) {
+    async getJson(path, { headers = {} } = {}) {
       let response;
       try {
         response = await fetch(provider.origin + path, {
           credentials: 'include',
           cache: 'no-store',
-          headers: { accept: 'application/json' },
+          headers: { ...headers, accept: 'application/json' },
         });
       } catch {
         throw new HttpError(0, 'network');
@@ -45,10 +45,10 @@ export function directHttp(provider) {
 export function tabHttp(provider, tabId) {
   const ask = message => chrome.tabs.sendMessage(tabId, { ...message, providerId: provider.id });
   return {
-    async getJson(path) {
+    async getJson(path, { headers = {} } = {}) {
       let reply;
       try {
-        reply = await ask({ type: 'wam:proxy-get', path });
+        reply = await ask({ type: 'wam:proxy-get', path, headers });
       } catch {
         throw new HttpError(0, 'no_tab');
       }

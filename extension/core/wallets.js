@@ -6,8 +6,12 @@ import { parseIso } from './time.js';
  *
  * @typedef {object} Wallet
  * @property {string} id                e.g. "cloud_session", "usage_credits".
- * @property {'grant'|'spend'} kind     grant: a balance that runs down; spend: money spent against an optional cap.
- * @property {string} currency          ISO 4217 code.
+ * @property {'grant'|'spend'|'stock'} kind
+ *           grant: a balance that runs down; spend: money spent against an optional cap;
+ *           stock: an amount on hand (credits, or a count of items).
+ * @property {'money'|'credits'|'count'} [unit]  How amounts read; money uses `currency`.
+ * @property {string|null} currency     ISO 4217 code, for money.
+ * @property {boolean} [unlimited]      A stock with no limit.
  * @property {number|null} balance      Left to spend (grant).
  * @property {number|null} total        Granted in total (grant).
  * @property {number|null} spent        Spent so far (spend: this month).
@@ -25,8 +29,10 @@ import { parseIso } from './time.js';
  * @property {string} key
  * @property {{key: string, vars?: object}} label
  * @property {string} treasure         Key into TREASURES (coin, emerald).
- * @property {'grant'|'spend'} kind
- * @property {string} currency
+ * @property {'grant'|'spend'|'stock'} kind
+ * @property {'money'|'credits'|'count'} unit
+ * @property {string|null} currency
+ * @property {boolean} unlimited
  * @property {number|null} balance
  * @property {number|null} total
  * @property {number|null} spent
@@ -43,7 +49,8 @@ function walletView(def, wallet, now) {
   else if (wallet.locked) state = 'locked';
   else if (expiresAt !== null && now >= expiresAt) state = 'expired';
   else if (wallet.capReached || (wallet.kind === 'spend' && wallet.cap !== null && wallet.spent >= wallet.cap)) state = 'capped';
-  else if (wallet.kind === 'grant' && wallet.balance !== null && wallet.balance <= 0) state = 'empty';
+  else if ((wallet.kind === 'grant' || wallet.kind === 'stock') && !wallet.unlimited
+    && wallet.balance !== null && wallet.balance <= 0) state = 'empty';
   const low = wallet.kind === 'grant' && state === 'active'
     && wallet.total > 0 && wallet.balance !== null && wallet.balance / wallet.total < 0.2;
   return {
@@ -51,7 +58,9 @@ function walletView(def, wallet, now) {
     label: def.label,
     treasure: def.treasure ?? 'coin',
     kind: wallet.kind,
-    currency: wallet.currency,
+    unit: wallet.unit ?? (wallet.currency ? 'money' : 'credits'),
+    currency: wallet.currency ?? null,
+    unlimited: wallet.unlimited === true,
     balance: wallet.balance,
     total: wallet.total,
     spent: wallet.spent,

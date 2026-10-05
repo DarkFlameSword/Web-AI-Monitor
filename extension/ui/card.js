@@ -106,6 +106,13 @@ class GaugeRow {
   }
 }
 
+/** An amount in the wallet's own unit: money, plain credits, or a count of items. */
+function amountOf(view, value, t) {
+  if (view.unit === 'count') return t('wallet.count', { n: Math.round(value ?? 0) });
+  if (view.unit === 'credits') return new Intl.NumberFormat(t.tag, { maximumFractionDigits: 2 }).format(value ?? 0);
+  return money(value ?? 0, view.currency, t);
+}
+
 function money(amount, currency, t) {
   try {
     return new Intl.NumberFormat(t.tag, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).format(amount);
@@ -153,11 +160,13 @@ class WalletRow {
     }
     this.name.textContent = t(treasureOf(view.treasure).nameKey);
     this.label.textContent = label(t, view.label);
-    const cash = amount => money(amount ?? 0, view.currency, t);
+    const cash = amount => amountOf(view, amount, t);
     if (view.state === 'disabled') {
       this.amount.textContent = t('wallet.disabled');
     } else if (view.kind === 'grant') {
       this.amount.textContent = t('wallet.left', { amount: cash(view.balance), total: cash(view.total) });
+    } else if (view.kind === 'stock') {
+      this.amount.textContent = view.unlimited ? t('wallet.unlimited') : t('wallet.have', { amount: cash(view.balance) });
     } else {
       this.amount.textContent = t('wallet.spent', { amount: cash(view.spent) });
     }
@@ -170,10 +179,10 @@ class WalletRow {
     if (!view) return;
     let text = '';
     if (view.state === 'disabled') text = '';
-    else if (view.state === 'capped' && view.cap !== null) text = `${t('wallet.capped')} ${money(view.cap, view.currency, t)}`;
+    else if (view.state === 'capped' && view.cap !== null) text = `${t('wallet.capped')} ${amountOf(view, view.cap, t)}`;
     else if (view.state !== 'active') text = t(WALLET_STATE_KEYS[view.state]);
     else if (view.kind === 'grant' && view.expiresAt !== null) text = t('wallet.expiresIn', { t: formatCountdown(view.expiresAt - now, t) });
-    else if (view.kind === 'spend') text = view.cap !== null ? t('wallet.cap', { amount: money(view.cap, view.currency, t) }) : t('wallet.noCap');
+    else if (view.kind === 'spend') text = view.cap !== null ? t('wallet.cap', { amount: amountOf(view, view.cap, t) }) : t('wallet.noCap');
     if (this.status.textContent !== text) this.status.textContent = text;
     this.status.hidden = !text;
   }

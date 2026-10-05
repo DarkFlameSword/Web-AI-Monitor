@@ -4,7 +4,9 @@
  * of the vendor's site), so provider code never touches fetch or chrome.*.
  *
  * @typedef {object} Http
- * @property {(path: string) => Promise<any>} getJson   GET a JSON document from the provider's origin.
+ * @property {(path: string, options?: {headers?: Record<string, string>}) => Promise<any>} getJson
+ *           GET a JSON document from the provider's origin. Extra headers must be
+ *           listed in the provider's `proxyHeaders` to survive the tab route.
  * @property {(name: string) => Promise<string|null>} getCookie  Read a cookie of the provider's origin.
  */
 

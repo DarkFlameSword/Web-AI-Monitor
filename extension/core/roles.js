@@ -27,6 +27,10 @@ export const TREASURES = Object.freeze({
   coin: Object.freeze({ nameKey: 'treasure.coin' }),
   /** A rarer grant: e.g. the Claude Code cloud session credit. */
   emerald: Object.freeze({ nameKey: 'treasure.emerald' }),
+  /** Credits counted in their own unit, not money: e.g. Codex credits. */
+  crystal: Object.freeze({ nameKey: 'treasure.crystal' }),
+  /** Consumables counted one by one: e.g. ChatGPT's limit resets. */
+  potion: Object.freeze({ nameKey: 'treasure.potion' }),
 });
 
 export function treasureOf(id) {

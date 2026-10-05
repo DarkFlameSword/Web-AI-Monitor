@@ -13,8 +13,12 @@ export const DEFAULT_SETTINGS = Object.freeze({
   lang: 'auto',
   /** Minutes between background refreshes, POLL_RANGE.min to POLL_RANGE.max. */
   pollMinutes: 5,
-  /** Providers the user switched off; everything else is monitored. */
-  disabledProviders: Object.freeze([]),
+  /**
+   * Which providers are monitored: { [providerId]: boolean }. A provider not
+   * listed follows its own `enabledByDefault`. Providers behind an optional
+   * permission are only switched on once it is granted.
+   */
+  providers: Object.freeze({}),
   /** Adventurer rank expiry per provider, entered by the user: { [providerId]: 'YYYY-MM-DD' }. */
   rankExpiry: Object.freeze({}),
   /**
@@ -47,9 +51,7 @@ export function normalizeSettings(raw) {
   return {
     lang: src.lang === 'auto' || LANGS.includes(src.lang) ? src.lang : DEFAULT_SETTINGS.lang,
     pollMinutes: intIn(src.pollMinutes, DEFAULT_SETTINGS.pollMinutes, POLL_RANGE.min, POLL_RANGE.max),
-    disabledProviders: Array.isArray(src.disabledProviders)
-      ? [...new Set(src.disabledProviders.filter(id => typeof id === 'string' && id))]
-      : [],
+    providers: providerSwitches(src),
     rankExpiry: Object.fromEntries(Object.entries(src.rankExpiry && typeof src.rankExpiry === 'object' ? src.rankExpiry : {})
       .filter(([id, day]) => id && parseDay(day))),
     hud: {
@@ -65,9 +67,25 @@ export function normalizeSettings(raw) {
   };
 }
 
+function providerSwitches(src) {
+  const switches = {};
+  // Older settings kept a list of switched-off providers.
+  if (Array.isArray(src.disabledProviders)) {
+    for (const id of src.disabledProviders) if (typeof id === 'string' && id) switches[id] = false;
+  }
+  if (src.providers && typeof src.providers === 'object') {
+    for (const [id, on] of Object.entries(src.providers)) if (id && typeof on === 'boolean') switches[id] = on;
+  }
+  return switches;
+}
+
+export function isProviderEnabled(provider, settings) {
+  return settings.providers[provider.id] ?? provider.enabledByDefault !== false;
+}
+
 /** The providers the user monitors, in registry order. */
 export function enabledProviders(providers, settings) {
-  return providers.filter(provider => !settings.disabledProviders.includes(provider.id));
+  return providers.filter(provider => isProviderEnabled(provider, settings));
 }
 
 export async function loadSettings() {

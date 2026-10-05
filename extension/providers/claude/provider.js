@@ -123,6 +123,7 @@ function cloudCredit(raw) {
   return {
     id: 'cloud_session',
     kind: 'grant',
+    unit: 'money',
     currency: 'USD',
     balance,
     total,
@@ -149,6 +150,7 @@ function usageCredits(raw) {
   return {
     id: 'usage_credits',
     kind: 'spend',
+    unit: 'money',
     currency: typeof entry.currency === 'string' && entry.currency ? entry.currency.toUpperCase() : 'USD',
     balance: null,
     total: null,

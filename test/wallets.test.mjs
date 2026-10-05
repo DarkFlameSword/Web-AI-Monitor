@@ -32,11 +32,11 @@ const USAGE = {
 test('reads the cloud session credit (dollars) and usage credits (minor units)', () => {
   assert.deepEqual(parseWallets(USAGE), [
     {
-      id: 'cloud_session', kind: 'grant', currency: 'USD', balance: 187.5, total: 250, spent: 62.5, cap: null,
+      id: 'cloud_session', kind: 'grant', unit: 'money', currency: 'USD', balance: 187.5, total: 250, spent: 62.5, cap: null,
       expiresAt: '2026-10-07T07:00:00Z', enabled: true, locked: false, capReached: false,
     },
     {
-      id: 'usage_credits', kind: 'spend', currency: 'USD', balance: null, total: null, spent: 12.4, cap: 50,
+      id: 'usage_credits', kind: 'spend', unit: 'money', currency: 'USD', balance: null, total: null, spent: 12.4, cap: 50,
       expiresAt: null, enabled: true, locked: false, capReached: false,
     },
   ]);

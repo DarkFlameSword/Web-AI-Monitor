@@ -1,11 +1,11 @@
 import { HttpError, isAuthError } from '../core/http.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
-import { SETTINGS_KEY, enabledProviders, loadSettings, updateSettings } from '../core/settings.js';
+import { SETTINGS_KEY, enabledProviders, isProviderEnabled, loadSettings, updateSettings } from '../core/settings.js';
 import { providerIdOfKey, readSnapshot, writeSnapshot } from '../core/store.js';
-import { PROVIDERS, getProvider } from '../providers/index.js';
+import { PROVIDERS, getProvider, originPattern } from '../providers/index.js';
 import { paintAction, paintIdle } from './action-icon.js';
 import { listenForClicks, notifyRecoveries } from './notify.js';
-import { ALL_SITES, injectOpenTabs, syncPageScripts } from './page-hud.js';
+import { ALL_SITES, injectOpenTabs, injectVendorTabs, syncPageScripts, syncVendorScripts } from './page-hud.js';
 import { fetchUsage } from './transport.js';
 
 /*
@@ -49,7 +49,7 @@ function translatorFor(provider, settings) {
 async function runRefresh(provider, reason) {
   const [previous, settings] = await Promise.all([readSnapshot(provider.id), loadSettings()]);
   // Switched off in settings: leave it alone.
-  if (settings.disabledProviders.includes(provider.id)) return previous;
+  if (!isProviderEnabled(provider, settings)) return previous;
   const now = Date.now();
   // Before refetching: did a used window just end?
   await notifyRecoveries(provider, previous, settings, translatorFor(provider, settings), now)
@@ -136,18 +136,22 @@ function repaint() {
 
 /**
  * Optional permissions and the settings that depend on them must agree:
- * "every site" is on exactly while all sites are allowed, and the recovery
- * notice is off without the notifications permission.
+ * "every site" is on exactly while all sites are allowed, the recovery
+ * notice is off without the notifications permission, and a vendor behind
+ * an optional permission is off while its site is not allowed.
  */
 async function syncPermissions({ added = false } = {}) {
   const everywhere = await syncPageScripts();
+  const vendorSites = await syncVendorScripts();
   const notifications = await chrome.permissions.contains({ permissions: ['notifications'] });
   const settings = await loadSettings();
-  if (settings.hud.everywhere !== everywhere || (settings.notify.recovered && !notifications)) {
+  const lostVendors = Object.entries(vendorSites).filter(([id, allowed]) => !allowed && settings.providers[id] === true);
+  if (settings.hud.everywhere !== everywhere || (settings.notify.recovered && !notifications) || lostVendors.length) {
     await updateSettings(draft => {
       draft.hud.everywhere = everywhere;
       if (everywhere) draft.hud.enabled = true;
       if (!notifications) draft.notify.recovered = false;
+      for (const [id] of lostVendors) draft.providers[id] = false;
     });
   }
   if (added && everywhere) await injectOpenTabs();
@@ -173,6 +177,13 @@ chrome.permissions.onAdded.addListener(async ({ permissions = [], origins = [] }
     await updateSettings(draft => { draft.notify.recovered = true; });
   }
   if (origins.some(origin => ALL_SITES.includes(origin))) await syncPermissions({ added: true });
+  // A vendor's own site was allowed from its monitoring switch: turn it on and fetch.
+  for (const provider of PROVIDERS.filter(item => item.optionalPermission && origins.includes(originPattern(item)))) {
+    await syncVendorScripts();
+    await updateSettings(draft => { draft.providers[provider.id] = true; });
+    await injectVendorTabs(provider);
+    refresh(provider, 'manual');
+  }
 });
 
 chrome.permissions.onRemoved.addListener(() => {

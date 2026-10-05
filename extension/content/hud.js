@@ -48,16 +48,24 @@ function readCookie(name) {
   return null;
 }
 
-/** GET one of the provider's allow-listed API paths as this page (its cookies, its origin). */
-async function proxyGet(provider, path) {
+/**
+ * GET one of the provider's allow-listed API paths as this page (its cookies,
+ * its origin), with only the headers the provider allows.
+ */
+async function proxyGet(provider, path, headers) {
   if (typeof path !== 'string' || !provider.proxyPaths.some(pattern => pattern.test(path))) {
     return { ok: false, error: { status: 0, code: 'forbidden' } };
+  }
+  const allowed = new Set((provider.proxyHeaders ?? []).map(name => name.toLowerCase()));
+  const sent = { accept: 'application/json' };
+  for (const [name, value] of Object.entries(headers && typeof headers === 'object' ? headers : {})) {
+    if (allowed.has(name.toLowerCase()) && typeof value === 'string') sent[name.toLowerCase()] = value;
   }
   try {
     const response = await fetch(new URL(path, location.origin), {
       credentials: 'include',
       cache: 'no-store',
-      headers: { accept: 'application/json' },
+      headers: sent,
     });
     if (!(response.headers.get('content-type') ?? '').includes('json')) {
       return { ok: false, error: { status: response.status, code: 'not_json' } };
@@ -82,7 +90,7 @@ function hookVendorPage() {
     const provider = providers.find(p => p.id === message?.providerId);
     if (!provider) return false;
     if (message.type === 'wam:proxy-get') {
-      proxyGet(provider, message.path).then(sendResponse);
+      proxyGet(provider, message.path, message.headers).then(sendResponse);
       return true;
     }
     if (message.type === 'wam:proxy-cookie') {

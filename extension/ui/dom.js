@@ -124,8 +124,38 @@ export const EMERALD = [
 ];
 export const EMERALD_PALETTE = { k: 'var(--ink)', g: 'var(--emerald)', h: 'var(--emerald-hi)', d: 'var(--emerald-lo)' };
 
+/** Codex credits: a violet mana crystal. */
+export const CRYSTAL = [
+  '....k....',
+  '...khk...',
+  '..khcdk..',
+  '..khcdk..',
+  '..khcdk..',
+  '..khcdk..',
+  '..kccdk..',
+  '...kdk...',
+  '....k....',
+];
+export const CRYSTAL_PALETTE = { k: 'var(--ink)', h: 'var(--crystal-hi)', c: 'var(--crystal)', d: 'var(--crystal-lo)' };
+
+/** Limit resets: a red potion. */
+export const POTION = [
+  '...kkk...',
+  '...kbk...',
+  '..kkgkk..',
+  '.kgggggk.',
+  'kgrrrrrgk',
+  'krhrrrrrk',
+  'krrrrrrrk',
+  '.krrrrrk.',
+  '..kkkkk..',
+];
+export const POTION_PALETTE = { k: 'var(--ink)', b: 'var(--frame-2)', g: 'var(--paper)', r: 'var(--hp-crit)', h: 'var(--hp-crit-hi)' };
+
 /** Pixel art for each treasure in core/roles.js TREASURES. */
 export const TREASURE_ART = Object.freeze({
   coin: [COIN, COIN_PALETTE],
   emerald: [EMERALD, EMERALD_PALETTE],
+  crystal: [CRYSTAL, CRYSTAL_PALETTE],
+  potion: [POTION, POTION_PALETTE],
 });

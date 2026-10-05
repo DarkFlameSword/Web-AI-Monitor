@@ -8,7 +8,7 @@ test('missing settings become the defaults', () => {
   assert.deepEqual(settings, {
     lang: 'auto',
     pollMinutes: 5,
-    disabledProviders: [],
+    providers: {},
     rankExpiry: {},
     hud: { ...DEFAULT_SETTINGS.hud },
     notify: { recovered: false },
@@ -21,6 +21,7 @@ test('bad values are replaced or clamped, good ones kept', () => {
   const settings = normalizeSettings({
     lang: 'ja',
     pollMinutes: 7.4,
+    providers: { chatgpt: true, other: 'yes' },
     disabledProviders: ['claude', 'claude', '', 3],
     rankExpiry: { claude: '2026-11-03', other: '2026-02-30', third: 'soon' },
     hud: { enabled: false, everywhere: true, collapsed: 'yes', corner: 'middle', x: 12.6, y: -40, scale: 1.4 },
@@ -30,7 +31,7 @@ test('bad values are replaced or clamped, good ones kept', () => {
   assert.deepEqual(settings, {
     lang: 'ja',
     pollMinutes: 7,
-    disabledProviders: ['claude'],
+    providers: { claude: false, chatgpt: true },
     rankExpiry: { claude: '2026-11-03' },
     hud: { enabled: false, everywhere: true, collapsed: false, corner: 'br', x: 13, y: 0, scale: 1.5 },
     notify: { recovered: false },
@@ -48,8 +49,13 @@ test('refresh interval is any whole minute from 1 to 30; size from 100% to 200%'
   assert.equal(normalizeSettings({ hud: { scale: 3 } }).hud.scale, 2);
 });
 
-test('switched-off providers drop out of the monitored list', () => {
-  const providers = [{ id: 'claude' }, { id: 'other' }];
-  assert.deepEqual(enabledProviders(providers, normalizeSettings({ disabledProviders: ['claude'] })), [{ id: 'other' }]);
-  assert.deepEqual(enabledProviders(providers, normalizeSettings({})), providers);
+test('providers follow their switch, else their own default', () => {
+  const claude = { id: 'claude' };
+  const chatgpt = { id: 'chatgpt', enabledByDefault: false };
+  const all = [claude, chatgpt];
+  assert.deepEqual(enabledProviders(all, normalizeSettings({})), [claude]);
+  assert.deepEqual(enabledProviders(all, normalizeSettings({ providers: { chatgpt: true } })), all);
+  assert.deepEqual(enabledProviders(all, normalizeSettings({ providers: { claude: false, chatgpt: true } })), [chatgpt]);
+  // Older settings listed switched-off providers.
+  assert.deepEqual(enabledProviders(all, normalizeSettings({ disabledProviders: ['claude'] })), []);
 });

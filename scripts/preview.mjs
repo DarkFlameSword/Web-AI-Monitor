@@ -71,6 +71,28 @@ function usageBody({
   };
 }
 
+/** A wham/usage response, as chatgpt.com answers it. */
+function chatgptUsage() {
+  const at = ms => Math.floor((Date.now() + ms) / 1000);
+  return {
+    plan_type: 'plus',
+    rate_limit: {
+      allowed: true,
+      limit_reached: false,
+      primary_window: { used_percent: 41, limit_window_seconds: 18000, reset_after_seconds: 7000, reset_at: at(1 * HOUR + 56 * MIN) },
+      secondary_window: { used_percent: 73, limit_window_seconds: 604800, reset_at: at(4 * DAY + 2 * HOUR) },
+    },
+    additional_rate_limits: [{
+      limit_name: 'GPT-5.3-Codex-Spark',
+      metered_feature: 'codex_spark',
+      rate_limit: { primary_window: { used_percent: 30, limit_window_seconds: 604800, reset_at: at(4 * DAY + 2 * HOUR) } },
+    }],
+    credits: { has_credits: true, unlimited: false, overage_limit_reached: false, balance: '1250' },
+    rate_limit_reset_credits: { available_count: 3 },
+    spend_control: null,
+  };
+}
+
 const ARTICLE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Field notes</title>
 <style>body{margin:0;font:16px/1.6 Georgia,serif;color:#222;background:#fafafa}
 main{max-width:640px;margin:48px auto;padding:0 24px}h1{font-size:32px;margin:0 0 16px}p{margin:0 0 16px;color:#444}</style>
@@ -115,6 +137,19 @@ async function launch(extensionPath, mock) {
     if (pathname === `/api/organizations/${ORG}/usage`) return route.fulfill({ json: mock.usage });
     if (pathname.endsWith('/completion')) return route.fulfill({ contentType: 'text/event-stream', body: 'event: done\ndata: {}\n\n' });
     return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'claude.ai (mock)') });
+  });
+  await context.route('https://chatgpt.com/**', async route => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+    // Like claude.ai: the worker route is stopped, the page route works.
+    if (request.serviceWorker()) return route.fulfill({ status: 403, contentType: 'text/html', body: '<html>challenge</html>' });
+    if (pathname === '/api/auth/session') return route.fulfill({ json: { user: { id: 'u' }, accessToken: mock.chatgptToken } });
+    if (pathname === '/backend-api/wham/usage') {
+      mock.chatgptAuth = request.headers().authorization ?? null;
+      return route.fulfill({ json: chatgptUsage() });
+    }
+    if (pathname.includes('/conversation')) return route.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
+    return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'chatgpt.com (mock)') });
   });
   await context.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: ARTICLE }));
   await context.route('https://strict.example.com/**', route => route.fulfill({
@@ -204,6 +239,10 @@ async function main() {
         await sleep(300);
         assert.equal(await page.getByLabel('所有网页都显示（需授权）').isChecked(), false);
         assert.equal(await page.getByLabel('能量完全恢复时提醒').isChecked(), false);
+        const gpt = page.locator('label.pix-check', { hasText: 'ChatGPT' });
+        assert.equal(await gpt.locator('input').isChecked(), false, 'ChatGPT is off by default');
+        assert.match(await gpt.innerText(), /需授权/);
+        assert.equal(await page.getByText('悬浮窗归位').count(), 0);
         await shoot(page.locator('body'), '07-popup-settings');
         await page.close();
       });
@@ -263,7 +302,7 @@ async function main() {
 
     await check('every-site HUD: registered, shown on a strict-CSP page with the pixel font', async () => {
       const registered = await app.worker.evaluate(() => chrome.scripting.getRegisteredContentScripts());
-      assert.deepEqual(registered.map(script => script.id), ['wam-page-hud']);
+      assert.deepEqual(registered.map(script => script.id).sort(), ['wam-page-hud', 'wam-vendor-chatgpt']);
       const page = await app.context.newPage();
       await page.goto('https://strict.example.com/');
       await waitFor(() => hudOn(page), 'HUD on the strict page');
@@ -290,16 +329,79 @@ async function main() {
       const page = await app.openPopup();
       const hint = page.getByRole('button', { name: '资质过期时间 未填写' });
       await hint.click();
-      const field = page.getByLabel('Claude 资质过期时间');
-      assert.equal(await field.evaluate(el => el === document.activeElement), true, 'date field focused');
-      await field.fill('2026-12-24');
-      await waitFor(async () => (await app.storage.get('settings'))?.rankExpiry?.claude === '2026-12-24', 'saved date');
+      // The hint opens settings with that vendor's pixel calendar already open.
+      const calendar = page.getByRole('dialog', { name: 'Claude 订阅过期时间' });
+      await calendar.waitFor();
+      const now = new Date();
+      const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-24`;
+      await page.waitForTimeout(200);
+      await shoot(page.locator('body'), '13-calendar');
+      await page.keyboard.press('PageDown');
+      await page.keyboard.press('PageUp');
+      await calendar.locator(`[data-day="${day}"]`).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.rankExpiry?.claude === day, 'saved date');
+      assert.equal(await calendar.isHidden(), true, 'calendar closes after picking');
       await page.getByRole('button', { name: '返回' }).click();
-      assert.match(await page.locator('body').innerText(), /资质过期时间 2026\/12\/24/);
+      const shown = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now.getFullYear(), now.getMonth(), 24));
+      assert.match(await page.locator('body').innerText(), new RegExp(`资质过期时间 ${shown}`));
       await page.getByRole('button', { name: '设置' }).click();
       await page.getByRole('button', { name: '清除' }).click();
       await waitFor(async () => !(await app.storage.get('settings'))?.rankExpiry?.claude, 'cleared date');
       await page.close();
+    });
+
+    await check('pixel dropdown: opens, moves with the keyboard, saves the language', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true } } });
+      const page = await app.openPopup();
+      await page.getByRole('button', { name: '设置' }).click();
+      // The first dropdown is the language; its label changes with the language itself.
+      const button = page.locator('.set-row').first().locator('.pix-dd-btn');
+      await button.click();
+      const list = page.locator('.set-row').first().getByRole('listbox');
+      await list.waitFor();
+      await page.waitForTimeout(150);
+      await shoot(page.locator('body'), '14-dropdown');
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Enter');
+      await waitFor(async () => (await app.storage.get('settings'))?.lang === 'ja', 'language ja');
+      assert.equal(await list.isHidden(), true);
+      await button.click();
+      await page.mouse.click(5, 5);
+      assert.equal(await list.isHidden(), true, 'closes on an outside click');
+      await page.close();
+    });
+
+    await check('ChatGPT: switched on in settings, fetched through its tab, on its own card', async () => {
+      mock.chatgptToken = 'header.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjdC0xIn19.sig';
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true } } });
+      const gpt = await app.context.newPage();
+      await gpt.goto('https://chatgpt.com/');
+      await sleep(1200);
+      const page = await app.openPopup();
+      await page.getByRole('button', { name: '设置' }).click();
+      await page.locator('label.pix-check', { hasText: 'ChatGPT' }).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.providers?.chatgpt === true, 'ChatGPT on');
+      const snap = await waitFor(async () => {
+        const value = await app.storage.get('snapshot:chatgpt');
+        return value?.status === 'ok' && value;
+      }, 'a ChatGPT snapshot');
+      assert.equal(snap.plan, 'plus');
+      assert.equal(mock.chatgptAuth, `Bearer ${mock.chatgptToken}`);
+      await page.getByRole('button', { name: '返回' }).click();
+      await page.getByRole('tab', { name: 'ChatGPT' }).click();
+      await sleep(600);
+      const text = await page.locator('body').innerText();
+      for (const expected of [/Codex \/ 5 小时/, /Codex \/ 每周/, /GPT-5\.3-Codex-Spark \/ 每周/, /魔晶石/, /持有 1,250/, /回复药水/, /持有 x3/, /冒险者资质\s*C/]) {
+        assert.match(text, expected);
+      }
+      assert.doesNotMatch(text, /绿宝石|金币|奥义|Fable/);
+      await shoot(page.locator('body'), '15-popup-chatgpt');
+      await waitFor(() => hudOn(gpt), 'HUD on chatgpt.com');
+      await sleep(800);
+      await shoot(gpt.locator('web-ai-monitor-hud'), '16-hud-two-vendors');
+      await page.getByRole('tab', { name: 'Claude' }).click();
+      await page.close();
+      await gpt.close();
     });
 
     await check('refresh interval: the mouse wheel and arrow keys move it, the alarm follows', async () => {
@@ -348,7 +450,7 @@ async function main() {
       await waitFor(async () => !(await hudOn(claude)), 'HUD hidden on claude.ai');
       await page.getByRole('button', { name: '设置' }).click();
       await page.locator('label.pix-check', { hasText: 'Claude' }).click();
-      await waitFor(async () => (await app.storage.get('settings'))?.disabledProviders?.length === 0, 'Claude back on');
+      await waitFor(async () => (await app.storage.get('settings'))?.providers?.claude === true, 'Claude back on');
       await waitFor(() => hudOn(claude), 'HUD back on claude.ai');
       await page.close();
     });
