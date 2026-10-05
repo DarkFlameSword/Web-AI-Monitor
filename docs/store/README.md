@@ -231,28 +231,37 @@ Read-only throughout: it never changes, bypasses or resets any limit.
 
 ### 数据使用（Data usage）
 
-勾选的类别必须和隐私政策、扩展的实际行为完全一致，不一致会被拒绝，严重时整个开发者账号被封。按本扩展的实际行为，建议勾选：
+「What user data do you plan to collect from users now or in the future?」这里的「collect」按官方[用户数据 FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq) 的「handle」理解：不只是发到服务器，读取网站接口的响应内容、读取网站的 cookie 也算，只存在本地也算（FAQ 第 2、14 条）。勾选结果会公开显示在商品页上，并且必须和 `PRIVACY.md`、扩展的实际行为一致，不一致会被拒绝，严重时整个开发者账号被封。
 
-| 类别 | 是否勾选 | 依据 |
+按后台的顺序逐项填写：
+
+| 后台类别 | 勾选 | 本扩展的实际情况 |
 | --- | --- | --- |
-| Authentication information | 勾选 | 使用登录会话 cookie 请求用量；读取 `lastActiveOrg` cookie；开启 ChatGPT 后在内存中使用访问令牌 |
-| Financial and payment information | 勾选 | 读取额度余额和本月已用额度金额 |
-| Website content | 勾选 | 读取 claude.ai / chatgpt.com 返回的用量数据 |
-| User activity | 勾选 | 在 claude.ai / chatgpt.com 页面上观察网页请求的地址和耗时（网络监测），用来在回复结束时刷新 |
-| Personally identifiable information | 建议勾选 | 接口响应里可能带账户名或邮箱，扩展不用、立即丢弃，但从严披露更稳妥 |
-| Health / Personal communications / Location / Web history | 不勾选 | 不读取对话内容和浏览记录 |
+| Personally identifiable information（姓名、地址、邮箱、年龄、证件号） | **勾选** | 扩展不使用也不保存姓名或邮箱，但 claude.ai 的组织列表和 chatgpt.com 的会话接口响应里可能带有账户名、邮箱，扩展收到后立即丢弃。按 FAQ，读到响应内容就算经手，从严勾选 |
+| Health information（健康数据） | 不勾 | 不涉及 |
+| Financial and payment information（交易、信用卡、信用评级、财务报表、付款记录） | **勾选** | 读取额度余额（云端会话额度、Codex 额度）和本月已用的用量额度金额、月度上限，用来显示宝物袋 |
+| Authentication information（密码、凭据、安全问题、PIN） | **勾选** | 用浏览器已有的登录会话请求用量；读取 claude.ai 的 `lastActiveOrg` cookie；开启 ChatGPT 后取得会话访问令牌，只在内存中用于那一次请求，不保存 |
+| Personal communications（邮件、短信、聊天消息） | 不勾 | 从不读取对话、提示词或回复内容 |
+| Location（地区、IP、GPS） | 不勾 | 不读取位置 |
+| Web history（访问过的网页列表、标题、访问时间） | 不勾 | 不读取浏览记录；在其他网站上只显示悬浮窗，不读取网址 |
+| User activity（网络监测、点击、鼠标位置、滚动、键盘记录） | **勾选** | 在 claude.ai / chatgpt.com 页面上观察网页自身请求的地址和耗时（不含内容），用来在回复结束时立即刷新，属于网络监测 |
+| Website content（文字、图片、声音、视频、链接） | **勾选** | 读取 claude.ai / chatgpt.com 接口返回的用量数据（已用比例、重置时间、方案） |
 
-然后勾选全部三项声明：
+即勾选 5 项：Personally identifiable information、Financial and payment information、Authentication information、User activity、Website content。
 
-- I do not sell or transfer user data to third parties, outside of the approved use cases
-- I do not use or transfer user data for purposes that are unrelated to my item's single purpose
-- I do not use or transfer user data to determine creditworthiness or for lending purposes
+「I certify that the following disclosures are true」的三项全部勾选（后台要求必须全选）：
 
-### 隐私政策网址
+- [x] I do not sell or transfer user data to third parties, outside of the approved use cases
+- [x] I do not use or transfer user data for purposes that are unrelated to my item's single purpose
+- [x] I do not use or transfer user data to determine creditworthiness or for lending purposes
+
+### 隐私政策网址（Privacy policy URL）
 
 ```text
 https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 ```
+
+`PRIVACY.md` 里的「Data categories / 数据类别」一节和上表的 5 项一一对应。以后改了上表，记得同步改隐私政策。
 
 ## 6. 后台「测试说明」（Test instructions）
 

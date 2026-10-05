@@ -25,6 +25,18 @@ The extension only reads what it needs to show your usage limits:
 
 Responses from these sites may also contain your account name or email address. The extension does not use them and discards them right away; they are never stored.
 
+### Data categories
+
+As declared in the Chrome Web Store's privacy practices, the extension handles these categories of data, only on your device and only to show your usage:
+
+- **Personally identifiable information**: responses from claude.ai and chatgpt.com may include your account name or email address. They are discarded right away and never used or stored.
+- **Financial and payment information**: credit balances and the amount of usage credits spent this month, with its monthly cap.
+- **Authentication information**: your existing sign-in session (used by the browser for the requests), the `lastActiveOrg` cookie, and the ChatGPT access token held in memory for one request.
+- **User activity**: the addresses and durations of the page's own network requests on claude.ai and chatgpt.com (never their content).
+- **Website content**: the usage data returned by claude.ai and chatgpt.com.
+
+It does not handle health information, personal communications, location or web history.
+
 ### What the extension never does
 
 - It never reads your conversations, prompts, replies or any other page content.
@@ -87,6 +99,18 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 | 网页自身网络请求的地址和耗时（从不读取内容） | 仅 claude.ai 和 chatgpt.com 页面 | 判断回复何时结束，以便立即刷新 |
 
 这些网站的响应里也可能包含你的账户名或邮箱。本扩展不使用它们并立即丢弃，从不保存。
+
+### 数据类别
+
+与 Chrome 应用商店「隐私权」中的声明一致，本扩展经手以下类别的数据，只在你的设备上、只用于显示你的用量：
+
+- **个人身份信息**：claude.ai 和 chatgpt.com 的响应里可能带有你的账户名或邮箱，收到后立即丢弃，从不使用或保存。
+- **财务和付款信息**：额度余额，以及本月已用的用量额度金额和月度上限。
+- **身份验证信息**：你已有的登录会话（浏览器发请求时自动使用）、`lastActiveOrg` cookie，以及只在内存中用于一次请求的 ChatGPT 访问令牌。
+- **用户活动**：claude.ai 和 chatgpt.com 页面上网页自身网络请求的地址和耗时（从不读取内容）。
+- **网站内容**：claude.ai 和 chatgpt.com 返回的用量数据。
+
+不经手健康信息、个人通讯、位置和浏览记录。
 
 ### 绝不会做的事
 
