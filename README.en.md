@@ -239,9 +239,6 @@ npm run store:assets     # renders the store screenshots, promo tiles and store 
 - the refresh interval slider (mouse wheel, arrow keys) goes from 1 to 30 minutes and the timer follows; the HUD at 200% is exactly twice the size;
 - switching Claude off shows a hint in the popup and hides the HUD, and switching it back on restores both.
 
-## Publishing to the Chrome Web Store
-
-[docs/store/README.md](docs/store/README.md) (in Chinese, with the English text to paste) walks through the developer dashboard: account setup, packaging, store images, the detailed description in each language, the single purpose and each permission's justification, the data usage answers, test instructions for reviewers, and the review risks with how the extension handles them. The privacy policy is [PRIVACY.md](PRIVACY.md).
 
 ## Font
 
