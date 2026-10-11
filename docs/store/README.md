@@ -11,14 +11,16 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.6.0 更新：支持 Gemini。** 如果后台已经按 0.5.0 填过，这次要同步改这些地方：
+> **0.6.0 更新：支持 Gemini。** 已上架的 0.5.0 按第 9 节的步骤更新，这次后台要改的是：
 >
-> 1. 上传新的 zip（`npm run package` 生成 `dist/web-ai-monitor-0.6.0.zip`）。
-> 2. 商品详情：三种语言的详细说明（第 4 节）；截图（第 3 节，第 3、4、5 张有变化：标签栏、悬浮窗和设置里多了 Gemini）。
-> 3. 隐私权：Single purpose、scripting justification、Host permission justification（第 5 节）。数据使用勾选的 5 个类别不变。
-> 4. 测试说明（第 6 节）。
+> 1. Package：上传新的 zip（`npm run package` 生成 `dist/web-ai-monitor-0.6.0.zip`）。
+> 2. Store listing：三种语言的详细说明（第 4 节）；每种语言的第 3、4、5 张截图（第 3 节：标签栏、悬浮窗和设置里多了 Gemini）。第 1、2 张截图和宣传图只有倒计时数字不同，不用重传。
+> 3. Privacy：Single purpose、scripting justification、Host permission justification（第 5 节）。数据使用勾选的 5 个类别不变。
+> 4. Test instructions（第 6 节）。
 >
-> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示；读取 Gemini 属于新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 已升到 2，已同意过的用户更新后会重新看到数据说明。
+> Gemini 的取数只在模拟环境里验证过，提交前先用真实的 Google 账号试一遍（第 9 节「本地准备」第 4 步）。
+>
+> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示；读取 Gemini 属于新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 已升到 2：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
 
 ## 1. 提交前检查清单
 
@@ -308,8 +310,43 @@ The extension is read-only. It never changes, bypasses or resets usage limits, n
 | 扩展可被网站识别（指纹；不违反政策，只是隐私加固项） | 悬浮窗模块必须声明为 `web_accessible_resources` 才能被内容脚本 `import()`。实测开启 Chrome 的 `use_dynamic_url` 后内容脚本无法再加载这些模块、悬浮窗失效，所以没有开启；这些文件里只有界面代码，没有任何数据 |
 | 第三方服务条款 | 只读取用户自己的用量，请求频率由用户控制（1 - 30 分钟），未登录时自动降到 30 分钟一次 |
 
-## 9. 发布之后
+## 9. 更新已上架的版本
 
-- 更新：改版本号，`npm run package`，在后台上传新 zip。商店会自动推送给用户。
+商店里的版本不会跟着仓库自动更新：每次发新版本，都要上传新包、改有变化的后台字段，再重新提交审核。审核通过并发布后，用户的 Chrome 会自动更新。官方说明：https://developer.chrome.com/docs/webstore/update
+
+### 本地准备
+
+1. 拉取最新代码：`git checkout main`，然后 `git pull`。
+2. 确认 `extension/manifest.json` 的 `version` 比商店里已发布的版本高（后台 Package 页能看到），并和 `package.json` 一致。
+3. `npm test` 全部通过。完整的 `npm run preview` 需要先装 Playwright（见第 3 节）。
+4. 新功能先用真实账号试一遍：新建一个 Chrome 用户资料（免得和商店版同时运行、出现两个悬浮窗），在 `chrome://extensions` 打开「开发者模式」，点「加载已解压的扩展程序」，选仓库里的 `extension/` 目录。
+5. `npm run package`，得到 `dist/web-ai-monitor-<版本>.zip`。
+
+### 后台操作
+
+打开 https://chrome.google.com/webstore/devconsole ，点进本扩展。每一页改完先点「Save draft」再离开。
+
+1. 看状态：如果上一次提交还在审核中（Pending review），先在三点菜单（View more menu options）里选「Cancel review」，它会退回草稿，否则传不了新包。
+2. Package 页：点「Upload new package」，选上一步的 zip。传完后草稿的版本号应该是新版本；后台还会先自动做一次安装测试，有问题会直接提示。
+3. Store listing 页：用页面顶部的语言下拉框依次切到 English、中文（中国）、日本語，替换有变化的详细说明（第 4 节）和截图（第 3 节）。只换几张截图时，删掉要换的那几张，再按顺序上传新的（新上传的排在最后）。
+4. Privacy 页：只替换有变化的字段（第 5 节）。数据使用的类别没变就不动；隐私政策网址不变，打开一次确认已是新内容。
+5. Test instructions 页：有变化就替换（第 6 节）。
+6. Distribution 页：一般不用改。按比例逐步推送（Percentage rollout）只对 7 日活跃用户超过 1 万的扩展开放。
+7. 点右上角「Submit for review」。确认框里有「审核通过后自动发布」的勾选框：
+   - 保留勾选：审核一通过就发布。
+   - 取消勾选：通过后先不发布，30 天内自己回后台点发布；超过 30 天会退回草稿，要重新提交审核。
+
+### 审核与发布之后
+
+- 审核通常要几天，偶尔几周；改动权限或较大的代码改动可能更久（https://developer.chrome.com/docs/webstore/review-process ）。结果会发到开发者账号的联系邮箱。审核期间商店里仍是旧版本和旧的商品详情。
+- 审核中想再改：「Cancel review」退回草稿，改完再提交。
+- 被拒：邮件里有违规编号（比如 Yellow Magnesium = 功能无法使用，Purple Potassium = 权限过多，Purple Lithium = 隐私政策问题），对照第 8 节修改；要改代码就再提高版本号重新打包。
+- 发布后：用户的 Chrome 会在几小时内自动更新。想马上确认，在装了商店版的 Chrome 里打开 `chrome://extensions`，打开「开发者模式」，点「更新」，看版本号。再打开商店页面，切换语言看详细说明和截图。
+- 这次升过 `DATA_PRACTICES_VERSION` 时，用户更新后会自动打开数据说明页，重新点「同意并开始」之前扩展不读取任何数据。这是预期行为。
+- 发现严重问题：后台的三点菜单或 Package 页如果有「Roll back to previous version」，可以退回上一个版本：填一个更高的新版本号和原因，不用审核，约 1 分钟生效。没有这个选项时，用上一个版本的代码把版本号改得比当前更高，重新打包提交审核。退回后用户不用重新同意，设置也不会丢：旧版本判断同意时看的是「版本号不低于」，不认识的厂商会被忽略。
+
+### 每次更新前对照
+
 - 数据使用方式有任何变化（多读了什么、存了什么、发往哪里）：同时更新 `PRIVACY.md`、本文第 5 节、后台的数据使用勾选，并把 `DATA_PRACTICES_VERSION` 加一。
 - 新增界面文字后运行 `npm run build:font` 重新生成字体子集。
+- 界面有变化时运行 `npm run store:assets` 重新生成截图（第 3 节）。
