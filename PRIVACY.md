@@ -20,7 +20,8 @@ The extension only reads what it needs to show your usage limits:
 | --- | --- | --- |
 | Your usage: percentage used of each limit, reset times, your plan, credit balances and the amount of credits spent this month | claude.ai, using your existing sign-in session (and chatgpt.com or gemini.google.com, only if you turn ChatGPT or Gemini on) | To draw the gauges, countdowns and credits |
 | The `lastActiveOrg` cookie on claude.ai (an organization ID) | claude.ai | To show the usage of the organization you are currently in |
-| A ChatGPT access token, from chatgpt.com's own session endpoint | chatgpt.com, only if you turn ChatGPT on | To request your Codex usage. It is held in memory for that one request only and is never stored or sent anywhere else |
+| Your ChatGPT subscription period: when the current period started and ends, and whether it renews (the dates ChatGPT shows for your plan in its settings) | chatgpt.com, only if you turn ChatGPT on (asked again every few hours at most) | To show when your plan renews or ends, so you do not have to enter that date |
+| A ChatGPT access token, from chatgpt.com's own session endpoint | chatgpt.com, only if you turn ChatGPT on | To request your Codex usage and subscription period. It is held in memory for those requests only and is never stored or sent anywhere else |
 | A Gemini session token (with the page's build label, session id and language), from the Gemini app page | gemini.google.com, only if you turn Gemini on | To request your Gemini usage, the same data as Gemini's Settings > Usage page. It is held in memory for at most 30 minutes and is never stored or sent anywhere else |
 | The addresses and durations of the page's own network requests (never their content) | claude.ai, chatgpt.com and gemini.google.com pages only | To notice when a reply has finished, so the gauges refresh right away |
 
@@ -31,8 +32,8 @@ Responses from these sites may also contain your account name or email address. 
 As declared in the Chrome Web Store's privacy practices, the extension handles these categories of data, only on your device and only to show your usage:
 
 - **Personally identifiable information**: responses from claude.ai, chatgpt.com and gemini.google.com (including the Gemini app page) may include your account name or email address. They are discarded right away and never used or stored.
-- **Financial and payment information**: credit balances and the amount of usage credits spent this month, with its monthly cap.
-- **Authentication information**: your existing sign-in session (used by the browser for the requests), the `lastActiveOrg` cookie, the ChatGPT access token held in memory for one request, and the Gemini session token held in memory for at most 30 minutes.
+- **Financial and payment information**: credit balances and the amount of usage credits spent this month, with its monthly cap; the start and end of your current ChatGPT subscription period and whether it renews (never any card, invoice or price).
+- **Authentication information**: your existing sign-in session (used by the browser for the requests), the `lastActiveOrg` cookie, the ChatGPT access token held in memory for the usage and subscription requests only, and the Gemini session token held in memory for at most 30 minutes.
 - **User activity**: the addresses and durations of the page's own network requests on claude.ai, chatgpt.com and gemini.google.com (never their content).
 - **Website content**: the usage data returned by claude.ai, chatgpt.com and gemini.google.com.
 
@@ -77,7 +78,7 @@ Changes are published in this file, with a new effective date. If a change affec
 
 Changes so far:
 
-- 2026-10-11: Gemini support (optional). What it reads is listed above; everyone who had agreed before is asked to agree again.
+- 2026-10-11: Gemini support (optional), and the ChatGPT subscription period (start, end, whether it renews) read automatically. What it reads is listed above; everyone who had agreed before is asked to agree again.
 - 2026-10-05: first version.
 
 ### Contact
@@ -102,7 +103,8 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 | --- | --- | --- |
 | 你的用量：各项限额的已用比例、重置时间、订阅方案、额度余额和本月已用额度 | claude.ai，使用你已有的登录会话（开启 ChatGPT 或 Gemini 后也包括 chatgpt.com 或 gemini.google.com） | 显示能量条、倒计时和宝物袋 |
 | claude.ai 的 `lastActiveOrg` cookie（组织 ID） | claude.ai | 显示你当前所在组织的用量 |
-| ChatGPT 访问令牌，来自 chatgpt.com 自身的会话接口 | chatgpt.com，仅在你开启 ChatGPT 后 | 用来请求你的 Codex 用量。只在内存中用于这一次请求，从不保存，也不发往其他任何地方 |
+| 你的 ChatGPT 订阅周期：本期的开始和结束时间、是否自动续订（与 ChatGPT 设置里显示的订阅日期相同） | chatgpt.com，仅在你开启 ChatGPT 后（最多每几个小时问一次） | 显示方案何时续订或到期，你不用再手动填写这个日期 |
+| ChatGPT 访问令牌，来自 chatgpt.com 自身的会话接口 | chatgpt.com，仅在你开启 ChatGPT 后 | 用来请求你的 Codex 用量和订阅周期。只在内存中用于这些请求，从不保存，也不发往其他任何地方 |
 | Gemini 会话令牌（以及页面的版本标识、会话 id 和语言），来自 Gemini 应用页面 | gemini.google.com，仅在你开启 Gemini 后 | 用来请求你的 Gemini 用量，与 Gemini「设置 > 用量」页面的数据相同。只在内存中保留最多 30 分钟，从不保存，也不发往其他任何地方 |
 | 网页自身网络请求的地址和耗时（从不读取内容） | 仅 claude.ai、chatgpt.com 和 gemini.google.com 页面 | 判断回复何时结束，以便立即刷新 |
 
@@ -113,8 +115,8 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 与 Chrome 应用商店「隐私权」中的声明一致，本扩展经手以下类别的数据，只在你的设备上、只用于显示你的用量：
 
 - **个人身份信息**：claude.ai、chatgpt.com 和 gemini.google.com 的响应（包括 Gemini 应用页面）里可能带有你的账户名或邮箱，收到后立即丢弃，从不使用或保存。
-- **财务和付款信息**：额度余额，以及本月已用的用量额度金额和月度上限。
-- **身份验证信息**：你已有的登录会话（浏览器发请求时自动使用）、`lastActiveOrg` cookie、只在内存中用于一次请求的 ChatGPT 访问令牌，以及只在内存中保留最多 30 分钟的 Gemini 会话令牌。
+- **财务和付款信息**：额度余额，以及本月已用的用量额度金额和月度上限；ChatGPT 订阅本期的开始和结束时间、是否自动续订（从不读取银行卡、账单或价格）。
+- **身份验证信息**：你已有的登录会话（浏览器发请求时自动使用）、`lastActiveOrg` cookie、只在内存中用于读取用量和订阅周期的 ChatGPT 访问令牌，以及只在内存中保留最多 30 分钟的 Gemini 会话令牌。
 - **用户活动**：claude.ai、chatgpt.com 和 gemini.google.com 页面上网页自身网络请求的地址和耗时（从不读取内容）。
 - **网站内容**：claude.ai、chatgpt.com 和 gemini.google.com 返回的用量数据。
 
@@ -159,7 +161,7 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 
 变更记录：
 
-- 2026-10-11：支持 Gemini（可选）。读取的内容见上文；之前已同意的用户会被要求重新同意。
+- 2026-10-11：支持 Gemini（可选）；自动读取 ChatGPT 的订阅周期（开始、结束、是否自动续订）。读取的内容见上文；之前已同意的用户会被要求重新同意。
 - 2026-10-05：第一版。
 
 ### 联系方式

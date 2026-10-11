@@ -208,8 +208,9 @@ async function sessionOf(http, now) {
 
 /**
  * @param {import('../../core/http.js').Http} http
+ * @param {{now?: number}} [context]
  */
-async function fetchUsage(http, now = Date.now()) {
+async function fetchUsage(http, { now = Date.now() } = {}) {
   for (;;) {
     const { session, reused } = await sessionOf(http, now);
     let body;

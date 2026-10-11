@@ -11,16 +11,20 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.6.0 更新：支持 Gemini。** 已上架的 0.5.0 按第 9 节的步骤更新，这次后台要改的是：
+> **0.7.0 更新：支持 Gemini（0.6.0 起）；ChatGPT 的订阅续订 / 到期日自动读取（0.7.0）。** 按第 9 节的步骤更新。商店里已发布的是 0.5.0 还是 0.6.0，后台要改的地方不同：
 >
-> 1. Package：上传新的 zip（`npm run package` 生成 `dist/web-ai-monitor-0.6.0.zip`）。
-> 2. Store listing：三种语言的详细说明（第 4 节）；每种语言的第 3、4、5 张截图（第 3 节：标签栏、悬浮窗和设置里多了 Gemini）。第 1、2 张截图和宣传图只有倒计时数字不同，不用重传。
-> 3. Privacy：Single purpose、scripting justification、Host permission justification（第 5 节）。数据使用勾选的 5 个类别不变。
-> 4. Test instructions（第 6 节）。
+> | 后台页面 | 从 0.5.0 更新 | 从 0.6.0 更新 |
+> | --- | --- | --- |
+> | Package | 上传 `dist/web-ai-monitor-0.7.0.zip`（`npm run package`） | 同左 |
+> | Store listing | 三种语言的详细说明（第 4 节）；每种语言的第 3、4、5 张截图（第 3 节） | 三种语言的详细说明；每种语言的第 3、5 张截图 |
+> | Privacy | Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节） | storage 和 Host permission 两个 justification |
+> | Test instructions | 替换（第 6 节） | 不用改 |
 >
-> Gemini 的取数只在模拟环境里验证过，提交前先用真实的 Google 账号试一遍（第 9 节「本地准备」第 4 步）。
+> 其余截图和宣传图只有倒计时数字不同，不用重传；数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里）。
 >
-> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示；读取 Gemini 属于新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 已升到 2：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
+> Gemini 的取数和 ChatGPT 的订阅日期都只在模拟环境里验证过，提交前先用真实账号试一遍（第 9 节「本地准备」第 4 步）。
+>
+> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 已升到 3：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
 
 ## 1. 提交前检查清单
 
@@ -112,7 +116,7 @@ Web AI Monitor 用像素风的异世界冒险者公会卡，显示你的 AI 用�
 - 每项限额一条能量条，都显示剩余量和恢复倒计时：Claude 是魔力 MP = 当前会话、体力 HP = 每周全部模型、奥义 SP = 每周 Fable；ChatGPT 和 Gemini 是 MP = 5 小时窗口、HP = 每周上限。
 - 页内悬浮窗：在 claude.ai 上直接显示，授权后可在任意网页显示；可拖动、收起，大小 100% - 200%；显示你在弹窗里选中的那家 AI。
 - 宝物袋：一眼看到额度余额（云端会话额度、用量额度；Codex 额度和限额重置次数；Google AI 额度）。
-- 冒险者资质按订阅方案评定，可以填写订阅到期日。
+- 冒险者资质按订阅方案评定；ChatGPT 的订阅续订 / 到期日自动读取，Claude 和 Gemini 可以自己填写。
 - 可选：用过的能量完全恢复时发一条桌面通知。
 - 简体中文、日本語、English。
 
@@ -139,7 +143,7 @@ FEATURES
 - One gauge per limit, each with what is left and a live countdown to its reset. Claude: MP = current session, HP = weekly (all models), SP = weekly Fable. ChatGPT and Gemini: MP = 5-hour window, HP = weekly cap.
 - An on-page HUD: on claude.ai out of the box, on any site if you allow it. Drag it, collapse it, resize it (100% - 200%). It shows the vendor you pick in the popup.
 - Treasure pouch: your credit balances at a glance (cloud session credits and usage credits; Codex credits and limit resets; Google AI credits).
-- An adventurer rank from your plan, and the date your subscription ends if you enter it.
+- An adventurer rank from your plan, with the date your subscription renews or ends: read automatically for ChatGPT, entered by you for Claude and Gemini.
 - Optional: a desktop notice when a used gauge is full again.
 - Simplified Chinese, Japanese and English.
 
@@ -166,7 +170,7 @@ Claude（claude.ai）に対応し、ChatGPT（chatgpt.com）と Gemini（gemini.
 - 制限ごとのゲージで、残量とリセットまでの時間をリアルタイム表示。Claude は魔力 MP = 現在のセッション、体力 HP = 週間（全モデル）、奥義 SP = 週間 Fable。ChatGPT と Gemini は MP = 5 時間枠、HP = 週間上限。
 - ページ上の HUD：claude.ai ではそのまま表示、許可すればどのサイトでも表示。ドラッグ・折りたたみ・サイズ変更（100% - 200%）。ポップアップで選んだ AI を表示します。
 - 宝物袋：クレジット残高をひと目で（クラウドセッション枠と利用クレジット、Codex クレジットと制限リセット回数、Google AI クレジット）。
-- プランに応じた冒険者ランクと、入力したサブスクの終了日。
+- プランに応じた冒険者ランクと、サブスクの更新日・終了日（ChatGPT は自動取得、Claude と Gemini は入力）。
 - 任意：使ったゲージが全回復したらデスクトップ通知。
 - 簡体字中国語・日本語・英語。
 
@@ -194,10 +198,10 @@ Shows the signed-in user's own AI usage limits (Claude, and optionally ChatGPT a
 
 后台按下面的顺序列出输入框，每个框的上限是 1,000 字符。所有主机权限（必需的 claude.ai，以及可选的 chatgpt.com、gemini.google.com 和所有网站）共用一个「Host permission justification」框。页面上「Due to the Host Permission, your extension may require an in-depth review」的黄色提示是正常的，有主机权限的扩展都会显示。
 
-**storage justification**（187 字符）
+**storage justification**（208 字符）
 
 ```text
-Keeps the user's settings and the latest usage snapshot (percent used, reset times, plan, credit balances) on the device, so the popup and the HUD can show them. Nothing is sent anywhere.
+Keeps the user's settings and the latest usage snapshot (percent used, reset times, plan and its renewal date, credit balances) on the device, so the popup and the HUD can show them. Nothing is sent anywhere.
 ```
 
 **alarms justification**（146 字符）
@@ -224,14 +228,14 @@ Used only after the user turns on "show the HUD on every site" or switches on Ch
 Optional permission, requested only when the user ticks "tell me when a gauge is full again" in settings: shows one desktop notice when a used limit resets. No other notifications, no ads.
 ```
 
-**Host permission justification**（981 字符）
+**Host permission justification**（995 字符）
 
 ```text
-https://claude.ai/* (required): reads the user's own usage from claude.ai with their existing session, and shows the usage HUD there.
+https://claude.ai/* (required): reads the user's own usage with their existing session, and shows the HUD there.
 
-https://chatgpt.com/* (optional, asked only when the user ticks ChatGPT): reads the user's own Codex usage. The session access token is kept in memory for that one request, never stored.
+https://chatgpt.com/* (optional, asked only when the user ticks ChatGPT): reads the user's own Codex usage and subscription period (start, end, renews). The session access token is kept in memory for those requests, never stored.
 
-https://gemini.google.com/* (optional, asked only when the user ticks Gemini): reads the user's own Gemini usage (what its Settings > Usage page shows) with one read-only request. The session token taken from the Gemini app page is kept in memory for at most 30 minutes, never stored.
+https://gemini.google.com/* (optional, asked only when the user ticks Gemini): reads the user's own Gemini usage (as its Settings > Usage page shows) with one read-only request. The session token from the Gemini app page is kept in memory for at most 30 minutes, never stored.
 
 On these three sites it also notes when a reply finishes (request URL and timing only, never content) to refresh right away.
 
@@ -254,13 +258,13 @@ Read-only throughout: it never changes, bypasses or resets any limit.
 | --- | --- | --- |
 | Personally identifiable information（姓名、地址、邮箱、年龄、证件号） | **勾选** | 扩展不使用也不保存姓名或邮箱，但 claude.ai 的组织列表、chatgpt.com 的会话接口和 Gemini 的应用页面里可能带有账户名、邮箱，扩展收到后立即丢弃（经标签页取 Gemini 页面时，页面只交回会话令牌）。按 FAQ，读到响应内容就算经手，从严勾选 |
 | Health information（健康数据） | 不勾 | 不涉及 |
-| Financial and payment information（交易、信用卡、信用评级、财务报表、付款记录） | **勾选** | 读取额度余额（云端会话额度、Codex 额度、Google AI 额度）和本月已用的用量额度金额、月度上限，用来显示宝物袋 |
-| Authentication information（密码、凭据、安全问题、PIN） | **勾选** | 用浏览器已有的登录会话请求用量；读取 claude.ai 的 `lastActiveOrg` cookie；开启 ChatGPT 后取得会话访问令牌，只在内存中用于那一次请求；开启 Gemini 后从应用页面取得会话令牌，只在内存中保留最多 30 分钟；都不保存 |
+| Financial and payment information（交易、信用卡、信用评级、财务报表、付款记录） | **勾选** | 读取额度余额（云端会话额度、Codex 额度、Google AI 额度）和本月已用的用量额度金额、月度上限，用来显示宝物袋；开启 ChatGPT 后读取订阅本期的开始和结束时间、是否自动续订，用来显示资质续期 / 过期时间。从不读取银行卡、账单或价格 |
+| Authentication information（密码、凭据、安全问题、PIN） | **勾选** | 用浏览器已有的登录会话请求用量；读取 claude.ai 的 `lastActiveOrg` cookie；开启 ChatGPT 后取得会话访问令牌，只在内存中用于读取用量和订阅周期的这几次请求；开启 Gemini 后从应用页面取得会话令牌，只在内存中保留最多 30 分钟；都不保存 |
 | Personal communications（邮件、短信、聊天消息） | 不勾 | 从不读取对话、提示词或回复内容 |
 | Location（地区、IP、GPS） | 不勾 | 不读取位置 |
 | Web history（访问过的网页列表、标题、访问时间） | 不勾 | 不读取浏览记录；在其他网站上只显示悬浮窗，不读取网址 |
 | User activity（网络监测、点击、鼠标位置、滚动、键盘记录） | **勾选** | 在 claude.ai / chatgpt.com / gemini.google.com 页面上观察网页自身请求的地址和耗时（不含内容），用来在回复结束时立即刷新，属于网络监测 |
-| Website content（文字、图片、声音、视频、链接） | **勾选** | 读取 claude.ai / chatgpt.com / gemini.google.com 接口返回的用量数据（已用比例、重置时间、方案、额度） |
+| Website content（文字、图片、声音、视频、链接） | **勾选** | 读取 claude.ai / chatgpt.com / gemini.google.com 接口返回的用量数据（已用比例、重置时间、方案、额度），以及 ChatGPT 的订阅周期 |
 
 即勾选 5 项：Personally identifiable information、Financial and payment information、Authentication information、User activity、Website content。
 

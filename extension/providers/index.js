@@ -3,7 +3,10 @@
  *
  *   id, name, site, origin, homeUrl
  *   template     plan limit template (gauges, plans, messages), data only
- *   fetchUsage(http) -> {meters, plan}   vendor API -> normalized meters
+ *   fetchUsage(http, {now, previous}) -> {meters, wallets, plan, subscription?}
+ *                vendor API -> normalized meters; previous is the last snapshot.
+ *                A vendor that reports the paid period returns it as
+ *                subscription, and the user need not enter its end date.
  *   proxyPaths   paths an open vendor tab may GET for the background
  *   proxyPosts   [{path, form(fields)}] it may POST, form checked too (optional)
  *   proxyHeaders request headers allowed on that route (optional)

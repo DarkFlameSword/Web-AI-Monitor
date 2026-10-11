@@ -147,11 +147,16 @@
   cursor: pointer;
 }
 
-.wam button.q-expiry:hover,
-.wam button.q-expiry:focus-visible {
+.wam button.q-expiry:not(.auto):hover,
+.wam button.q-expiry:not(.auto):focus-visible {
   color: var(--ink);
   outline: none;
   text-decoration: underline dotted;
+}
+
+/* Read from the vendor: nothing to fill in, so it reads as plain text. */
+.wam button.q-expiry.auto {
+  cursor: default;
 }
 
 .wam .q-expiry.unset {

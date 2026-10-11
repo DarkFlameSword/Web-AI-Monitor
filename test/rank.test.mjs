@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { parseDay, qualificationExpiry, qualificationOf } from '../extension/core/rank.js';
+import { parseDay, qualificationExpiry, qualificationOf, subscriptionTerm } from '../extension/core/rank.js';
 import template from '../extension/providers/claude/template.js';
 
 test('the best personal plan is rank A, each step down one letter', () => {
@@ -37,4 +37,21 @@ test('the expiry is the day the user entered, valid until that day is over', () 
   assert.deepEqual(qualificationExpiry('2026-11-03', during), { day: day.start, expired: false, msLeft: day.end - during });
   assert.equal(qualificationExpiry('2026-11-03', day.end).expired, true);
   assert.deepEqual(qualificationExpiry(undefined, during), { day: null, expired: false, msLeft: null });
+});
+
+test('a period the vendor reports: renewing is never "expired", lapsing is once its end passes', () => {
+  const end = Date.parse('2026-11-03T13:27:01Z');
+  const start = Date.parse('2026-10-03T13:26:19Z');
+  const sub = { startsAt: '2026-10-03T13:26:19Z', endsAt: '2026-11-03T13:27:01Z', renews: true, checkedAt: 1 };
+  assert.deepEqual(subscriptionTerm(sub, end - 1000), { day: end, expired: false, msLeft: 1000, renews: true, startDay: start });
+  assert.equal(subscriptionTerm(sub, end + 1000).expired, false, 'it renewed; the next refresh reads the new period');
+
+  const lapsing = { ...sub, renews: false };
+  assert.equal(subscriptionTerm(lapsing, end - 1).expired, false);
+  assert.equal(subscriptionTerm(lapsing, end).expired, true);
+  assert.equal(subscriptionTerm({ ...sub, renews: null }, end).expired, true, 'unknown counts as lapsing');
+  assert.equal(subscriptionTerm({ ...sub, startsAt: null }, end).startDay, null);
+
+  // No end reported: the date the user entered is used instead.
+  for (const none of [null, undefined, {}, { endsAt: null }, { endsAt: 'soon' }]) assert.equal(subscriptionTerm(none, end), null);
 });

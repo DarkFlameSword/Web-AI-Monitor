@@ -13,8 +13,9 @@ import { providerIdOfKey } from './store.js';
  *
  *   1  Claude, ChatGPT
  *   2  Gemini added (its usage, and its session token held in memory)
+ *   3  ChatGPT's subscription period (start, end, whether it renews) read and kept
  */
-export const DATA_PRACTICES_VERSION = 2;
+export const DATA_PRACTICES_VERSION = 3;
 
 export const PRIVACY_POLICY_URL = 'https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md';
 export const WELCOME_PATH = 'welcome/welcome.html';

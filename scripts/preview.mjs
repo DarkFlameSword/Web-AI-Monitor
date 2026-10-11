@@ -316,6 +316,21 @@ async function main() {
       }, 'a ChatGPT snapshot');
       assert.equal(snap.plan, 'plus');
       assert.equal(mock.chatgptAuth, `Bearer ${mock.chatgptToken}`);
+      // The paid period came along, as the same account, trimmed to its dates by the tab.
+      assert.deepEqual(mock.chatgptSubscription, { accountId: 'acct-1', auth: `Bearer ${mock.chatgptToken}` });
+      assert.equal(snap.subscription.renews, true);
+      assert.equal(Math.round((Date.parse(snap.subscription.endsAt) - Date.now()) / DAY), 12);
+      assert.doesNotMatch(JSON.stringify(snap), /sub_mock|USD/);
+      const renewal = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(snap.subscription.endsAt));
+
+      // So settings show that date instead of a field to fill in.
+      await sleep(300);
+      const dateRow = page.locator('.set-date', { hasText: 'ChatGPT' });
+      assert.equal(await dateRow.locator('.set-auto').innerText(), `${renewal}（自动）`);
+      assert.equal(await dateRow.locator('.pix-dd').isVisible(), false);
+      assert.match(await page.locator('body').innerText(), /ChatGPT 的日期自动读取，不用填写/);
+      assert.equal(await page.locator('.set-date', { hasText: 'Claude' }).locator('.pix-dd').isVisible(), true, 'Claude is still typed in');
+
       await page.getByRole('button', { name: '返回' }).click();
       await page.getByRole('tab', { name: 'ChatGPT' }).click();
       await sleep(600);
@@ -323,7 +338,11 @@ async function main() {
       for (const expected of [/Codex \/ 5 小时/, /Codex \/ 每周/, /GPT-5\.3-Codex-Spark \/ 每周/, /魔晶石/, /持有 1,250/, /回复药水/, /持有 x3/, /冒险者资质\s*C/]) {
         assert.match(text, expected);
       }
-      assert.doesNotMatch(text, /绿宝石|金币|奥义|Fable/);
+      assert.match(text, new RegExp(`资质续期时间 ${renewal}`));
+      assert.doesNotMatch(text, /绿宝石|金币|奥义|Fable|未填写/);
+      // A date read from the vendor is not a field: clicking it stays on the card.
+      await page.locator('.q-expiry').filter({ visible: true }).click();
+      assert.equal(await page.getByRole('button', { name: '返回' }).count(), 0);
       await shoot(page.locator('body'), '15-popup-chatgpt');
       await page.close();
       await gpt.close();

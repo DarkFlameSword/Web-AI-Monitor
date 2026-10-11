@@ -255,6 +255,14 @@ body {
   margin-left: auto;
 }
 
+/* A date the vendor reported: plain text where the date field would be. */
+.set-auto {
+  margin-left: auto;
+  color: var(--ink-2);
+  line-height: 18px;
+  white-space: nowrap;
+}
+
 /* ------------------------------------------- data use notice (popup) */
 
 .consent-view .consent {

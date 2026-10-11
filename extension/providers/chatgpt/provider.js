@@ -4,6 +4,10 @@ import template from './template.js';
 const ORIGIN = 'https://chatgpt.com';
 const USAGE_PATH = '/backend-api/wham/usage';
 const SESSION_PATH = '/api/auth/session';
+/** The current paid period of an account: GET with ?account_id=. */
+const SUBSCRIPTION_PATH = '/backend-api/subscriptions';
+/** The period changes about once a month, so it is asked for again only after this long. */
+const SUBSCRIPTION_TTL_MS = 6 * 60 * 60_000;
 /** Windows up to a day long are the short window; longer ones are weekly. */
 const SHORT_WINDOW_MAX_S = 24 * 60 * 60;
 
@@ -140,6 +144,30 @@ export function normalizePlan(value) {
   return template.plans[known] ? known : null;
 }
 
+/** An ISO time from an ISO string or epoch seconds / ms, or null. */
+function isoOf(value) {
+  const ms = typeof value === 'number' ? (value > 1e12 ? value : value * 1000) : Date.parse(typeof value === 'string' ? value : '');
+  return Number.isFinite(ms) && ms > 0 ? new Date(ms).toISOString() : null;
+}
+
+/**
+ * The current paid period. Never throws.
+ *
+ * Shape: { id, plan_type, active_start, active_until, billing_period, will_renew, is_delinquent }
+ * with the times as ISO strings.
+ *
+ * @returns {import('../../core/rank.js').Subscription}
+ */
+export function parseSubscription(raw, now) {
+  const data = isObject(raw) ? raw : {};
+  return {
+    startsAt: isoOf(data.active_start),
+    endsAt: isoOf(data.active_until),
+    renews: typeof data.will_renew === 'boolean' ? data.will_renew : null,
+    checkedAt: now,
+  };
+}
+
 /** Claims of a JWT access token, or null. Only read, never verified or stored. */
 export function tokenClaims(token) {
   try {
@@ -173,12 +201,22 @@ async function sessionOf(http) {
   };
 }
 
+/** The fields of the subscription reply a tab hands back. */
+const SUBSCRIPTION_FIELDS = Object.freeze(['active_start', 'active_until', 'will_renew']);
+
 /**
- * What a ChatGPT tab hands back for the session request: only the token and
- * the account it belongs to. The rest of that body (session cookie, email,
- * name) never leaves the page.
+ * What a ChatGPT tab hands back: for the session request, only the token and
+ * the account it belongs to; for the subscription, only its period and
+ * whether it renews. The rest (session cookie, email, name, billing details)
+ * never leaves the page.
  */
 export function proxyBody(path, body) {
+  if (path.startsWith(`${SUBSCRIPTION_PATH}?`)) {
+    if (!isObject(body)) return null;
+    return Object.fromEntries(SUBSCRIPTION_FIELDS
+      .filter(key => ['string', 'number', 'boolean'].includes(typeof body[key]))
+      .map(key => [key, body[key]]));
+  }
   if (path !== SESSION_PATH) return body;
   if (!isObject(body)) return null;
   const pick = {};
@@ -192,18 +230,43 @@ export function proxyBody(path, body) {
 }
 
 /**
- * @param {import('../../core/http.js').Http} http
+ * The paid period, asked for at most every few hours: the last snapshot's is
+ * kept while the plan stays the same and the period has not ended. A free
+ * account has none. A failed request does not fail the refresh; the card
+ * keeps what it knew, and asks again later.
+ *
+ * @returns {Promise<import('../../core/rank.js').Subscription|null>}
  */
-async function fetchUsage(http) {
+async function subscriptionOf(http, { headers, accountId, plan, previous, now }) {
+  if (plan === 'free') return null;
+  const known = isObject(previous?.subscription) ? previous.subscription : null;
+  const ended = Date.parse(known?.endsAt ?? '') <= now;
+  if (known && previous.plan === plan && !ended && now - known.checkedAt < SUBSCRIPTION_TTL_MS) return known;
+  if (!accountId) return known;
+  try {
+    const raw = await http.getJson(`${SUBSCRIPTION_PATH}?account_id=${encodeURIComponent(accountId)}`, { headers });
+    return parseSubscription(raw, now);
+  } catch {
+    return { ...(known ?? parseSubscription(null, now)), checkedAt: now };
+  }
+}
+
+/**
+ * @param {import('../../core/http.js').Http} http
+ * @param {{now?: number, previous?: import('../../core/store.js').Snapshot|null}} [context]
+ */
+async function fetchUsage(http, { now = Date.now(), previous = null } = {}) {
   const { token, accountId, planType } = await sessionOf(http);
   const headers = {};
   if (token) headers.authorization = `Bearer ${token}`;
   if (accountId) headers['chatgpt-account-id'] = accountId;
   const usage = await http.getJson(USAGE_PATH, { headers });
+  const plan = normalizePlan(usage?.plan_type) ?? normalizePlan(planType);
   return {
-    meters: parseUsage(usage),
+    meters: parseUsage(usage, now),
     wallets: parseWallets(usage),
-    plan: normalizePlan(usage?.plan_type) ?? normalizePlan(planType),
+    plan,
+    subscription: await subscriptionOf(http, { headers, accountId, plan, previous, now }),
   };
 }
 
@@ -217,8 +280,12 @@ export default Object.freeze({
   /** Not monitored until the user switches it on and allows chatgpt.com. */
   enabledByDefault: false,
   optionalPermission: true,
-  proxyPaths: Object.freeze([/^\/api\/auth\/session$/, /^\/backend-api\/wham\/usage$/]),
-  /** Headers the usage request needs on the tab route. */
+  proxyPaths: Object.freeze([
+    /^\/api\/auth\/session$/,
+    /^\/backend-api\/wham\/usage$/,
+    /^\/backend-api\/subscriptions\?account_id=[\w%.-]+$/,
+  ]),
+  /** Headers the usage and subscription requests need on the tab route. */
   proxyHeaders: Object.freeze(['authorization', 'chatgpt-account-id']),
   proxyBody,
   /** A reply or a Codex task just finished streaming. */

@@ -50,3 +50,31 @@ export function qualificationExpiry(day, now) {
   if (!parsed) return { day: null, expired: false, msLeft: null };
   return { day: parsed.start, expired: now >= parsed.end, msLeft: parsed.end - now };
 }
+
+/**
+ * The paid period as the vendor reports it, for vendors that do (ChatGPT).
+ * Times are ISO strings.
+ *
+ * @typedef {object} Subscription
+ * @property {string|null} startsAt  When the current period began.
+ * @property {string|null} endsAt    When it ends: the renewal, or the last moment if it will not renew.
+ * @property {boolean|null} renews   Whether it renews then; null when the vendor does not say.
+ * @property {number} checkedAt      Epoch ms of the last time it was asked for.
+ */
+
+/**
+ * When the qualification lapses or renews, from the period the vendor
+ * reported. Null when it reported no end, so the date the user entered is
+ * used instead (see qualificationExpiry).
+ *
+ * @param {Subscription|null|undefined} subscription
+ * @param {number} now  Epoch ms.
+ * @returns {{day: number, expired: boolean, msLeft: number, renews: boolean, startDay: number|null}|null}
+ */
+export function subscriptionTerm(subscription, now) {
+  const end = Date.parse(subscription?.endsAt ?? '');
+  if (!Number.isFinite(end)) return null;
+  const start = Date.parse(subscription.startsAt ?? '');
+  const renews = subscription.renews === true;
+  return { day: end, expired: !renews && now >= end, msLeft: end - now, renews, startDay: Number.isFinite(start) ? start : null };
+}

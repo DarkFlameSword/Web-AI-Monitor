@@ -115,7 +115,7 @@ test('its card: MP for the 5-hour window, HP for the week, no ultimate; sapphire
 test('the session token comes from the app page; the usage call carries it', async () => {
   forgetSession();
   const http = fakeHttp();
-  const result = await gemini.fetchUsage(http, NOW);
+  const result = await gemini.fetchUsage(http, { now: NOW });
   assert.equal(result.plan, 'pro');
   assert.deepEqual(result.meters.map(m => m.used), [35, 62]);
   const [get, post] = http.calls;
@@ -134,30 +134,30 @@ test('the session token comes from the app page; the usage call carries it', asy
 
 test('the token is reused for 30 minutes, and fetched again when it goes stale', async () => {
   forgetSession();
-  await gemini.fetchUsage(fakeHttp(), NOW);
+  await gemini.fetchUsage(fakeHttp(), { now: NOW });
 
   const soon = fakeHttp();
-  await gemini.fetchUsage(soon, NOW + 10 * 60_000);
+  await gemini.fetchUsage(soon, { now: NOW + 10 * 60_000 });
   assert.deepEqual(soon.calls.map(call => call[0]), ['post'], 'no page fetch within 30 minutes');
 
   const stale = fakeHttp({ failFirstPost: new HttpError(400, 'http') });
-  const result = await gemini.fetchUsage(stale, NOW + 20 * 60_000);
+  const result = await gemini.fetchUsage(stale, { now: NOW + 20 * 60_000 });
   assert.equal(result.plan, 'pro');
   assert.deepEqual(stale.calls.map(call => call[0]), ['post', 'get', 'post'], 'a refused token: the page again, then one retry');
 
   const later = fakeHttp();
-  await gemini.fetchUsage(later, NOW + 60 * 60_000);
+  await gemini.fetchUsage(later, { now: NOW + 60 * 60_000 });
   assert.deepEqual(later.calls.map(call => call[0]), ['get', 'post'], 'after 30 minutes: the page again');
 });
 
 test('signed out: no token in the page, or the call refused as unauthenticated', async () => {
   forgetSession();
-  await assert.rejects(gemini.fetchUsage(fakeHttp({ page: '<html>Sign in</html>' }), NOW), error => isAuthError(error));
+  await assert.rejects(gemini.fetchUsage(fakeHttp({ page: '<html>Sign in</html>' }), { now: NOW }), error => isAuthError(error));
   forgetSession();
   const refused = batchReply([['wrb.fr', 'jSf9Qc', null, null, null, [7]]]);
-  await assert.rejects(gemini.fetchUsage(fakeHttp({ reply: refused }), NOW), error => isAuthError(error));
+  await assert.rejects(gemini.fetchUsage(fakeHttp({ reply: refused }), { now: NOW }), error => isAuthError(error));
   forgetSession();
-  await assert.rejects(gemini.fetchUsage(fakeHttp({ reply: ")]}'\n" }), NOW), error => error.code === 'no_data' && !isAuthError(error));
+  await assert.rejects(gemini.fetchUsage(fakeHttp({ reply: ")]}'\n" }), { now: NOW }), error => error.code === 'no_data' && !isAuthError(error));
   // A failed page request is not a sign-out.
   assert.equal(isAuthError(new HttpError(403, 'http')), false);
 });

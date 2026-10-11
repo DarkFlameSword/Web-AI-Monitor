@@ -2,6 +2,7 @@ import { ALL_SITES } from '../background/page-hud.js';
 import { PRIVACY_POLICY_URL, WELCOME_PATH, giveConsent, hasConsent, withdrawConsent } from '../core/consent.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
 import { DEFAULT_LANG, LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
+import { subscriptionTerm } from '../core/rank.js';
 import {
   POLL_RANGE,
   SCALE_RANGE,
@@ -141,7 +142,10 @@ const providerChecks = PROVIDERS.map(provider => ({
 }));
 const providersMore = h(doc, 'span', { class: 'set-hint' });
 
-/** Subscription end per vendor, picked on a pixel calendar. */
+/**
+ * Subscription end per vendor, picked on a pixel calendar. A vendor that
+ * reports its paid period shows that date instead, with nothing to fill in.
+ */
 const expiryFields = PROVIDERS.map(provider => {
   const saveDay = day => updateSettings(draft => {
     if (day) draft.rankExpiry[provider.id] = day;
@@ -153,10 +157,12 @@ const expiryFields = PROVIDERS.map(provider => {
     format: ms => formatDate(ms, t.tag),
   });
   const name = h(doc, 'span', { class: 'set-sub set-name', text: provider.name });
+  const auto = h(doc, 'span', { class: 'set-auto' });
   // Clearing lives in the calendar's footer, so the row fits in every language.
-  return { provider, picker, wrap: h(doc, 'div', { class: 'set-inline set-date' }, [name, picker.el]) };
+  return { provider, picker, auto, wrap: h(doc, 'div', { class: 'set-inline set-date' }, [name, picker.el, auto]) };
 });
 const expiryHint = h(doc, 'span', { class: 'set-hint wrap' });
+const expiryAutoHint = h(doc, 'span', { class: 'set-hint wrap' });
 
 const pollSlider = slider({
   ...POLL_RANGE,
@@ -231,7 +237,7 @@ const row = (label, controls) => h(doc, 'div', { class: 'set-row' }, [label, h(d
 settingsView.append(
   row(labels.lang, langSelect.el),
   row(labels.providers, [...providerChecks.flatMap(item => [item.check.wrap, item.hint]), providersMore]),
-  row(labels.expiry, [...expiryFields.map(item => item.wrap), expiryHint]),
+  row(labels.expiry, [...expiryFields.map(item => item.wrap), expiryHint, expiryAutoHint]),
   row(labels.hud, [hudShow.wrap, hudEverywhere.wrap, hudEverywhereHint, h(doc, 'div', { class: 'set-inline' }, [labels.size, sizeSlider.wrap])]),
   row(labels.notify, notifyRecovered.wrap),
   row(labels.poll, pollSlider.wrap),
@@ -277,11 +283,20 @@ function renderSettings() {
       hint.hidden = check.input.checked;
     }
   }
-  for (const { provider, picker, wrap } of expiryFields) {
+  const now = Date.now();
+  const automatic = [];
+  for (const { provider, picker, auto, wrap } of expiryFields) {
     wrap.hidden = !watching.includes(provider);
+    const term = subscriptionTerm(state.snapshots[provider.id]?.subscription, now);
+    picker.el.hidden = Boolean(term);
+    auto.hidden = !term;
+    auto.textContent = term ? t('settings.rankExpiryAuto', { date: formatDate(term.day, t.tag) }) : '';
+    if (term && !wrap.hidden) automatic.push(provider.name);
     picker.setValue(settings.rankExpiry[provider.id] ?? '');
     picker.setLabel(`${provider.name} ${t('settings.rankExpiry')}`);
   }
+  expiryAutoHint.hidden = automatic.length === 0;
+  expiryAutoHint.textContent = t('settings.rankExpiryAutoHint', { names: automatic.join(t('list.sep')) });
 
   pollSlider.set(settings.pollMinutes);
   sizeSlider.set(settings.hud.scale);

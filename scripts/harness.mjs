@@ -90,6 +90,21 @@ export function chatgptUsage() {
   };
 }
 
+/** A subscriptions response: a monthly Plus period, 18 days in, renewing in 12 days. */
+export function chatgptSubscription() {
+  const at = ms => new Date(Date.now() + ms).toISOString();
+  return {
+    id: 'sub_mock',
+    plan_type: 'plus',
+    active_start: at(-18 * DAY),
+    active_until: at(12 * DAY),
+    billing_period: 'monthly',
+    will_renew: true,
+    is_delinquent: false,
+    billing_currency: 'USD',
+  };
+}
+
 /** The Gemini app page's session token, as the mock serves it. */
 export const GEMINI_TOKEN = 'AFkVSc:1791190000000';
 
@@ -175,13 +190,17 @@ export async function launch(extensionPath, mock, { deviceScaleFactor = 2, viewp
   });
   await context.route('https://chatgpt.com/**', async route => {
     const request = route.request();
-    const { pathname } = new URL(request.url());
+    const { pathname, searchParams } = new URL(request.url());
     // Like claude.ai: the worker route is stopped, the page route works.
     if (request.serviceWorker()) return route.fulfill({ status: 403, contentType: 'text/html', body: '<html>challenge</html>' });
     if (pathname === '/api/auth/session') return route.fulfill({ json: { user: { id: 'u' }, accessToken: mock.chatgptToken } });
     if (pathname === '/backend-api/wham/usage') {
       mock.chatgptAuth = request.headers().authorization ?? null;
       return route.fulfill({ json: chatgptUsage() });
+    }
+    if (pathname === '/backend-api/subscriptions') {
+      mock.chatgptSubscription = { accountId: searchParams.get('account_id'), auth: request.headers().authorization ?? null };
+      return route.fulfill({ json: chatgptSubscription() });
     }
     if (pathname.includes('/conversation')) return route.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
     return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'chatgpt.com (mock)') });

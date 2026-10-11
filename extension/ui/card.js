@@ -1,6 +1,6 @@
 import { buildGaugeViews } from '../core/gauges.js';
 import { label } from '../core/i18n.js';
-import { qualificationExpiry, qualificationOf } from '../core/rank.js';
+import { qualificationExpiry, qualificationOf, subscriptionTerm } from '../core/rank.js';
 import { roleOf, treasureOf } from '../core/roles.js';
 import { formatAgo, formatClock, formatCountdown, formatCountdownShort, formatDate } from '../core/time.js';
 import { buildWalletViews } from '../core/wallets.js';
@@ -268,7 +268,10 @@ export class ProviderCard {
     this.snapshot = null;
     /** While a refresh is running the footer says so instead of "updated ago". */
     this.busy = false;
-    /** The rank expiry the user entered for this provider (YYYY-MM-DD), from settings. */
+    /**
+     * The rank expiry the user entered for this provider (YYYY-MM-DD), from
+     * settings. Used when the vendor does not report the paid period itself.
+     */
     this.rankExpiry = null;
 
     this.nameEl = h(doc, 'span', { class: 'm-name', text: provider.name });
@@ -283,9 +286,14 @@ export class ProviderCard {
     } else {
       // Popup: name and plan, then adventurer rank and when it lapses.
       this.rankLabel = h(doc, 'span', { class: 'q-label' });
-      // Clicking the expiry opens settings, where the user fills it in.
+      // Clicking the expiry opens settings, where the user fills it in, unless
+      // the vendor reported it (then there is nothing to fill in).
       this.expiryEl = onEditExpiry
-        ? h(doc, 'button', { class: 'q-expiry', type: 'button', onclick: () => onEditExpiry(provider) })
+        ? h(doc, 'button', {
+          class: 'q-expiry',
+          type: 'button',
+          onclick: () => this.expiryEl.classList.contains('auto') || onEditExpiry(provider),
+        })
         : h(doc, 'span', { class: 'q-expiry' });
       this.qualification = h(doc, 'div', { class: 'qualification' }, [
         h(doc, 'span', { class: 'q-rank' }, [this.rankLabel, this.sealEl]),
@@ -358,7 +366,10 @@ export class ProviderCard {
     this.tickFooter(t, now);
   }
 
-  /** Adventurer rank from the plan, and the expiry date the user entered in settings. */
+  /**
+   * Adventurer rank from the plan, and when it lapses or renews: the paid
+   * period the vendor reported, or else the date the user entered in settings.
+   */
   renderQualification(snapshot, t, now) {
     const qual = qualificationOf(this.provider.template, snapshot?.plan);
     const rank = qual?.rank ?? null;
@@ -366,23 +377,35 @@ export class ProviderCard {
     this.sealEl.hidden = !rank;
     this.planEl.textContent = qual?.name ?? '';
 
-    const { day, expired, msLeft } = qualificationExpiry(this.rankExpiry, now);
+    const term = subscriptionTerm(snapshot?.subscription, now);
+    const { day, expired, msLeft } = term ?? qualificationExpiry(this.rankExpiry, now);
     let expiryText = '';
+    let period = '';
     if (day !== null) {
       const date = formatDate(day, t.tag);
-      expiryText = expired ? t('rank.expired', { date }) : t('rank.expires', { date });
+      if (expired) expiryText = t('rank.expired', { date });
+      else expiryText = t(term?.renews ? 'rank.renews' : 'rank.expires', { date });
+      if (term) {
+        const start = term.startDay === null ? '' : formatDate(term.startDay, t.tag);
+        period = [start && t('rank.period', { start, end: date }), t('rank.auto', { site: this.provider.site })]
+          .filter(Boolean).join('\n');
+      }
     } else if (snapshot?.plan && snapshot.plan !== 'free') {
       expiryText = t('rank.unset');
     }
-    this.sealEl.title = [rank ? `${t('rank')} ${rank}` : '', expiryText].filter(Boolean).join('\n');
+    this.sealEl.title = [rank ? `${t('rank')} ${rank}` : '', expiryText, period].filter(Boolean).join('\n');
 
     if (!this.qualification) return;
     this.qualification.hidden = !rank;
     this.rankLabel.textContent = t('rank');
     this.expiryEl.textContent = expiryText;
     this.expiryEl.hidden = !expiryText;
+    this.expiryEl.title = period;
+    this.expiryEl.classList.toggle('auto', Boolean(term));
+    if (this.expiryEl.tagName === 'BUTTON') this.expiryEl.tabIndex = term ? -1 : 0;
     this.expiryEl.classList.toggle('unset', day === null);
-    this.expiryEl.classList.toggle('soon', day !== null && (expired || msLeft < RANK_EXPIRY_WARNING_MS));
+    // A period that renews by itself is not about to lapse.
+    this.expiryEl.classList.toggle('soon', day !== null && !term?.renews && (expired || msLeft < RANK_EXPIRY_WARNING_MS));
   }
 
   /** Called every second: countdowns and "updated ago". */

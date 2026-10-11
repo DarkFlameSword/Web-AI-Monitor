@@ -5,7 +5,7 @@ import { HttpError } from '../extension/core/http.js';
 import { buildGaugeViews } from '../extension/core/gauges.js';
 import { qualificationOf } from '../extension/core/rank.js';
 import { buildWalletViews } from '../extension/core/wallets.js';
-import chatgpt, { normalizePlan, parseUsage, parseWallets, tokenClaims } from '../extension/providers/chatgpt/provider.js';
+import chatgpt, { normalizePlan, parseSubscription, parseUsage, parseWallets, tokenClaims } from '../extension/providers/chatgpt/provider.js';
 import template from '../extension/providers/chatgpt/template.js';
 
 const NOW = Date.parse('2026-10-05T08:00:00Z');
@@ -136,6 +136,12 @@ test('replies and Codex tasks count as activity; only the two API paths may be p
   assert.equal(chatgpt.isActivity('/backend-api/wham/usage', 9000), false);
   const allowed = path => chatgpt.proxyPaths.some(pattern => pattern.test(path));
   assert.deepEqual(['/api/auth/session', '/backend-api/wham/usage', '/backend-api/me', '/backend-api/conversation'].map(allowed), [true, true, false, false]);
+  assert.deepEqual([
+    '/backend-api/subscriptions?account_id=3f2c1b7e-0d4a-4c55-9d1a-6e2f8b0c4d11',
+    '/backend-api/subscriptions',
+    '/backend-api/subscriptions?account_id=a&expand=billing',
+    '/backend-api/subscriptions/invoices?account_id=a',
+  ].map(allowed), [true, false, false, false]);
   assert.deepEqual([...chatgpt.proxyHeaders], ['authorization', 'chatgpt-account-id']);
   assert.equal(chatgpt.enabledByDefault, false);
 });
@@ -184,4 +190,84 @@ test('a tab hands back only the token and account of the session, nothing else',
   const result = await chatgpt.fetchUsage(http);
   assert.deepEqual(http.calls[1][1], { authorization: `Bearer ${TOKEN}`, 'chatgpt-account-id': 'acct-9' });
   assert.equal(result.plan, 'pro');
+});
+
+/** The field layout of GET /backend-api/subscriptions?account_id=… for a paid account. */
+const SUBSCRIPTION = {
+  id: 'sub_secret',
+  plan_type: 'plus',
+  active_start: '2026-09-20T13:26:19Z',
+  active_until: '2026-10-20T13:27:01Z',
+  billing_period: 'monthly',
+  will_renew: true,
+  is_delinquent: false,
+  billing_currency: 'USD',
+  seats: { entitled: 1, in_use: 1 },
+};
+const SUB_PATH = '/backend-api/subscriptions?account_id=acct-1';
+const PERIOD = { startsAt: '2026-09-20T13:26:19.000Z', endsAt: '2026-10-20T13:27:01.000Z', renews: true, checkedAt: NOW };
+
+test('the paid period: when it started, when it ends, whether it renews', () => {
+  assert.deepEqual(parseSubscription(SUBSCRIPTION, NOW), PERIOD);
+  const epoch = parseSubscription({ active_start: 1789911979, active_until: 1792502821000, will_renew: false }, NOW);
+  assert.deepEqual([epoch.startsAt, epoch.endsAt, epoch.renews], ['2026-09-20T13:46:19.000Z', '2026-10-20T13:27:01.000Z', false]);
+  for (const junk of [null, 'x', [], {}, { active_until: 'soon', will_renew: 'yes' }]) {
+    assert.deepEqual(parseSubscription(junk, NOW), { startsAt: null, endsAt: null, renews: null, checkedAt: NOW });
+  }
+});
+
+const paid = (extra = {}) => fakeHttp({
+  '/api/auth/session': { accessToken: TOKEN },
+  '/backend-api/wham/usage': USAGE,
+  [SUB_PATH]: SUBSCRIPTION,
+  ...extra,
+});
+
+test('it is read with the usage, as the same account, so nobody types the date', async () => {
+  const http = paid();
+  const result = await chatgpt.fetchUsage(http, { now: NOW });
+  assert.deepEqual(result.subscription, PERIOD);
+  assert.deepEqual(http.calls[2], [SUB_PATH, { authorization: `Bearer ${TOKEN}`, 'chatgpt-account-id': 'acct-1' }]);
+});
+
+test('it is asked for again only every few hours, on a plan change, or once the period ends', async () => {
+  const previous = { plan: 'plus', subscription: PERIOD };
+  const asked = async (now, prev = previous) => {
+    const http = paid();
+    const result = await chatgpt.fetchUsage(http, { now, previous: prev });
+    return [http.calls.some(([path]) => path === SUB_PATH), result.subscription];
+  };
+  assert.deepEqual(await asked(NOW + 5 * HOUR), [false, PERIOD], 'within 6 hours: the one it knew');
+  assert.equal((await asked(NOW + 6 * HOUR))[0], true, 'after 6 hours');
+  assert.equal((await asked(NOW + HOUR, { ...previous, plan: 'pro' }))[0], true, 'the plan changed');
+  const ended = { plan: 'plus', subscription: { ...PERIOD, endsAt: new Date(NOW + HOUR).toISOString() } };
+  assert.equal((await asked(NOW + 2 * HOUR, ended))[0], true, 'the period ended');
+  assert.equal((await asked(NOW + HOUR, { plan: 'plus', subscription: null }))[0], true, 'never read yet');
+});
+
+test('a failed read keeps what it knew and does not fail the refresh; free accounts have none', async () => {
+  const failing = paid({ [SUB_PATH]: new HttpError(503) });
+  const kept = await chatgpt.fetchUsage(failing, { now: NOW + 7 * HOUR, previous: { plan: 'plus', subscription: PERIOD } });
+  assert.equal(kept.meters.length, 3);
+  assert.deepEqual(kept.subscription, { ...PERIOD, checkedAt: NOW + 7 * HOUR }, 'asked again in 6 hours');
+
+  const nothing = await chatgpt.fetchUsage(paid({ [SUB_PATH]: new HttpError(404) }), { now: NOW });
+  assert.deepEqual(nothing.subscription, { startsAt: null, endsAt: null, renews: null, checkedAt: NOW });
+
+  const free = paid({ '/backend-api/wham/usage': { ...USAGE, plan_type: 'free' } });
+  assert.equal((await chatgpt.fetchUsage(free, { now: NOW })).subscription, null);
+  assert.ok(!free.calls.some(([path]) => path.startsWith('/backend-api/subscriptions')));
+
+  const noAccount = fakeHttp({ '/api/auth/session': {}, '/backend-api/wham/usage': USAGE });
+  assert.equal((await chatgpt.fetchUsage(noAccount, { now: NOW })).subscription, null);
+  assert.equal(noAccount.calls.length, 2, 'no account id: nothing to ask with');
+});
+
+test('a tab hands back only the period of the subscription, nothing else', async () => {
+  const trimmed = chatgpt.proxyBody(SUB_PATH, SUBSCRIPTION);
+  assert.deepEqual(trimmed, { active_start: SUBSCRIPTION.active_start, active_until: SUBSCRIPTION.active_until, will_renew: true });
+  assert.doesNotMatch(JSON.stringify(trimmed), /sub_secret|USD|seats/);
+  assert.deepEqual(chatgpt.proxyBody(SUB_PATH, null), null);
+  assert.deepEqual(chatgpt.proxyBody(SUB_PATH, { active_until: { nested: 1 }, will_renew: 'yes' }), { will_renew: 'yes' });
+  assert.deepEqual(parseSubscription(trimmed, NOW), PERIOD, 'still enough for the card');
 });

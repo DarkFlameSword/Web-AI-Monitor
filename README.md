@@ -70,8 +70,9 @@ Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，�
 | Team / Enterprise（组织方案，不在个人阶梯上） | B / S |
 
 - 规则写在厂商模板里：`ladder` 按个人方案从高到低排列，第一档是 A，每低一档降一个字母；接别家时照样列出它的个人方案即可。组织方案在模板里单独写明资质。
-- 资质过期时间由你在设置的「订阅过期时间」里用像素日历选择（每个厂商一个日期，填订阅的到期日；在日历底部点「清除」或按 Delete 可清除）。填写的那天当天仍有效，过了这天显示「资质已于 ... 过期」。三天内到期或已过期时变红。
-- 付费方案没填时显示「资质过期时间 未填写」，点它直接跳到设置里对应的日期框；Free 方案没填时不显示。悬浮窗里把资质和过期时间放在印章的悬停提示里。
+- **ChatGPT 自动读取**：订阅本期的开始和结束时间、是否自动续订，都从 chatgpt.com 的订阅接口读取，不用填写。会自动续订时显示「资质续期时间 ...」，不会变红；已取消续订时显示「资质过期时间 ...」。悬停能看到本期的起止日期。这个日期最多每 6 小时问一次，换方案或本期结束时立即重新读取。
+- **Claude 和 Gemini 手动填写**：这两家的网页接口不提供订阅日期（Gemini 的续订日期只在 Google 账号的「付款和订阅」页面里），所以由你在设置的「订阅过期时间」里用像素日历选择（每个厂商一个日期，填订阅的到期日；在日历底部点「清除」或按 Delete 可清除）。填写的那天当天仍有效，过了这天显示「资质已于 ... 过期」。三天内到期或已过期时变红。ChatGPT 万一读不到日期，设置里也会出现日期框，填了就用填的。
+- 付费方案没有日期时显示「资质过期时间 未填写」，点它直接跳到设置里对应的日期框；Free 方案不显示。悬浮窗里把资质和过期时间放在印章的悬停提示里。
 
 ## 宝物袋（额度）
 
@@ -119,7 +120,8 @@ Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，�
   - `GET https://claude.ai/api/organizations/{org}/usage`：用量。新格式 `limits[]`（`session` / `weekly_all` / `weekly_scoped` + `scope.model.display_name`）和旧格式 `five_hour` / `seven_day` / `seven_day_*` 都能解析，不认识的字段会被跳过。宝物袋来自同一个响应：`extra_usage`（金额以最小货币单位给出，按 `decimal_places` 换算）和云端会话额度（目前是代号字段 `iguana_necktie`，以美元给出，`resets_at` 是失效时间；代号改名时会按 `cloud` / `ccr` / `remote_session` 关键字兜底）。
 - 读取 chatgpt.com 网页自己用的接口（同样非公开）：
   - `GET https://chatgpt.com/api/auth/session`：拿到访问令牌、账户 id 和方案（`accessToken`、`account.id`、`account.planType`；令牌只在内存里用来发下一个请求，不保存）。经标签页转发时，页面只把这三项交回后台，`sessionToken`、邮箱、姓名等其余字段不离开页面。有报道说新版页面这里已经不给令牌，此时下一个请求只带 cookie 发出；
-  - `GET https://chatgpt.com/backend-api/wham/usage`（带 `Authorization` 和 `ChatGPT-Account-Id`）：`rate_limit.primary_window` / `secondary_window`（`used_percent`、`limit_window_seconds`、`reset_at` 秒级时间戳）、`additional_rate_limits[]`、`code_review_rate_limit`、`spend_control.individual_limit`、`credits`（`balance` 是字符串）、`rate_limit_reset_credits.available_count`、`plan_type`。
+  - `GET https://chatgpt.com/backend-api/wham/usage`（带 `Authorization` 和 `ChatGPT-Account-Id`）：`rate_limit.primary_window` / `secondary_window`（`used_percent`、`limit_window_seconds`、`reset_at` 秒级时间戳）、`additional_rate_limits[]`、`code_review_rate_limit`、`spend_control.individual_limit`、`credits`（`balance` 是字符串）、`rate_limit_reset_credits.available_count`、`plan_type`；
+  - `GET https://chatgpt.com/backend-api/subscriptions?account_id=<账户 id>`（同样的两个请求头；Free 方案不请求，其他方案最多每 6 小时一次）：只用 `active_start`、`active_until`（ISO 时间）和 `will_renew`。经标签页转发时，页面只交回这三项，订阅 id、币种等其余字段不离开页面。
 - 读取 gemini.google.com 网页自己用的接口（同样非公开），和网页「设置 > 用量」用的是同一个：
   - `GET https://gemini.google.com/app`：从页面的 `WIZ_global_data` 里取会话令牌 `SNlM0e`（以及 `cfb2h`、`FdrFJe` 和语言）。令牌只在内存里保留最多 30 分钟，过期或被拒绝时重新取，从不保存。经标签页转发时，页面只把这几个值交回后台，账户名、邮箱和对话等页面内容不离开页面；
   - `POST https://gemini.google.com/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc`（GetUsageInfo；表单只有 `at` 令牌和固定的 `f.req`）：方案等级（1 Free、2 Pro、3 / 6 Ultra、4 Plus）、5 小时窗口和每周窗口的已用比例与重置时间、Google AI 额度余额。响应以 `)]}'` 开头，之后是按长度分帧的 JSON。接口和格式参考了开源项目 [HanaokaYuzu/Gemini-API](https://github.com/HanaokaYuzu/Gemini-API)。
@@ -156,14 +158,14 @@ extension/
     index.js                  厂商注册表
     claude/provider.js        取数 + 归一化：厂商 API -> Meter[]（id, kind, scope, used, resetsAt）
     claude/template.js        限制计划模板（纯数据）：哪个限制扮演哪个角色、哪种额度是哪种宝物、方案 -> 等级、厂商专用文案
-    chatgpt/provider.js       ChatGPT：/api/auth/session + /backend-api/wham/usage -> Meter[] + Wallet[]
+    chatgpt/provider.js       ChatGPT：/api/auth/session + /backend-api/wham/usage -> Meter[] + Wallet[]；/backend-api/subscriptions -> 订阅周期
     chatgpt/template.js       ChatGPT 自己的一套：MP / HP + EX，魔晶石 / 回复药水，Pro 起算的阶梯
     gemini/provider.js        Gemini：/app 取会话令牌 + batchexecute 的 GetUsageInfo -> Meter[] + Wallet[]
     gemini/template.js        Gemini 自己的一套：MP（5 小时）/ HP（每周），蓝宝石，Ultra 起算的阶梯
   core/                       与厂商无关
     gauges.js                 Meter[] + 模板 -> 卡片上的每一行（剩余量、等级、READY、封印、恢复中）
     wallets.js                Wallet[] + 模板 -> 宝物袋的每一行（余额、上限、失效、状态）
-    rank.js                   方案 + 模板阶梯 -> 冒险者资质；用户填写的日期 -> 资质过期时间
+    rank.js                   方案 + 模板阶梯 -> 冒险者资质；厂商给出的订阅周期，或用户填写的日期 -> 资质过期时间
     roles.js                  角色词表：mp / hp / sp / ex；宝物：coin / emerald / crystal / potion / sapphire
     i18n.js, messages.js      多语言
     time.js                   倒计时与时间格式
@@ -220,7 +222,7 @@ extension/
    };
    ```
 
-2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http)` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。`http` 提供 `getJson`、`getText`（取网页文本）和 `postForm`（提交表单、读文本）。需要额外请求头（比如 Bearer token）时传 `{ headers }`，并在 `proxyHeaders` 里列出允许经标签页转发的头；需要 POST 时在 `proxyPosts` 里写明允许的路径和表单检查（Gemini 就是这样）；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
+2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http, { now, previous }) }`，其中 `fetchUsage` 返回 `{ meters, wallets, plan, subscription? }`（`wallets` 可以是空数组）。厂商能给出订阅周期时，返回 `subscription: { startsAt, endsAt, renews, checkedAt }`，卡片就用它，用户不用填写日期（ChatGPT 就是这样）；`previous` 是上一次的快照，可以用来少问几次不常变的数据。`http` 提供 `getJson`、`getText`（取网页文本）和 `postForm`（提交表单、读文本）。需要额外请求头（比如 Bearer token）时传 `{ headers }`，并在 `proxyHeaders` 里列出允许经标签页转发的头；需要 POST 时在 `proxyPosts` 里写明允许的路径和表单检查（Gemini 就是这样）；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
 3. 在 `extension/providers/index.js` 里注册。权限二选一：
    - 安装即用：把域名加进 `manifest.json` 的 `host_permissions` 和 `content_scripts.matches`；
    - 按需申请（推荐，ChatGPT 和 Gemini 就是这样）：在 provider 里写 `enabledByDefault: false, optionalPermission: true`，把域名加进 `optional_host_permissions`。勾选时弹窗会申请权限，后台自动注册该站的页面脚本。
@@ -250,7 +252,7 @@ npm run store:assets     # 生成商店截图、宣传图和商店图标（docs/
 - 用过的能量重置后发且只发一次「完全恢复」通知；
 - 资质过期时间：未填写时点提示直接打开设置里的像素日历，选中日期后保存并显示，可在日历底部清除；
 - 像素下拉框：键盘上下选择、回车保存、点外面关闭；
-- ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；
+- ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；订阅周期也一起读到（页面只交回日期），卡片显示「资质续期时间」，设置里 ChatGPT 不再出现日期框，点卡片上的日期也不会跳去设置；
 - Gemini：勾选后经 gemini.google.com 标签页取数，页面只交回会话令牌，用量查询的表单和参数完全正确；卡片只有 MP / HP 和蓝宝石，没有其他厂商的宝物，悬浮窗也跟着切到 Gemini；那里一次回复结束后会重新取数；
 - 弹窗里点厂商标签后，chatgpt.com 和普通网页上的悬浮窗、工具栏提示都切到那一家（ChatGPT 面板没有 SP，收起后也没有 SP 条），再点回 Claude 时一起切回；
 - 中文、日文、英文三种语言下，填了日期、打开日历时，弹窗、设置页和同意前的简短说明都不超出卡片边框；
