@@ -362,6 +362,32 @@ body {
   gap: 6px 16px;
 }
 
+/* A folded section's command: the dropdown's pixel arrow after it, pointing
+   down while folded and up while open. */
+.set-col > .cmd.fold {
+  padding-right: 10px;
+}
+
+.set-col > .cmd.fold::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  top: 7px;
+  width: 1px;
+  height: 1px;
+  background: currentColor;
+  box-shadow:
+    1px 0, 2px 0, 3px 0, 4px 0,
+    1px 1px, 2px 1px, 3px 1px,
+    2px 2px;
+}
+
+/* Flipped about its first row, so moved down to stay on the same rows. */
+.set-col > .cmd.fold[aria-expanded='true']::after {
+  top: 9px;
+  transform: scaleY(-1);
+}
+
 /* ------------------------------------------- data use notice (popup) */
 
 .consent-view .consent {

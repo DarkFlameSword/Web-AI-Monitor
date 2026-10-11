@@ -35,6 +35,8 @@ const state = {
   perms: { allSites: false, notify: false, vendors: {} },
   /** The permission Chrome last did not grant: 'allSites', 'notify' or 'vendor:<id>'. */
   denied: null,
+  /** Data & privacy unfolded in settings; folded each time settings open. */
+  dataOpen: false,
 };
 
 /**
@@ -91,8 +93,8 @@ const settingsCmd = h(doc, 'button', {
   type: 'button',
   onclick: () => {
     state.view = state.view === 'settings' ? 'status' : 'settings';
-    // Leaving settings unanswered is a "no".
-    if (state.view !== 'settings') closeWithdrawAsk();
+    // Leaving settings unanswered is a "no"; they open folded again.
+    if (state.view !== 'settings') foldData();
     render();
   },
 });
@@ -309,6 +311,27 @@ function closeWithdrawAsk() {
   dataCmds.withdraw.hidden = false;
   withdrawHint.hidden = false;
 }
+
+/**
+ * Data & privacy is rarely needed after the first day, so its commands stay
+ * folded under one "Show" until asked for.
+ */
+const dataBox = h(doc, 'div', { class: 'set-col', id: 'wam-data' }, [dataCmds.details, dataCmds.policy, dataCmds.withdraw, withdrawHint]);
+const dataFold = h(doc, 'button', {
+  class: 'cmd fold',
+  type: 'button',
+  'aria-controls': dataBox.id,
+  onclick: () => {
+    if (state.dataOpen) foldData();
+    else state.dataOpen = true;
+    renderSettings();
+  },
+});
+/** Fold Data & privacy away; a withdraw question still open there is a "no". */
+function foldData() {
+  state.dataOpen = false;
+  closeWithdrawAsk();
+}
 const row = (label, controls) => h(doc, 'div', { class: 'set-row' }, [label, h(doc, 'div', { class: 'set-col' }, controls)]);
 
 settingsView.append(
@@ -318,7 +341,7 @@ settingsView.append(
   row(labels.hud, [hudShow.wrap, hudEverywhere.wrap, hudEverywhereHint, h(doc, 'div', { class: 'set-inline' }, [labels.size, sizeSlider.wrap])]),
   row(labels.notify, [notifyRecovered.wrap, notifyHint]),
   row(labels.poll, pollSlider.wrap),
-  row(labels.data, [dataCmds.details, dataCmds.policy, dataCmds.withdraw, withdrawHint]),
+  row(labels.data, [dataFold, dataBox]),
   row(labels.help, h(doc, 'div', { class: 'set-cmds' }, [helpCmds.guide, helpCmds.feedback])),
   h(doc, 'div', { class: 'rule' }),
   privacyNote,
@@ -335,6 +358,9 @@ function renderSettings() {
   labels.poll.textContent = t('settings.poll');
   labels.data.textContent = t('settings.data');
   labels.help.textContent = t('settings.help');
+  dataFold.textContent = t(state.dataOpen ? 'settings.fold' : 'settings.unfold');
+  dataFold.setAttribute('aria-expanded', String(state.dataOpen));
+  dataBox.hidden = !state.dataOpen;
   dataCmds.details.textContent = t('consent.details');
   dataCmds.policy.textContent = t('consent.policy');
   dataCmds.withdraw.textContent = t('consent.withdraw');

@@ -122,6 +122,12 @@ async function main() {
         await waitFor(() => hudOn(claude), 'HUD on claude.ai');
         const popup = await app.openPopup();
         await popup.getByRole('button', { name: '设置' }).click();
+        // Data & privacy stays folded until asked for.
+        const fold = popup.getByRole('button', { name: '展开' });
+        assert.equal(await fold.getAttribute('aria-expanded'), 'false');
+        assert.equal(await popup.getByRole('button', { name: '撤回同意' }).isVisible(), false);
+        await fold.click();
+        assert.equal(await popup.getByRole('button', { name: '收起' }).getAttribute('aria-expanded'), 'true');
         // It asks first. "Cancel" has the focus and keeps everything.
         await popup.getByRole('button', { name: '撤回同意' }).click();
         assert.match(await popup.locator('.confirm').innerText(), /确定撤回同意吗/);
@@ -514,6 +520,8 @@ async function main() {
         await sleep(300);
         assert.deepEqual(await overflowing(page), [], `${lang} settings`);
         await shoot(page.locator('body'), `27-settings-${lang}`);
+        await page.locator('.cmd.fold').click(); // data & privacy, unfolded
+        assert.deepEqual(await overflowing(page), [], `${lang} settings with data & privacy open`);
         await page.locator('.pix-date-btn').first().click();
         await page.getByRole('dialog').first().waitFor();
         assert.deepEqual(await overflowing(page), [], `${lang} calendar`);

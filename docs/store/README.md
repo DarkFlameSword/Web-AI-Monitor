@@ -11,9 +11,9 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.8.0 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子；按尼尔森可用性原则改进：出错时写明原因和下一步、出错的厂商标签带「!」、撤回同意前先确认、Chrome 没给权限时会说明、新增使用说明页、同意或更新后已打开的标签页不用刷新。** 0.6.0、0.7.0、0.7.1 都没有发布，直接提交 0.8.0，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
+> **0.8.1 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子；按尼尔森可用性原则改进：出错时写明原因和下一步、出错的厂商标签带「!」、撤回同意前先确认、Chrome 没给权限时会说明、新增使用说明页、同意或更新后已打开的标签页不用刷新；设置里的「数据与隐私」默认收起。** 0.6.0、0.7.0、0.7.1、0.8.0 都没有发布，直接提交 0.8.1，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
 >
-> 1. Package：上传 `dist/web-ai-monitor-0.8.0.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
+> 1. Package：上传 `dist/web-ai-monitor-0.8.1.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
 > 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。商店图标和小宣传图不用换；大宣传图如果上传过，也换成新的。
 > 3. Privacy：Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节）。数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变。
 > 4. Test instructions：替换（第 6 节）。
@@ -294,7 +294,7 @@ https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 4. Optional, in Settings: tick "ChatGPT" to monitor ChatGPT (asks for chatgpt.com; needs a ChatGPT login with Codex access). Tick "Gemini" to monitor Gemini (asks for gemini.google.com; needs a Google account signed in to Gemini). Tick "On every site" to show the HUD everywhere (asks for all-sites access; it only displays the HUD).
 5. Signed out, the popup says "Not registered: sign in to claude.ai".
 
-The extension is read-only. It never changes, bypasses or resets usage limits, never sends prompts, and never reads conversation or page content. Settings > "Data & privacy" shows the notice again and lets the user withdraw consent (after confirming), which deletes the stored usage data.
+The extension is read-only. It never changes, bypasses or resets usage limits, never sends prompts, and never reads conversation or page content. Settings > "Data & privacy" > "Show" shows the notice again and lets the user withdraw consent (after confirming), which deletes the stored usage data.
 ```
 
 ## 7. 后台「分发」（Distribution）
