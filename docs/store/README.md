@@ -11,20 +11,16 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.7.0 更新：支持 Gemini（0.6.0 起）；ChatGPT 的订阅续订 / 到期日自动读取（0.7.0）。** 按第 9 节的步骤更新。商店里已发布的是 0.5.0 还是 0.6.0，后台要改的地方不同：
+> **0.7.0 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取。** 0.6.0 没有发布，直接提交 0.7.0，不要发布 0.6.0。按第 9 节的步骤操作，后台要改的是：
 >
-> | 后台页面 | 从 0.5.0 更新 | 从 0.6.0 更新 |
-> | --- | --- | --- |
-> | Package | 上传 `dist/web-ai-monitor-0.7.0.zip`（`npm run package`） | 同左 |
-> | Store listing | 三种语言的详细说明（第 4 节）；每种语言的第 3、4、5 张截图（第 3 节） | 三种语言的详细说明；每种语言的第 3、5 张截图 |
-> | Privacy | Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节） | storage 和 Host permission 两个 justification |
-> | Test instructions | 替换（第 6 节） | 不用改 |
->
-> 其余截图和宣传图只有倒计时数字不同，不用重传；数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里）。
+> 1. Package：上传 `dist/web-ai-monitor-0.7.0.zip`（`npm run package`）。0.6.0 还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
+> 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。商店图标和两张宣传图不用换。
+> 3. Privacy：Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节）。数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变。
+> 4. Test instructions：替换（第 6 节）。
 >
 > Gemini 的取数和 ChatGPT 的订阅日期都只在模拟环境里验证过，提交前先用真实账号试一遍（第 9 节「本地准备」第 4 步）。
 >
-> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 已升到 3：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
+> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 从 1 升到了 3（2 只在没有发布的 0.6.0 里用过）：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
 
 ## 1. 提交前检查清单
 
@@ -330,7 +326,7 @@ The extension is read-only. It never changes, bypasses or resets usage limits, n
 
 打开 https://chrome.google.com/webstore/devconsole ，点进本扩展。每一页改完先点「Save draft」再离开。
 
-1. 看状态：如果上一次提交还在审核中（Pending review），先在三点菜单（View more menu options）里选「Cancel review」，它会退回草稿，否则传不了新包。
+1. 看状态：如果上一次提交还在审核中（Pending review），先在三点菜单（View more menu options）里选「Cancel review」，它会退回草稿，否则传不了新包。如果它已通过审核、在等你手动发布，而你不想发布它，选「Cancel publish」退回草稿。
 2. Package 页：点「Upload new package」，选上一步的 zip。传完后草稿的版本号应该是新版本；后台还会先自动做一次安装测试，有问题会直接提示。
 3. Store listing 页：用页面顶部的语言下拉框依次切到 English、中文（中国）、日本語，替换有变化的详细说明（第 4 节）和截图（第 3 节）。只换几张截图时，删掉要换的那几张，再按顺序上传新的（新上传的排在最后）。
 4. Privacy 页：只替换有变化的字段（第 5 节）。数据使用的类别没变就不动；隐私政策网址不变，打开一次确认已是新内容。
