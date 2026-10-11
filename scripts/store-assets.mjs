@@ -32,7 +32,7 @@ const COPY = {
     shots: [
       { title: 'AI 用量，一眼看清', lines: ['魔力 MP：当前会话', '体力 HP：每周全部模型', '奥义 SP：每周 Fable', '都显示剩余量和恢复倒计时'] },
       { title: '页内悬浮窗', lines: ['在 claude.ai 上直接显示', '授权后可在任意网页显示', '可拖动、收起', '大小 100% - 200%'] },
-      { title: '每家 AI 一套方案', lines: ['Claude：绿宝石、金币', 'ChatGPT：魔晶石、回复药水', 'ChatGPT 按需开启', '冒险者资质按订阅方案评定'] },
+      { title: '每家 AI 一套方案', lines: ['Claude：绿宝石、金币', 'ChatGPT：魔晶石、回复药水', 'ChatGPT、Gemini 按需开启', '冒险者资质按订阅方案评定'] },
       { title: '悬浮窗跟着切换', lines: ['在弹窗里切换 AI', '悬浮窗随之切换', '工具栏图标随之切换', '收起后只留迷你能量条'] },
       { title: '像素风设置', lines: ['选择监控哪些 AI', '填写订阅过期时间', '悬浮窗、通知、刷新间隔', '数据只保存在本机'] },
     ],
@@ -43,7 +43,7 @@ const COPY = {
     shots: [
       { title: 'Your AI limits at a glance', lines: ['MP Mana: current session', 'HP Health: weekly limit', 'SP Ultimate: weekly Fable', 'Live reset countdowns'] },
       { title: 'A HUD on the page', lines: ['Shown on claude.ai', 'Any site, if you allow it', 'Drag it or collapse it', 'Size 100% - 200%'] },
-      { title: 'One scheme per AI', lines: ['Claude: emeralds, gold', 'ChatGPT: crystals, potions', 'ChatGPT is opt-in', 'Rank comes from your plan'] },
+      { title: 'One scheme per AI', lines: ['Claude: emeralds, gold', 'ChatGPT: crystals, potions', 'ChatGPT, Gemini: opt-in', 'Rank comes from your plan'] },
       { title: 'The HUD follows along', lines: ['Switch AI in the popup', 'The HUD switches too', 'So does the toolbar icon', 'Collapse to mini gauges'] },
       { title: 'Pixel settings', lines: ['Pick which AI to monitor', 'Set when your plan ends', 'HUD, alerts, refresh rate', 'Data stays in this browser'] },
     ],
@@ -54,7 +54,7 @@ const COPY = {
     shots: [
       { title: 'AI の残量がひと目で', lines: ['魔力 MP：現在のセッション', '体力 HP：週間・全モデル', '奥義 SP：週間 Fable', '残量と回復までの時間を表示'] },
       { title: 'ページ上の HUD', lines: ['claude.ai ではそのまま表示', '許可すればどのサイトでも', 'ドラッグ・折りたたみ可能', 'サイズ 100% - 200%'] },
-      { title: 'AI ごとに専用の表示', lines: ['Claude：エメラルド、金貨', 'ChatGPT：魔晶石、回復薬', 'ChatGPT は任意で有効化', 'ランクはプランで決定'] },
+      { title: 'AI ごとに専用の表示', lines: ['Claude：エメラルド、金貨', 'ChatGPT：魔晶石、回復薬', 'ChatGPT・Gemini は任意', 'ランクはプランで決定'] },
       { title: 'HUD も一緒に切り替え', lines: ['ポップアップで AI を切替', 'HUD も同時に切り替わる', 'アイコンも同時に切り替わる', '折りたたむとミニゲージ'] },
       { title: 'ピクセル風の設定', lines: ['監視する AI を選ぶ', 'サブスクの終了日を入力', 'HUD・通知・更新間隔', 'データはこのブラウザだけに'] },
     ],
@@ -85,12 +85,12 @@ async function capture(app, locale, scale) {
   const base = {
     lang: locale.lang,
     hud: { enabled: true, everywhere: true, collapsed: false, scale: 1 },
-    rankExpiry: { claude: later(29), chatgpt: later(12) },
+    rankExpiry: { claude: later(29), chatgpt: later(12), gemini: later(20) },
   };
   const shoot = async (target, name) => { shots[name] = await target.screenshot({ type: 'png', omitBackground: true }); };
 
   // Claude alone: the gauges, pouch hidden, for the first image.
-  await app.storage.set({ settings: { ...base, providers: { chatgpt: false }, activeProvider: 'claude' } });
+  await app.storage.set({ settings: { ...base, providers: { chatgpt: false, gemini: false }, activeProvider: 'claude' } });
   let page = await app.openPopup();
   await page.addStyleTag({ content: '.pouch, .card-foot { display: none !important; }' });
   await sleep(200);
@@ -98,9 +98,9 @@ async function capture(app, locale, scale) {
   await page.close();
 
   // Both vendors: their full cards, the settings, the calendar.
-  await app.storage.set({ settings: { ...base, providers: { chatgpt: true }, activeProvider: 'claude' } });
+  await app.storage.set({ settings: { ...base, providers: { chatgpt: true, gemini: true }, activeProvider: 'claude' } });
   page = await app.openPopup();
-  await waitFor(async () => (await app.storage.get('snapshot:chatgpt'))?.status === 'ok', 'ChatGPT data');
+  for (const id of ['chatgpt', 'gemini']) await waitFor(async () => (await app.storage.get(`snapshot:${id}`))?.status === 'ok', `${id} data`);
   await page.getByRole('tab', { name: 'Claude' }).click();
   await sleep(300);
   await shoot(page.locator('body'), 'claude');
@@ -122,18 +122,17 @@ async function capture(app, locale, scale) {
   await waitFor(() => hudOn(tab), 'HUD');
   // A transparent page, so the HUD's notched corners keep the stage behind them.
   await tab.addStyleTag({ content: 'html, body { background: transparent !important; } main { visibility: hidden; }' });
-  for (const id of ['claude', 'chatgpt']) {
-    const name = id === 'claude' ? 'Claude' : 'ChatGPT';
-    await app.storage.set({ settings: { ...base, providers: { chatgpt: true }, activeProvider: id } });
+  for (const [id, name] of [['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['gemini', 'Gemini']]) {
+    await app.storage.set({ settings: { ...base, providers: { chatgpt: true, gemini: true }, activeProvider: id } });
     await waitFor(async () => (await hudText(tab)).startsWith(name), `HUD on ${name}`);
     await sleep(400);
     await shoot(tab.locator('web-ai-monitor-hud'), `hud-${id}`);
-    await app.storage.set({ settings: { ...base, providers: { chatgpt: true }, activeProvider: id, hud: { ...base.hud, collapsed: true } } });
+    await app.storage.set({ settings: { ...base, providers: { chatgpt: true, gemini: true }, activeProvider: id, hud: { ...base.hud, collapsed: true } } });
     await sleep(500);
     await shoot(tab.locator('web-ai-monitor-hud'), `chip-${id}`);
   }
   await tab.close();
-  await app.storage.set({ settings: { ...base, providers: { chatgpt: true }, activeProvider: 'claude' } });
+  await app.storage.set({ settings: { ...base, providers: { chatgpt: true, gemini: true }, activeProvider: 'claude' } });
   return Object.fromEntries(Object.entries(shots).map(([name, png]) => [`${name}@${scale}x`, png]));
 }
 
@@ -147,12 +146,12 @@ async function captureAll(scale) {
   const app = await launch(build, mock, { deviceScaleFactor: scale });
   try {
     // The vendor tabs carry the requests the mocks refuse to the worker.
-    for (const url of ['https://claude.ai/new', 'https://chatgpt.com/']) await (await app.context.newPage()).goto(url);
+    for (const url of ['https://claude.ai/new', 'https://chatgpt.com/', 'https://gemini.google.com/app']) await (await app.context.newPage()).goto(url);
     await sleep(1200);
     // With no snapshot, the popup's own refresh goes through the tabs now open.
-    await app.storage.set({ settings: { providers: { chatgpt: true }, hud: { everywhere: true } }, 'snapshot:claude': null, 'snapshot:chatgpt': null });
+    await app.storage.set({ settings: { providers: { chatgpt: true, gemini: true }, hud: { everywhere: true } }, 'snapshot:claude': null, 'snapshot:chatgpt': null, 'snapshot:gemini': null });
     const popup = await app.openPopup();
-    for (const id of ['claude', 'chatgpt']) {
+    for (const id of ['claude', 'chatgpt', 'gemini']) {
       await waitFor(async () => (await app.storage.get(`snapshot:${id}`))?.status === 'ok', `${id} data`);
     }
     await popup.close();
@@ -264,7 +263,8 @@ function screenshotHtml(index, locale, img) {
         caption,
         article: 'under',
         media: `<div class="media corner"><div class="row">${img('hud-claude@2x')}${img('chip-claude@2x')}</div>`
-          + `<div class="row">${img('hud-chatgpt@2x')}${img('chip-chatgpt@2x')}</div></div>`,
+          + `<div class="row">${img('hud-chatgpt@2x')}${img('chip-chatgpt@2x')}</div>`
+          + `<div class="row">${img('hud-gemini@2x')}${img('chip-gemini@2x')}</div></div>`,
       });
     default:
       return browserScene({ caption, article: 'under', popup: true, media: `<div class="media top">${popup('settings@1x')}${popup('calendar@1x')}</div>` });

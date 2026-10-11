@@ -26,6 +26,12 @@ export function directHttp(provider) {
       if (!response.ok) throw new HttpError(response.status);
       return response.json();
     },
+    getText(path, { headers = {} } = {}) {
+      return fetchText(provider.origin + path, { headers });
+    },
+    postForm(path, fields, { headers = {} } = {}) {
+      return fetchText(provider.origin + path, { method: 'POST', headers, body: new URLSearchParams(fields) });
+    },
     async getCookie(name) {
       try {
         return (await chrome.cookies.get({ url: provider.origin, name }))?.value ?? null;
@@ -36,6 +42,17 @@ export function directHttp(provider) {
   };
 }
 
+async function fetchText(url, { method = 'GET', headers = {}, body } = {}) {
+  let response;
+  try {
+    response = await fetch(url, { method, credentials: 'include', cache: 'no-store', headers, body });
+  } catch {
+    throw new HttpError(0, 'network');
+  }
+  if (!response.ok) throw new HttpError(response.status, 'http');
+  return response.text();
+}
+
 /**
  * Through an open tab of the vendor's site: the content script there fetches
  * as the page itself, which gets past checks a worker request can trip.
@@ -44,16 +61,25 @@ export function directHttp(provider) {
  */
 export function tabHttp(provider, tabId) {
   const ask = message => chrome.tabs.sendMessage(tabId, { ...message, providerId: provider.id });
+  const proxied = async request => {
+    let reply;
+    try {
+      reply = await ask({ type: 'wam:proxy-request', ...request });
+    } catch {
+      throw new HttpError(0, 'no_tab');
+    }
+    if (!reply?.ok) throw deserializeError(reply?.error);
+    return reply.body;
+  };
   return {
-    async getJson(path, { headers = {} } = {}) {
-      let reply;
-      try {
-        reply = await ask({ type: 'wam:proxy-get', path, headers });
-      } catch {
-        throw new HttpError(0, 'no_tab');
-      }
-      if (!reply?.ok) throw deserializeError(reply?.error);
-      return reply.body;
+    getJson(path, { headers = {} } = {}) {
+      return proxied({ method: 'GET', path, headers, as: 'json' });
+    },
+    getText(path, { headers = {} } = {}) {
+      return proxied({ method: 'GET', path, headers, as: 'text' });
+    },
+    postForm(path, form, { headers = {} } = {}) {
+      return proxied({ method: 'POST', path, headers, form, as: 'text' });
     },
     async getCookie(name) {
       try {

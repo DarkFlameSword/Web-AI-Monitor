@@ -4,7 +4,8 @@
  *   id, name, site, origin, homeUrl
  *   template     plan limit template (gauges, plans, messages), data only
  *   fetchUsage(http) -> {meters, plan}   vendor API -> normalized meters
- *   proxyPaths   API paths an open vendor tab may fetch for the background
+ *   proxyPaths   paths an open vendor tab may GET for the background
+ *   proxyPosts   [{path, form(fields)}] it may POST, form checked too (optional)
  *   proxyHeaders request headers allowed on that route (optional)
  *   proxyBody(path, body)  trims a reply before the tab hands it back (optional)
  *   isActivity(path, durationMs)         did a finished page request spend quota?
@@ -17,8 +18,9 @@
  */
 import chatgpt from './chatgpt/provider.js';
 import claude from './claude/provider.js';
+import gemini from './gemini/provider.js';
 
-export const PROVIDERS = Object.freeze([claude, chatgpt]);
+export const PROVIDERS = Object.freeze([claude, chatgpt, gemini]);
 
 /** Host pattern a provider's site needs. */
 export function originPattern(provider) {

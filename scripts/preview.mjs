@@ -14,6 +14,7 @@ import { join } from 'node:path';
 
 import {
   DAY,
+  GEMINI_TOKEN,
   HOUR,
   MIN,
   ORG,
@@ -85,7 +86,7 @@ async function main() {
         await welcome.bringToFront();
         await welcome.evaluate(() => document.fonts.ready);
         await waitFor(async () => /冒险者登记/.test(await welcome.locator('body').innerText()), 'the notice in Chinese');
-        for (const expected of [/lastActiveOrg/, /不读取对话内容/, /不修改、绕过或重置任何限额/, /只在内存中/, /与 Anthropic、OpenAI 无关联/]) {
+        for (const expected of [/lastActiveOrg/, /不读取对话内容/, /不修改、绕过或重置任何限额/, /只在内存中/, /gemini\.google\.com/, /与 Anthropic、OpenAI、Google 无关联/]) {
           assert.match(await welcome.locator('body').innerText(), expected);
         }
         await welcome.setViewportSize({ width: 960, height: 1100 });
@@ -154,9 +155,12 @@ async function main() {
         await sleep(300);
         assert.equal(await page.getByLabel('所有网页都显示（需授权）').isChecked(), false);
         assert.equal(await page.getByLabel('能量完全恢复时提醒').isChecked(), false);
-        const gpt = page.locator('label.pix-check', { hasText: 'ChatGPT' });
-        assert.equal(await gpt.locator('input').isChecked(), false, 'ChatGPT is off by default');
-        assert.match(await gpt.innerText(), /需授权/);
+        for (const name of ['ChatGPT', 'Gemini']) {
+          const vendor = page.locator('label.pix-check', { hasText: name });
+          assert.equal(await vendor.locator('input').isChecked(), false, `${name} is off by default`);
+          assert.match(await vendor.innerText(), /需授权/);
+        }
+        assert.match(await page.locator('body').innerText(), /读取你在 gemini\.google\.com 上的用量/);
         assert.equal(await page.getByText('悬浮窗归位').count(), 0);
         await shoot(page.locator('body'), '07-popup-settings');
         await page.close();
@@ -217,7 +221,7 @@ async function main() {
 
     await check('every-site HUD: registered, shown on a strict-CSP page with the pixel font', async () => {
       const registered = await app.ask(() => chrome.scripting.getRegisteredContentScripts());
-      assert.deepEqual(registered.map(script => script.id).sort(), ['wam-page-hud', 'wam-vendor-chatgpt']);
+      assert.deepEqual(registered.map(script => script.id).sort(), ['wam-page-hud', 'wam-vendor-chatgpt', 'wam-vendor-gemini']);
       const page = await app.context.newPage();
       await page.goto('https://strict.example.com/');
       await waitFor(() => hudOn(page), 'HUD on the strict page');
@@ -325,6 +329,63 @@ async function main() {
       await gpt.close();
     });
 
+    await check('Gemini: switched on in settings, fetched through its tab, on its own card and HUD; a reply there refreshes it', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true }, providers: { chatgpt: true } } });
+      const gem = await app.context.newPage();
+      await gem.goto('https://gemini.google.com/app');
+      await sleep(1200);
+      const page = await app.openPopup();
+      await page.getByRole('button', { name: '设置' }).click();
+      await page.locator('label.pix-check', { hasText: 'Gemini' }).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.providers?.gemini === true, 'Gemini on');
+      const snap = await waitFor(async () => {
+        const value = await app.storage.get('snapshot:gemini');
+        return value?.status === 'ok' && value;
+      }, 'a Gemini snapshot');
+      assert.equal(snap.plan, 'pro');
+      assert.deepEqual(snap.meters.map(m => [m.kind, Math.round(m.used)]), [['window_5h', 41], ['weekly', 73]]);
+      // The token came back from the tab (trimmed page), and went out with exactly the usage call.
+      assert.deepEqual(mock.geminiCall.form, { at: GEMINI_TOKEN, 'f.req': JSON.stringify([[['jSf9Qc', '[]', null, 'generic']]]) });
+      assert.equal(mock.geminiCall.query['source-path'], '/usage');
+      assert.equal(mock.geminiCall.sameDomain, '1');
+      assert.doesNotMatch(JSON.stringify(snap), /someone@example\.com/);
+
+      await page.getByRole('button', { name: '返回' }).click();
+      await page.getByRole('tab', { name: 'Gemini' }).click();
+      await sleep(600);
+      const text = await page.locator('body').innerText();
+      for (const expected of [/Gemini \/ 5 小时/, /Gemini \/ 每周/, /蓝宝石/, /Google AI 额度/, /持有 1,500/, /冒险者资质\s*B/]) {
+        assert.match(text, expected);
+      }
+      assert.doesNotMatch(text, /绿宝石|金币|魔晶石|回复药水|奥义|Fable/);
+      assert.deepEqual(await overflowing(page), []);
+      await shoot(page.locator('body'), '28-popup-gemini');
+
+      // The HUD on gemini.google.com follows the tab: Gemini, with MP and HP only.
+      await waitFor(async () => (await hudText(gem)).startsWith('Gemini'), 'the HUD on Gemini');
+      const lines = (await hudText(gem)).split('\n');
+      assert.ok(lines.includes('MP') && lines.includes('HP') && !lines.includes('SP'), lines.join(' '));
+      await sleep(400);
+      await shoot(gem.locator('web-ai-monitor-hud'), '29-hud-gemini');
+
+      // A reply finished there: the numbers are read again.
+      mock.gemini = { fiveHour: 0.5 };
+      await sleep(4200); // past the "activity" freshness window
+      const before = (await app.storage.get('snapshot:gemini')).attemptedAt;
+      await gem.evaluate(() => fetch('/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate', { method: 'POST' }));
+      const after = await waitFor(async () => {
+        const value = await app.storage.get('snapshot:gemini');
+        return value.attemptedAt > before && value;
+      }, 'a refresh after the reply');
+      assert.equal(after.status, 'ok');
+      assert.equal(Math.round(after.meters[0].used), 50);
+      delete mock.gemini;
+      const settings = await app.storage.get('settings');
+      await app.storage.set({ settings: { ...settings, activeProvider: 'claude' } });
+      await page.close();
+      await gem.close();
+    });
+
     await check('the popup tab picks the vendor the HUD and the toolbar icon show', async () => {
       const gpt = await app.context.newPage();
       await gpt.goto('https://chatgpt.com/');
@@ -375,7 +436,7 @@ async function main() {
       for (const lang of ['zh_CN', 'ja', 'en']) {
         await app.storage.set({ settings: { ...settings, lang, rankExpiry: { claude: later(29), chatgpt: later(12) } } });
         const page = await app.openPopup();
-        for (const tab of ['Claude', 'ChatGPT']) {
+        for (const tab of ['Claude', 'ChatGPT', 'Gemini']) {
           await page.getByRole('tab', { name: tab }).click();
           await sleep(300);
           assert.deepEqual(await overflowing(page), [], `${lang} ${tab} card`);
@@ -397,17 +458,40 @@ async function main() {
       await app.storage.set({ settings });
     });
 
-    await check('English screenshots: both vendors in the popup and the HUD, settings, calendar', async () => {
+    await check('English screenshots: every vendor in the popup and the HUD, settings, calendar', async () => {
       const settings = await app.storage.get('settings');
       const later = days => new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
       await app.storage.set({
-        settings: { ...settings, lang: 'en', activeProvider: 'claude', hud: { ...settings.hud, collapsed: false }, rankExpiry: { claude: later(29), chatgpt: later(12) } },
+        settings: { ...settings, lang: 'en', activeProvider: 'claude', hud: { ...settings.hud, collapsed: false }, rankExpiry: { claude: later(29), chatgpt: later(12), gemini: later(20) } },
       });
+      // Fresh numbers for the shots: a reply finishes on each vendor's site (the
+      // worker route is stopped here, so their tabs fetch).
+      const sites = [];
+      for (const url of ['https://chatgpt.com/', 'https://gemini.google.com/app']) {
+        const site = await app.context.newPage();
+        await site.goto(url);
+        await waitFor(() => hudOn(site), `HUD on ${url}`);
+        sites.push(site);
+      }
+      const attempted = async id => (await app.storage.get(`snapshot:${id}`))?.attemptedAt ?? 0;
+      const before = { chatgpt: await attempted('chatgpt'), gemini: await attempted('gemini') };
+      await sleep(4200); // past the "activity" freshness window
+      await sites[0].evaluate(() => fetch('/backend-api/conversation', { method: 'POST' }));
+      await sites[1].evaluate(() => fetch('/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate', { method: 'POST' }));
+      await waitFor(async () => {
+        for (const id of ['claude', 'chatgpt', 'gemini']) {
+          const snap = await app.storage.get(`snapshot:${id}`);
+          if (snap?.status !== 'ok' || snap.attemptedAt <= (before[id] ?? -1)) return false;
+        }
+        return true;
+      }, 'fresh numbers from every vendor');
       const other = await app.context.newPage();
       await other.goto('https://example.com/');
       await waitFor(() => hudOn(other), 'HUD on example.com');
       const page = await app.openPopup();
+      await sleep(400);
       assert.match(await page.locator('body').innerText(), /Adventurer rank/);
+      assert.doesNotMatch(await page.locator('body').innerText(), /Lost contact/);
       await shoot(page.locator('body'), '19-en-popup-claude');
       await waitFor(async () => (await hudText(other)).startsWith('Claude'), 'HUD on Claude');
       await sleep(500);
@@ -416,10 +500,20 @@ async function main() {
       await page.getByRole('tab', { name: 'ChatGPT' }).click();
       await sleep(600);
       assert.match(await page.locator('body').innerText(), /Mana crystal/);
+      assert.doesNotMatch(await page.locator('body').innerText(), /Lost contact/);
       await shoot(page.locator('body'), '21-en-popup-chatgpt');
       await waitFor(async () => (await hudText(other)).startsWith('ChatGPT'), 'HUD on ChatGPT');
       await sleep(500);
       await shoot(other.locator('web-ai-monitor-hud'), '22-en-hud-chatgpt');
+
+      await page.getByRole('tab', { name: 'Gemini' }).click();
+      await sleep(600);
+      assert.match(await page.locator('body').innerText(), /Sapphire/);
+      assert.doesNotMatch(await page.locator('body').innerText(), /Lost contact/);
+      await shoot(page.locator('body'), '30-en-popup-gemini');
+      await waitFor(async () => (await hudText(other)).startsWith('Gemini'), 'HUD on Gemini');
+      await sleep(500);
+      await shoot(other.locator('web-ai-monitor-hud'), '31-en-hud-gemini');
 
       await page.getByRole('button', { name: 'Settings' }).click();
       await sleep(400);
@@ -432,6 +526,7 @@ async function main() {
       await app.storage.set({ settings: { ...settings, activeProvider: 'claude' } });
       await page.close();
       await other.close();
+      for (const site of sites) await site.close();
     });
 
     await check('refresh interval: the mouse wheel and arrow keys move it, the alarm follows', async () => {

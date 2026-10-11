@@ -271,7 +271,11 @@ function renderSettings() {
     check.input.checked = watching.includes(provider);
     check.text.textContent = provider.name;
     check.extra.textContent = provider.optionalPermission && !check.input.checked ? t('settings.needsPermission') : '';
-    if (hint) hint.textContent = t('settings.vendorHint', { site: provider.site });
+    // What switching it on reads: said before Chrome asks, not needed once it is on.
+    if (hint) {
+      hint.textContent = t('settings.vendorHint', { site: provider.site });
+      hint.hidden = check.input.checked;
+    }
   }
   for (const { provider, picker, wrap } of expiryFields) {
     wrap.hidden = !watching.includes(provider);
@@ -287,6 +291,7 @@ function renderSettings() {
   hudEverywhere.input.checked = settings.hud.everywhere && state.perms.allSites;
   hudEverywhere.input.disabled = !settings.hud.enabled;
   hudEverywhere.text.textContent = t('settings.hudEverywhere');
+  hudEverywhereHint.hidden = hudEverywhere.input.checked;
   notifyRecovered.input.checked = settings.notify.recovered && state.perms.notify;
   notifyRecovered.text.textContent = t('settings.notifyRecovered');
 }

@@ -48,7 +48,7 @@ const running = new Map();
 
 function classify(error) {
   if (isAuthError(error)) return 'signed_out';
-  if (error instanceof HttpError && error.code === 'no_org') return 'no_data';
+  if (error instanceof HttpError && (error.code === 'no_org' || error.code === 'no_data')) return 'no_data';
   return 'unreachable';
 }
 

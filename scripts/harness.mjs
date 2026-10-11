@@ -90,6 +90,30 @@ export function chatgptUsage() {
   };
 }
 
+/** The Gemini app page's session token, as the mock serves it. */
+export const GEMINI_TOKEN = 'AFkVSc:1791190000000';
+
+/** A GetUsageInfo result: Pro, by default the 5-hour window 41% used, the week 73% used, 1,500 AI credits. */
+export function geminiUsage({ fiveHour = 0.41, weekly = 0.73, credits = 1500 } = {}) {
+  const at = ms => Math.floor((Date.now() + ms) / 1000);
+  return [2, [
+    [812.5, fiveHour, 1, [[at(1 * HOUR + 56 * MIN), 0]]],
+    [4100, weekly, 2, [[at(4 * DAY + 2 * HOUR), 0]]],
+    [credits, null, 3],
+  ], true];
+}
+
+/** A batchexecute reply: a guard line, then length-prefixed frames. */
+function geminiReply(body) {
+  return `)]}'\n${[
+    [['wrb.fr', 'jSf9Qc', JSON.stringify(body), null, null, null, 'generic'], ['di', 42], ['af.httprm', 41, '-1', 3]],
+    [['e', 4, null, null, 512]],
+  ].map(parts => {
+    const payload = `\n${JSON.stringify(parts)}\n`;
+    return `${payload.length}${payload}`;
+  }).join('')}`;
+}
+
 export const ARTICLE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Field notes</title>
 <style>body{margin:0;font:16px/1.6 Georgia,serif;color:#222;background:#fafafa}
 main{max-width:640px;margin:48px auto;padding:0 24px}h1{font-size:32px;margin:0 0 16px}p{margin:0 0 16px;color:#444}</style>
@@ -161,6 +185,22 @@ export async function launch(extensionPath, mock, { deviceScaleFactor = 2, viewp
     }
     if (pathname.includes('/conversation')) return route.fulfill({ contentType: 'text/event-stream', body: 'data: [DONE]\n\n' });
     return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes', 'chatgpt.com (mock)') });
+  });
+  await context.route('https://gemini.google.com/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    // Like the other vendors: the worker route is stopped, the page route works.
+    if (request.serviceWorker()) return route.fulfill({ status: 403, contentType: 'text/html', body: '<html>challenge</html>' });
+    if (url.pathname === '/_/BardChatUi/data/batchexecute' && url.searchParams.get('rpcids') === 'jSf9Qc') {
+      const form = Object.fromEntries(new URLSearchParams(request.postData() ?? ''));
+      mock.geminiCall = { query: Object.fromEntries(url.searchParams), form, sameDomain: request.headers()['x-same-domain'] ?? null };
+      if (form.at !== GEMINI_TOKEN) return route.fulfill({ status: 400, contentType: 'text/html', body: '<html>bad request</html>' });
+      return route.fulfill({ contentType: 'application/json; charset=utf-8', body: geminiReply(geminiUsage(mock.gemini)) });
+    }
+    if (url.pathname.endsWith('/StreamGenerate')) return route.fulfill({ contentType: 'application/json', body: ")]}'\n" });
+    // The app page: its session values in WIZ_global_data, an email that must stay in the page, and an article.
+    const wiz = `<script>window.WIZ_global_data = {"cfb2h":"boq_assistant-bard-web-server_20261008.07_p0","oPEP7c":"someone@example.com","SNlM0e":"${GEMINI_TOKEN}","FdrFJe":"-4021337","TuX5cc":"en"};</script>`;
+    return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('<title>', `${wiz}<title>`).replace('Field notes</h1>', 'gemini.google.com (mock)</h1>') });
   });
   await context.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: ARTICLE }));
   await context.route('https://strict.example.com/**', route => route.fulfill({

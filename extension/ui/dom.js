@@ -152,10 +152,25 @@ export const POTION = [
 ];
 export const POTION_PALETTE = { k: 'var(--ink)', b: 'var(--frame-2)', g: 'var(--paper)', r: 'var(--hp-crit)', h: 'var(--hp-crit-hi)' };
 
+/** Google AI credits: a blue sapphire, cut like a brilliant. */
+export const SAPPHIRE = [
+  '.........',
+  '.kkkkkkk.',
+  'khhshssdk',
+  'khsssssdk',
+  'kkkkkkkkk',
+  '.khsssdk.',
+  '..khsdk..',
+  '...ksk...',
+  '....k....',
+];
+export const SAPPHIRE_PALETTE = { k: 'var(--ink)', h: 'var(--sapphire-hi)', s: 'var(--sapphire)', d: 'var(--sapphire-lo)' };
+
 /** Pixel art for each treasure in core/roles.js TREASURES. */
 export const TREASURE_ART = Object.freeze({
   coin: [COIN, COIN_PALETTE],
   emerald: [EMERALD, EMERALD_PALETTE],
   crystal: [CRYSTAL, CRYSTAL_PALETTE],
   potion: [POTION, POTION_PALETTE],
+  sapphire: [SAPPHIRE, SAPPHIRE_PALETTE],
 });

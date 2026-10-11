@@ -33,7 +33,9 @@ test('the notice says the same things in every language', () => {
     assert.match(text, /lastActiveOrg/);
     assert.match(text, /claude\.ai/);
     assert.match(text, /chatgpt\.com/);
+    assert.match(text, /gemini\.google\.com/);
     assert.match(text, /Anthropic/);
     assert.match(text, /OpenAI/);
+    assert.match(text, /Google/);
   }
 });

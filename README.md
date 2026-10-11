@@ -2,15 +2,15 @@
 
 简体中文 | [English](README.en.md)
 
-一个 Chrome 扩展（Manifest V3）：用像素风的「异世界冒险者公会卡」实时显示各家 AI 的用量和恢复倒计时。目前接入 Claude 和 ChatGPT。每家厂商的「限制计划模板」、取数逻辑和界面三者解耦：每家有自己的一套能量条、宝物和资质阶梯，不会把一家的元素硬套到另一家。
+一个 Chrome 扩展（Manifest V3）：用像素风的「异世界冒险者公会卡」实时显示各家 AI 的用量和恢复倒计时。目前接入 Claude、ChatGPT 和 Gemini。每家厂商的「限制计划模板」、取数逻辑和界面三者解耦：每家有自己的一套能量条、宝物和资质阶梯，不会把一家的元素硬套到另一家。
 
-| Claude | ChatGPT |
-| --- | --- |
-| ![Claude 卡片](docs/screenshots/popup-zh.png) | ![ChatGPT 卡片](docs/screenshots/popup-chatgpt.png) |
+| Claude | ChatGPT | Gemini |
+| --- | --- | --- |
+| ![Claude 卡片](docs/screenshots/popup-zh.png) | ![ChatGPT 卡片](docs/screenshots/popup-chatgpt.png) | ![Gemini 卡片](docs/screenshots/popup-gemini.png) |
 
 | 页内悬浮窗（跟随弹窗里选中的厂商） | 设置（像素下拉框 / 日历） |
 | --- | --- |
-| ![Claude 悬浮窗](docs/screenshots/hud-claude.png)<br><br>![ChatGPT 悬浮窗](docs/screenshots/hud-chatgpt.png)<br><br>收起后：![Claude 收起](docs/screenshots/hud-collapsed.png) ![ChatGPT 收起](docs/screenshots/hud-collapsed-chatgpt.png) | ![下拉框](docs/screenshots/settings-dropdown.png)<br><br>![日历](docs/screenshots/settings-calendar.png) |
+| ![Claude 悬浮窗](docs/screenshots/hud-claude.png)<br><br>![ChatGPT 悬浮窗](docs/screenshots/hud-chatgpt.png)<br><br>![Gemini 悬浮窗](docs/screenshots/hud-gemini.png)<br><br>收起后：![Claude 收起](docs/screenshots/hud-collapsed.png) ![ChatGPT 收起](docs/screenshots/hud-collapsed-chatgpt.png) | ![下拉框](docs/screenshots/settings-dropdown.png)<br><br>![日历](docs/screenshots/settings-calendar.png) |
 
 ## 能量条对应关系（Claude）
 
@@ -42,9 +42,24 @@ ChatGPT 的文字聊天自 2026 年 8 月起不再限条数，真正会用完的
 
 ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，才向 Chrome 申请 chatgpt.com 的权限；同意后开始取数，取消勾选会交还权限。
 
+## Gemini 的方案
+
+Gemini 应用自 2026 年 5 月起改为按算力计的用量限制：不再数提示词条数，而是一个每 5 小时恢复的窗口，外面再套一个每周上限；用 Pro 模型、深度思考、Deep Research、生成图片和视频会更快用完。数字和网页「设置 > 用量」里显示的一致。Gemini 卡片是独立的一套：
+
+| 元素 | Gemini 对应 | 说明 |
+| --- | --- | --- |
+| MP 魔力 | 5 小时窗口 | 每 5 小时恢复 |
+| HP 体力 | 每周上限 | 颜色规则同 Claude |
+| EX 额外 | Google 以后新增的用量窗口 | 只在弹窗里显示 |
+| 蓝宝石 | Google AI 额度（AI credits） | 持有量；可用来扩展限额 |
+
+没有大招条（SP），也没有其他厂商的宝物。资质阶梯按 Google AI 方案：Ultra = A，Pro = B，Plus = C，Free = D。
+
+Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，才向 Chrome 申请 gemini.google.com 的权限；同意后开始取数，取消勾选会交还权限。
+
 ## 冒险者资质
 
-弹窗里名字下方显示「冒险者资质」和「资质过期时间」（ChatGPT 的阶梯见上一节）：
+弹窗里名字下方显示「冒险者资质」和「资质过期时间」（ChatGPT 和 Gemini 的阶梯见前文）：
 
 | Claude 方案 | 资质 |
 | --- | --- |
@@ -60,7 +75,7 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 
 ## 宝物袋（额度）
 
-弹窗里能量条下方是「宝物袋」。每种额度写法和能量条一样：上一行是宝物名和数额，下一行是它实际对应的额度和状态。装什么宝物由各家模板决定，下表是 Claude 的（ChatGPT 的见上文）：
+弹窗里能量条下方是「宝物袋」。每种额度写法和能量条一样：上一行是宝物名和数额，下一行是它实际对应的额度和状态。装什么宝物由各家模板决定，下表是 Claude 的（ChatGPT 和 Gemini 的见前文）：
 
 | 宝物 | 实际额度 | 显示 |
 | --- | --- | --- |
@@ -72,15 +87,15 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 ## 功能一览
 
 - **先同意，再读取**：安装后会打开一页「冒险者登记」数据说明，写明会读取什么、不会做什么、数据存在哪里。点「同意并开始」之前，扩展不发任何请求、不显示悬浮窗；弹窗里也只显示简短说明和同意按钮。设置里的「数据与隐私」可以随时重新查看说明、打开[隐私政策](PRIVACY.md)，或撤回同意（撤回即停止读取并删除已保存的用量数据）。
-- **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT）。选中的厂商保存在设置里，页内悬浮窗和工具栏图标跟着切换。
+- **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT / Gemini）。选中的厂商保存在设置里，页内悬浮窗和工具栏图标跟着切换。
 - **设置页**：语言下拉框和日期选择都是像素风的自制控件（羊皮纸小窗、像素箭头和指针），支持键盘：下拉框用上下键和回车，日历用方向键移动日期、PageUp / PageDown 翻月、Delete 清除、Esc 关闭。
-- **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com），一次只显示一家：弹窗里选中哪家，所有标签页里的悬浮窗就立即换成那家自己的面板（Claude 是 MP / HP / SP，ChatGPT 只有 MP / HP，收起后的小标签也一样）；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
-- **监控对象**：设置里每个已接入的 AI 厂商都有开关（Claude 默认开；ChatGPT 默认关，勾选时申请 chatgpt.com 权限）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。工具栏图标同样显示弹窗里选中的厂商；选中的厂商被关掉时，弹窗、悬浮窗和工具栏一起回到第一个被监控的厂商。
+- **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com、gemini.google.com），一次只显示一家：弹窗里选中哪家，所有标签页里的悬浮窗就立即换成那家自己的面板（Claude 是 MP / HP / SP，ChatGPT 和 Gemini 只有 MP / HP，收起后的小标签也一样）；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
+- **监控对象**：设置里每个已接入的 AI 厂商都有开关（Claude 默认开；ChatGPT 和 Gemini 默认关，勾选时申请 chatgpt.com 或 gemini.google.com 的权限）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。工具栏图标同样显示弹窗里选中的厂商；选中的厂商被关掉时，弹窗、悬浮窗和工具栏一起回到第一个被监控的厂商。
 - **恢复通知**（默认关）：勾选「能量完全恢复时提醒」时才申请通知权限。用过的 MP / HP / SP 在重置时刻回满后，发一条桌面通知（每个窗口只发一次；浏览器关着时错过超过 1 小时的不再补发）；点通知打开 claude.ai。
-- **工具栏图标**：图标本身就是当前厂商的迷你能量条（Claude 三条；ChatGPT 没有 SP，只画两条），实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
+- **工具栏图标**：图标本身就是当前厂商的迷你能量条（Claude 三条；ChatGPT 和 Gemini 没有 SP，只画两条），实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
 - **刷新时机**：
   - 后台定时（默认 5 分钟；设置里用滑块在 1 - 30 分钟之间任选，可以拖动、滚动鼠标滚轮或按方向键）；
-  - 在 claude.ai / chatgpt.com 上每次回复（或 Codex 任务）结束约 1 秒后；
+  - 在 claude.ai / chatgpt.com / gemini.google.com 上每次回复（或 Codex 任务）结束约 1 秒后；
   - 任一窗口到达重置时刻时；
   - 打开弹窗、切回标签页（数据较旧时）；
   - 未登录时自动降频到 30 分钟一次。
@@ -105,7 +120,10 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 - 读取 chatgpt.com 网页自己用的接口（同样非公开）：
   - `GET https://chatgpt.com/api/auth/session`：拿到访问令牌、账户 id 和方案（`accessToken`、`account.id`、`account.planType`；令牌只在内存里用来发下一个请求，不保存）。经标签页转发时，页面只把这三项交回后台，`sessionToken`、邮箱、姓名等其余字段不离开页面。有报道说新版页面这里已经不给令牌，此时下一个请求只带 cookie 发出；
   - `GET https://chatgpt.com/backend-api/wham/usage`（带 `Authorization` 和 `ChatGPT-Account-Id`）：`rate_limit.primary_window` / `secondary_window`（`used_percent`、`limit_window_seconds`、`reset_at` 秒级时间戳）、`additional_rate_limits[]`、`code_review_rate_limit`、`spend_control.individual_limit`、`credits`（`balance` 是字符串）、`rate_limit_reset_credits.available_count`、`plan_type`。
-- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的该厂商标签页，以页面身份同源请求（每家只允许上面列出的路径，只读 GET；ChatGPT 只允许转发上面两个请求头）。
+- 读取 gemini.google.com 网页自己用的接口（同样非公开），和网页「设置 > 用量」用的是同一个：
+  - `GET https://gemini.google.com/app`：从页面的 `WIZ_global_data` 里取会话令牌 `SNlM0e`（以及 `cfb2h`、`FdrFJe` 和语言）。令牌只在内存里保留最多 30 分钟，过期或被拒绝时重新取，从不保存。经标签页转发时，页面只把这几个值交回后台，账户名、邮箱和对话等页面内容不离开页面；
+  - `POST https://gemini.google.com/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc`（GetUsageInfo；表单只有 `at` 令牌和固定的 `f.req`）：方案等级（1 Free、2 Pro、3 / 6 Ultra、4 Plus）、5 小时窗口和每周窗口的已用比例与重置时间、Google AI 额度余额。响应以 `)]}'` 开头，之后是按长度分帧的 JSON。接口和格式参考了开源项目 [HanaokaYuzu/Gemini-API](https://github.com/HanaokaYuzu/Gemini-API)。
+- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的该厂商标签页，以页面身份同源请求。标签页只做白名单里的请求：Claude 和 ChatGPT 只能 GET 上面列出的路径（ChatGPT 只允许转发上面两个请求头）；Gemini 只能取 app 页面，以及发那一个只读的用量查询，表单内容也必须完全一致。
 - 数据只保存在本机的 `chrome.storage.local`，不发送到任何第三方服务器。
 - 以上读取都在你同意数据说明之后才开始；完整说明见[隐私政策](PRIVACY.md)。
 
@@ -125,6 +143,7 @@ ChatGPT 默认不监控：在设置的「监控对象」里勾选 ChatGPT 时，
 | --- | --- |
 | `optional_host_permissions: http(s)://*/*` | 勾选「所有网页都显示」时；取消勾选会交还 |
 | `optional_host_permissions: https://chatgpt.com/*` | 在「监控对象」里勾选 ChatGPT 时；取消勾选会交还 |
+| `optional_host_permissions: https://gemini.google.com/*` | 在「监控对象」里勾选 Gemini 时；取消勾选会交还 |
 | `optional_permissions: notifications` | 勾选「能量完全恢复时提醒」时；取消勾选会交还 |
 
 在 `chrome://extensions` 里手动撤销这些权限时，对应的设置也会自动关掉。
@@ -139,11 +158,13 @@ extension/
     claude/template.js        限制计划模板（纯数据）：哪个限制扮演哪个角色、哪种额度是哪种宝物、方案 -> 等级、厂商专用文案
     chatgpt/provider.js       ChatGPT：/api/auth/session + /backend-api/wham/usage -> Meter[] + Wallet[]
     chatgpt/template.js       ChatGPT 自己的一套：MP / HP + EX，魔晶石 / 回复药水，Pro 起算的阶梯
+    gemini/provider.js        Gemini：/app 取会话令牌 + batchexecute 的 GetUsageInfo -> Meter[] + Wallet[]
+    gemini/template.js        Gemini 自己的一套：MP（5 小时）/ HP（每周），蓝宝石，Ultra 起算的阶梯
   core/                       与厂商无关
     gauges.js                 Meter[] + 模板 -> 卡片上的每一行（剩余量、等级、READY、封印、恢复中）
     wallets.js                Wallet[] + 模板 -> 宝物袋的每一行（余额、上限、失效、状态）
     rank.js                   方案 + 模板阶梯 -> 冒险者资质；用户填写的日期 -> 资质过期时间
-    roles.js                  角色词表：mp / hp / sp / ex；宝物：coin（金币）/ emerald（绿宝石）
+    roles.js                  角色词表：mp / hp / sp / ex；宝物：coin / emerald / crystal / potion / sapphire
     i18n.js, messages.js      多语言
     time.js                   倒计时与时间格式
     settings.js, store.js     设置与快照（chrome.storage.local）
@@ -199,11 +220,11 @@ extension/
    };
    ```
 
-2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http)` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。需要额外请求头（比如 Bearer token）时用 `http.getJson(path, { headers })`，并在 `proxyHeaders` 里列出允许经标签页转发的头；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
+2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http) }`，其中 `fetchUsage(http)` 返回 `{ meters, wallets, plan }`（`wallets` 可以是空数组）。`http` 提供 `getJson`、`getText`（取网页文本）和 `postForm`（提交表单、读文本）。需要额外请求头（比如 Bearer token）时传 `{ headers }`，并在 `proxyHeaders` 里列出允许经标签页转发的头；需要 POST 时在 `proxyPosts` 里写明允许的路径和表单检查（Gemini 就是这样）；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
 3. 在 `extension/providers/index.js` 里注册。权限二选一：
    - 安装即用：把域名加进 `manifest.json` 的 `host_permissions` 和 `content_scripts.matches`；
-   - 按需申请（推荐，ChatGPT 就是这样）：在 provider 里写 `enabledByDefault: false, optionalPermission: true`，把域名加进 `optional_host_permissions`。勾选时弹窗会申请权限，后台自动注册该站的页面脚本。
-4. 模板里的宝物只能用 `core/roles.js` 的 `TREASURES`（coin / emerald / crystal / potion），新宝物在那里登记、在 `ui/dom.js` 的 `TREASURE_ART` 里画像素图即可。
+   - 按需申请（推荐，ChatGPT 和 Gemini 就是这样）：在 provider 里写 `enabledByDefault: false, optionalPermission: true`，把域名加进 `optional_host_permissions`。勾选时弹窗会申请权限，后台自动注册该站的页面脚本。
+4. 模板里的宝物只能用 `core/roles.js` 的 `TREASURES`（coin / emerald / crystal / potion / sapphire），新宝物在那里登记、在 `ui/dom.js` 的 `TREASURE_ART` 里画像素图即可。
 5. 如果模板里出现了新的界面文字，运行 `npm run build:font` 重新生成字体子集。
 
 ## 开发
@@ -230,6 +251,7 @@ npm run store:assets     # 生成商店截图、宣传图和商店图标（docs/
 - 资质过期时间：未填写时点提示直接打开设置里的像素日历，选中日期后保存并显示，可在日历底部清除；
 - 像素下拉框：键盘上下选择、回车保存、点外面关闭；
 - ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；
+- Gemini：勾选后经 gemini.google.com 标签页取数，页面只交回会话令牌，用量查询的表单和参数完全正确；卡片只有 MP / HP 和蓝宝石，没有其他厂商的宝物，悬浮窗也跟着切到 Gemini；那里一次回复结束后会重新取数；
 - 弹窗里点厂商标签后，chatgpt.com 和普通网页上的悬浮窗、工具栏提示都切到那一家（ChatGPT 面板没有 SP，收起后也没有 SP 条），再点回 Claude 时一起切回；
 - 中文、日文、英文三种语言下，填了日期、打开日历时，弹窗、设置页和同意前的简短说明都不超出卡片边框；
 - 刷新间隔滑块（滚轮、方向键）改到 1 - 30 分钟并同步到定时器；悬浮窗 200% 时正好放大一倍；

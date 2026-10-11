@@ -10,8 +10,11 @@ import { providerIdOfKey } from './store.js';
  * Bump whenever what the extension reads, keeps or sends changes. Everyone
  * who agreed to an older version sees the notice again, and nothing runs
  * until they agree to the new one.
+ *
+ *   1  Claude, ChatGPT
+ *   2  Gemini added (its usage, and its session token held in memory)
  */
-export const DATA_PRACTICES_VERSION = 1;
+export const DATA_PRACTICES_VERSION = 2;
 
 export const PRIVACY_POLICY_URL = 'https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md';
 export const WELCOME_PATH = 'welcome/welcome.html';

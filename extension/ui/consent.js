@@ -6,7 +6,7 @@ import { h } from './dom.js';
 
 /** Section heading key, then its items. */
 const SECTIONS = Object.freeze([
-  ['consent.reads', ['consent.read.claude', 'consent.read.org', 'consent.read.chatgpt', 'consent.read.activity']],
+  ['consent.reads', ['consent.read.claude', 'consent.read.org', 'consent.read.chatgpt', 'consent.read.gemini', 'consent.read.activity']],
   ['consent.never', ['consent.never.content', 'consent.never.limits', 'consent.never.share']],
   ['consent.where', ['consent.where.local', 'consent.where.requests']],
   ['consent.optional', ['consent.optional.text']],

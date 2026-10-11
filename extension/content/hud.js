@@ -57,31 +57,45 @@ function readCookie(name) {
   return null;
 }
 
+/** May the background have this tab make this request? Only what the provider allow-lists. */
+function proxyAllowed(provider, method, path, form) {
+  if (typeof path !== 'string') return false;
+  if (method === 'GET') return form === undefined && provider.proxyPaths.some(pattern => pattern.test(path));
+  if (method !== 'POST' || !form || typeof form !== 'object' || Object.values(form).some(value => typeof value !== 'string')) return false;
+  return (provider.proxyPosts ?? []).some(rule => rule.path.test(path) && rule.form(form));
+}
+
 /**
- * GET one of the provider's allow-listed API paths as this page (its cookies,
- * its origin), with only the headers the provider allows, and hand back only
- * what the provider keeps of the reply.
+ * Make one of the provider's allow-listed requests as this page (its
+ * cookies, its origin), with only the headers the provider allows, and hand
+ * back only what the provider keeps of the reply.
  */
-async function proxyGet(provider, path, headers) {
-  if (typeof path !== 'string' || !provider.proxyPaths.some(pattern => pattern.test(path))) {
-    return { ok: false, error: { status: 0, code: 'forbidden' } };
-  }
+async function proxyRequest(provider, { method = 'GET', path, headers, form, as = 'json' }) {
+  if (!proxyAllowed(provider, method, path, form)) return { ok: false, error: { status: 0, code: 'forbidden' } };
   const allowed = new Set((provider.proxyHeaders ?? []).map(name => name.toLowerCase()));
-  const sent = { accept: 'application/json' };
+  const sent = as === 'json' ? { accept: 'application/json' } : {};
   for (const [name, value] of Object.entries(headers && typeof headers === 'object' ? headers : {})) {
     if (allowed.has(name.toLowerCase()) && typeof value === 'string') sent[name.toLowerCase()] = value;
   }
   try {
     const response = await fetch(new URL(path, location.origin), {
+      method,
       credentials: 'include',
       cache: 'no-store',
       headers: sent,
+      body: method === 'POST' ? new URLSearchParams(form) : undefined,
     });
-    if (!(response.headers.get('content-type') ?? '').includes('json')) {
-      return { ok: false, error: { status: response.status, code: 'not_json' } };
+    let body;
+    if (as === 'json') {
+      if (!(response.headers.get('content-type') ?? '').includes('json')) {
+        return { ok: false, error: { status: response.status, code: 'not_json' } };
+      }
+      if (!response.ok) return { ok: false, error: { status: response.status, code: null } };
+      body = await response.json();
+    } else {
+      if (!response.ok) return { ok: false, error: { status: response.status, code: 'http' } };
+      body = await response.text();
     }
-    if (!response.ok) return { ok: false, error: { status: response.status, code: null } };
-    const body = await response.json();
     return { ok: true, body: provider.proxyBody ? provider.proxyBody(path, body) : body };
   } catch {
     return { ok: false, error: { status: 0, code: 'network' } };
@@ -100,8 +114,8 @@ function hookVendorPage() {
     if (sender.id !== chrome.runtime.id) return false;
     const provider = providers.find(p => p.id === message?.providerId);
     if (!provider) return false;
-    if (message.type === 'wam:proxy-get') {
-      proxyGet(provider, message.path, message.headers).then(sendResponse);
+    if (message.type === 'wam:proxy-request') {
+      proxyRequest(provider, message).then(sendResponse);
       return true;
     }
     if (message.type === 'wam:proxy-cookie') {

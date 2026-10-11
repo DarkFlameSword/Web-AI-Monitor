@@ -31,6 +31,8 @@ export const TREASURES = Object.freeze({
   crystal: Object.freeze({ nameKey: 'treasure.crystal' }),
   /** Consumables counted one by one: e.g. ChatGPT's limit resets. */
   potion: Object.freeze({ nameKey: 'treasure.potion' }),
+  /** Credits bought to top up a plan's limits: e.g. Google AI credits. */
+  sapphire: Object.freeze({ nameKey: 'treasure.sapphire' }),
 });
 
 export function treasureOf(id) {
