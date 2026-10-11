@@ -193,38 +193,55 @@ img { display: block; }
 .caption h1 { margin: 0 0 20px; font-size: 36px; line-height: 48px; font-weight: 400; color: #3b2412; }
 .caption p { margin: 0; font-size: 24px; line-height: 40px; color: #74553a; white-space: nowrap; }
 .caption p::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 14px 4px 0; background: #9e2b25; vertical-align: middle; }
-.media { position: absolute; left: 544px; right: 40px; top: 40px; bottom: 40px; display: flex; align-items: center; justify-content: center; gap: 32px; }
-.media .col { display: flex; flex-direction: column; align-items: center; gap: 32px; }
-.media .row { display: flex; align-items: flex-end; gap: 24px; }
-`;
-}
 
-/** A plain browser window around a page, for the HUD-on-a-page image. */
-function browserScene(images, caption) {
-  const lines = widths => widths.map(width => `<div class="sk" style="width:${width}%"></div>`).join('');
-  return `
-<style>
+/* Screenshots: a plain browser window, the caption on its page. */
 .win { position: absolute; inset: 0; background: #fafafa; }
 .tabs { height: 40px; background: #dee1e6; display: flex; align-items: flex-end; padding-left: 16px; }
 .tab { width: 220px; height: 32px; background: #fafafa; border-radius: 8px 8px 0 0; }
 .bar { height: 44px; background: #fafafa; border-bottom: 1px solid #dadce0; display: flex; align-items: center; gap: 16px; padding: 0 16px; }
 .url { flex: 1; height: 30px; border-radius: 15px; background: #f1f3f4; }
 .icon { width: 32px; height: 32px; }
+/* The toolbar button while its popup is open. */
+.icon.active { border-radius: 50%; background: #dfe1e5; box-shadow: 0 0 0 4px #dfe1e5; }
 .page { position: absolute; left: 0; right: 0; top: 84px; bottom: 0; }
-.article { position: absolute; left: 520px; width: 300px; top: 56px; }
+.page > .caption { top: 56px; transform: none; }
+.left { position: absolute; left: 56px; top: 56px; width: 440px; display: flex; flex-direction: column; gap: 40px; }
+.left .caption { position: relative; left: auto; top: auto; transform: none; }
+/* Placeholder text of the page being read. */
 .article .h { height: 28px; width: 80%; background: #c7c7c7; margin-bottom: 32px; }
+.article .h.next { margin-top: 40px; width: 60%; }
 .article .sk { height: 12px; background: #e3e3e3; margin-bottom: 20px; }
-.page .caption { top: 56px; transform: none; }
-.hud { position: absolute; right: 32px; bottom: 32px; }
-</style>
+.article.middle { position: absolute; left: 520px; width: 300px; top: 56px; }
+/* Popups hang from the toolbar icon; the HUD sits in the page's corner. */
+.media { position: absolute; display: flex; gap: 24px; }
+.media.top { right: 16px; top: 8px; align-items: flex-start; }
+.media.corner { right: 32px; bottom: 32px; flex-direction: column; align-items: flex-end; gap: 32px; }
+.media .row { display: flex; align-items: flex-end; gap: 24px; }
+.popup { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28); }
+`;
+}
+
+const skeleton = widths => widths.map(width => `<div class="sk" style="width:${width}%"></div>`).join('');
+
+/**
+ * Every screenshot is the same plain browser window with the caption on its
+ * page, and the extension where it really appears: popups hang from its
+ * toolbar icon, the HUD sits in the page's corner. Placeholder text fills
+ * the page where nothing else is (under the caption it is filled to fit
+ * when drawn), so nothing overlaps.
+ *
+ * @param {{caption: string, media: string, article: 'middle' | 'under', popup?: boolean}} scene
+ */
+function browserScene({ caption, media, article, popup = false }) {
+  const page = article === 'middle'
+    ? `${caption}<div class="article middle"><div class="h"></div>${skeleton([100, 92, 96, 70, 100, 88, 94, 60])}`
+      + `<div class="h next"></div>${skeleton([100, 90, 96, 84, 52])}</div>`
+    : `<div class="left">${caption}<div class="article" data-fill><div class="h"></div></div></div>`;
+  return `
 <div class="win">
   <div class="tabs"><div class="tab"></div></div>
-  <div class="bar"><div class="url"></div><img class="icon pixel" src="/icon.png" alt=""></div>
-  <div class="page">
-    ${caption}
-    <div class="article"><div class="h"></div>${lines([100, 92, 96, 70, 100, 88, 94, 60])}<div class="h" style="margin-top:40px;width:60%"></div>${lines([100, 90, 96, 84, 52])}</div>
-    <img class="hud" src="${images.hud}" alt="">
-  </div>
+  <div class="bar"><div class="url"></div><img class="icon pixel${popup ? ' active' : ''}" src="/icon.png" alt=""></div>
+  <div class="page">${page}${media}</div>
 </div>`;
 }
 
@@ -233,21 +250,24 @@ function captionHtml(shot) {
 }
 
 function screenshotHtml(index, locale, img) {
-  const shot = locale.shots[index];
-  const caption = captionHtml(shot);
+  const caption = captionHtml(locale.shots[index]);
+  const popup = name => img(name, 'popup');
   switch (index) {
     case 0:
-      return `${caption}<div class="media">${img('gauges@2x')}</div>`;
+      return browserScene({ caption, article: 'under', popup: true, media: `<div class="media top">${popup('gauges@2x')}</div>` });
     case 1:
-      return browserScene({ hud: `/img/hud-claude@2x.png` }, caption);
+      return browserScene({ caption, article: 'middle', media: `<div class="media corner">${img('hud-claude@2x')}</div>` });
     case 2:
-      return `${caption}<div class="media">${img('claude@1x')}${img('chatgpt@1x')}</div>`;
+      return browserScene({ caption, article: 'under', popup: true, media: `<div class="media top">${popup('claude@1x')}${popup('chatgpt@1x')}</div>` });
     case 3:
-      return `${caption}<div class="media"><div class="col">
-        <div class="row">${img('hud-claude@2x')}${img('chip-claude@2x')}</div>
-        <div class="row">${img('hud-chatgpt@2x')}${img('chip-chatgpt@2x')}</div></div></div>`;
+      return browserScene({
+        caption,
+        article: 'under',
+        media: `<div class="media corner"><div class="row">${img('hud-claude@2x')}${img('chip-claude@2x')}</div>`
+          + `<div class="row">${img('hud-chatgpt@2x')}${img('chip-chatgpt@2x')}</div></div>`,
+      });
     default:
-      return `${caption}<div class="media">${img('settings@1x')}${img('calendar@1x')}</div>`;
+      return browserScene({ caption, article: 'under', popup: true, media: `<div class="media top">${popup('settings@1x')}${popup('calendar@1x')}</div>` });
   }
 }
 
@@ -308,12 +328,29 @@ async function render(browser, captures, fonts) {
     await page.goto('https://stage.local/');
     await page.evaluate(() => document.fonts.ready);
     await page.waitForFunction(() => [...document.images].every(image => image.complete && image.naturalWidth > 0));
-    // Nothing may cross the stage's edge or lie on top of another block.
+    // Placeholder lines under the caption, as many as fit above the page's bottom margin.
+    await page.evaluate(() => {
+      const widths = [100, 92, 96, 70, 100, 88, 94, 60, 100, 90, 96, 84, 52];
+      for (const article of document.querySelectorAll('.article[data-fill]')) {
+        const limit = article.closest('.page').getBoundingClientRect().bottom - 32;
+        for (let i = 0; ; i += 1) {
+          const line = document.createElement('div');
+          line.className = 'sk';
+          line.style.width = `${widths[i % widths.length]}%`;
+          article.append(line);
+          if (article.getBoundingClientRect().bottom > limit) {
+            line.remove();
+            break;
+          }
+        }
+      }
+    });
+    // Nothing may cross its area's edge (the stage, or the page under the
+    // browser's toolbar) or lie on top of another block.
     const clash = await page.evaluate(() => {
-      const stage = document.querySelector('.stage').getBoundingClientRect();
-      const blocks = [...document.querySelectorAll('.caption, .tile, .media img, .side img, .hud, .article')]
-        .map(el => ({ el, r: el.getBoundingClientRect() }));
-      const out = blocks.filter(({ r }) => r.left < stage.left || r.top < stage.top || r.right > stage.right || r.bottom > stage.bottom)
+      const blocks = [...document.querySelectorAll('.caption, .tile, .shot, .side img, .article')]
+        .map(el => ({ el, r: el.getBoundingClientRect(), area: (el.closest('.page') ?? el.closest('.stage')).getBoundingClientRect() }));
+      const out = blocks.filter(({ r, area }) => r.left < area.left || r.top < area.top || r.right > area.right || r.bottom > area.bottom)
         .map(({ el }) => `outside: ${el.className || el.tagName}`);
       for (let i = 0; i < blocks.length; i += 1) {
         for (let j = i + 1; j < blocks.length; j += 1) {
@@ -348,7 +385,7 @@ async function render(browser, captures, fonts) {
     const shots = captures[id];
     const images = Object.fromEntries(Object.entries(shots).map(([name, png]) => [name, png]));
     // A capture is shown at its own size: @2x ones at twice the popup's size, @1x ones as the popup is.
-    const img = name => `<img src="/img/${encodeURIComponent(name)}.png" alt="">`;
+    const img = (name, extra = '') => `<img class="shot${extra ? ` ${extra}` : ''}" src="/img/${encodeURIComponent(name)}.png" alt="">`;
     for (let i = 0; i < locale.shots.length; i += 1) {
       await draw(join(outDir, id, `screenshot-${i + 1}.png`), SIZES.screenshot, locale, screenshotHtml(i, locale, img), images);
     }

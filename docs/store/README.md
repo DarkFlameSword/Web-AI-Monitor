@@ -55,7 +55,7 @@ npm run store:assets              # 重新生成 docs/store/images/ 下的全部
 
 第一次运行还会用 `npm pack` 下载完整的 Fusion Pixel Font（放在 `.cache/`），所以需要联网。
 
-截图里的弹窗和悬浮窗都是扩展本身在 Chromium 里渲染的真实界面（数据来自模拟的 claude.ai / chatgpt.com），说明文字用完整的 Fusion Pixel Font 排版。脚本会检查每张图里文字不超出说明框、各块互不重叠。
+截图里的弹窗和悬浮窗都是扩展本身在 Chromium 里渲染的真实界面（数据来自模拟的 claude.ai / chatgpt.com），说明文字用完整的 Fusion Pixel Font 排版。五张截图都放在同一个浏览器窗口场景里：弹窗从工具栏的扩展图标下方垂下，悬浮窗在网页右下角，说明框在网页左上角，其余空白用占位文章补满。脚本会检查每张图里文字不超出说明框、各块互不重叠、都不超出网页区域。
 
 截图和宣传图都是 24 位 PNG、无透明通道（后台要求「JPEG or 24-bit PNG (no alpha)」）；商店图标按规范带透明边距。五张截图依次是：能量条、页内悬浮窗、Claude 和 ChatGPT 各自的卡片、悬浮窗跟随切换、设置。
 
