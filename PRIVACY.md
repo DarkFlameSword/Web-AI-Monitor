@@ -58,7 +58,7 @@ The latest usage snapshot (the numbers above, without any token or cookie) and y
 | `storage` | Keep settings and the latest usage snapshot on your device |
 | `alarms` | Refresh on the interval you choose and when a limit resets |
 | `cookies` | Read the `lastActiveOrg` cookie on claude.ai, nothing else |
-| `scripting` | Add the HUD to pages, only after you allow it |
+| `scripting` | Add the extension's own page script to tabs that were already open: on the sites it monitors once you agree (and after an update), on other sites only after you allow it |
 | `https://chatgpt.com/*` (optional) | Asked only when you turn ChatGPT on |
 | `https://gemini.google.com/*` (optional) | Asked only when you turn Gemini on |
 | `http://*/*`, `https://*/*` (optional) | Asked only when you turn on the HUD for every site; used only to display the HUD |
@@ -141,7 +141,7 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 | `storage` | 在本机保存设置和最近的用量快照 |
 | `alarms` | 按你选择的间隔刷新，并在限额重置时刷新 |
 | `cookies` | 只读取 claude.ai 的 `lastActiveOrg` cookie |
-| `scripting` | 在你允许后，把悬浮窗加到网页上 |
+| `scripting` | 把扩展自带的页面脚本放进已打开的标签页：被监控的网站在你同意后（以及扩展更新后），其他网站只在你允许后 |
 | `https://chatgpt.com/*`（可选） | 只在你开启 ChatGPT 时申请 |
 | `https://gemini.google.com/*`（可选） | 只在你开启 Gemini 时申请 |
 | `http://*/*`、`https://*/*`（可选） | 只在你开启「所有网页都显示」时申请，只用来显示悬浮窗 |

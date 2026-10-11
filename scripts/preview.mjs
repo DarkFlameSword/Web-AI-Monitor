@@ -12,6 +12,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { LANG_TAGS } from '../extension/core/messages.js';
+import { PROVIDERS } from '../extension/providers/index.js';
 import {
   DAY,
   GEMINI_TOKEN,
@@ -102,6 +104,9 @@ async function main() {
         }, 'the first fetch after agreeing');
         assert.equal(snap.plan, 'max_20x');
         await waitFor(() => hudOn(claude), 'HUD after agreeing');
+        // Agreeing also adds the page script to open vendor tabs; one already running stays the only one.
+        await sleep(600);
+        assert.equal(await claude.locator('web-ai-monitor-hud').count(), 1, 'one HUD, not two');
         assert.match(await welcome.locator('body').innerText(), /登记完成/);
         assert.match(await welcome.locator('body').innerText(), /已于 .* 同意数据说明/);
         await popup.reload();
@@ -117,18 +122,41 @@ async function main() {
         await waitFor(() => hudOn(claude), 'HUD on claude.ai');
         const popup = await app.openPopup();
         await popup.getByRole('button', { name: '设置' }).click();
+        // It asks first. "Cancel" has the focus and keeps everything.
         await popup.getByRole('button', { name: '撤回同意' }).click();
+        assert.match(await popup.locator('.confirm').innerText(), /确定撤回同意吗/);
+        assert.equal(await popup.evaluate(() => document.activeElement?.textContent), '取消');
+        await popup.keyboard.press('Escape');
+        await popup.getByRole('button', { name: '撤回同意' }).waitFor();
+        assert.equal(await popup.locator('.confirm').count(), 0);
+        assert.ok(await app.storage.get('snapshot:claude'), 'nothing deleted on cancel');
+        await popup.getByRole('button', { name: '撤回同意' }).click();
+        await popup.getByRole('button', { name: '撤回', exact: true }).click();
         await waitFor(async () => (await app.storage.get('snapshot:claude')) === undefined, 'usage data deleted');
         await waitFor(async () => !(await hudOn(claude)), 'HUD hidden');
         assert.match(await popup.locator('body').innerText(), /使用前请确认/);
         const asked = mock.counts.worker + mock.counts.page;
         await popup.close();
+        // As if this tab were open before an update: its page script is an
+        // older version's (it only left `true` behind) and its HUD is gone.
+        await app.ask(async () => {
+          const [tab] = await chrome.tabs.query({ url: 'https://claude.ai/*' });
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              globalThis.__webAiMonitorStarted = true;
+              document.querySelector('web-ai-monitor-hud')?.remove();
+            },
+          });
+        });
         const again = await app.openPopup();
         await sleep(1500);
         assert.equal(mock.counts.worker + mock.counts.page, asked, 'opening the popup reads nothing');
         await again.getByRole('button', { name: '同意并开始' }).click();
         await waitFor(async () => (await app.storage.get('snapshot:claude'))?.status === 'ok', 'fetched again');
+        // Agreeing gave the tab a live page script again, without a reload.
         await waitFor(() => hudOn(claude), 'HUD back');
+        assert.equal(await claude.locator('web-ai-monitor-hud').count(), 1);
         await again.close();
         await claude.close();
       });
@@ -165,6 +193,27 @@ async function main() {
         assert.equal(await page.getByText('悬浮窗归位').count(), 0);
         await shoot(page.locator('body'), '07-popup-settings');
         await page.close();
+      });
+
+      await check('a permission Chrome did not grant is said next to its switch, even if the popup closed while Chrome asked', async () => {
+        await app.storage.set({ settings: { lang: 'zh_CN' } });
+        // The popup asked for chatgpt.com and closed with Chrome's dialog; it was not granted.
+        await app.ask(() => chrome.storage.session.set({ 'wam:asking': { what: 'vendor:chatgpt', at: Date.now() } }));
+        const page = await app.openPopup();
+        await sleep(400);
+        const vendor = page.locator('label.pix-check', { hasText: 'ChatGPT' });
+        assert.equal(await vendor.locator('input').isChecked(), false);
+        const hint = page.locator('.set-hint.denied');
+        assert.equal(await hint.count(), 1, 'the settings opened on it, said once');
+        assert.match(await hint.innerText(), /没有获得 Chrome 授权，所以没有开启/);
+        assert.deepEqual(await overflowing(page), []);
+        await page.close();
+        // Said once: the next popup is back to normal.
+        const again = await app.openPopup();
+        await again.getByRole('button', { name: '设置' }).click();
+        await sleep(300);
+        assert.equal(await again.locator('.set-hint.denied').count(), 0);
+        await again.close();
       });
     } finally {
       await app.close();
@@ -475,6 +524,50 @@ async function main() {
         assert.deepEqual(await overflowing(notice), [], `${lang} notice`);
         await notice.close();
       }
+      await app.storage.set({ settings });
+    });
+
+    await check('the guide: opened from settings and the welcome page, every vendor listed, fits in every language', async () => {
+      const settings = await app.storage.get('settings');
+      await app.storage.set({ settings: { ...settings, lang: 'en' } });
+      const popup = await app.openPopup();
+      await popup.getByRole('button', { name: 'Settings' }).click();
+      const opened = app.context.waitForEvent('page');
+      await popup.getByRole('button', { name: 'Guide' }).click();
+      const guide = await opened;
+      await guide.waitForURL(/\/help\/help\.html$/);
+      await popup.close().catch(() => {}); // it closes itself on opening the guide
+      for (const lang of ['zh_CN', 'ja', 'en']) {
+        await app.storage.set({ settings: { ...settings, lang } });
+        await waitFor(() => guide.evaluate(tag => document.documentElement.lang === tag, LANG_TAGS[lang]), `the guide in ${lang}`);
+        await guide.evaluate(() => document.fonts.ready);
+        const text = await guide.locator('#app').innerText();
+        assert.doesNotMatch(text, /\bhelp\.|\{\w+\}/, `${lang}: every string translated and filled in`);
+        // Each vendor's gauges and treasures, read from its template.
+        const vendors = guide.locator('.help-vendor');
+        assert.deepEqual(await vendors.locator('.help-vendor-name').allInnerTexts(), PROVIDERS.map(provider => provider.name));
+        for (const [index, { id, template }] of PROVIDERS.entries()) {
+          const rows = await vendors.nth(index).locator('.help-grid').evaluateAll(lists => lists.map(list => list.querySelectorAll('dt').length));
+          const expected = [template.gauges.length, ...(template.wallets?.length ? [template.wallets.length] : [])];
+          assert.deepEqual(rows.slice(0, -1), expected, `${lang} ${id} gauges and treasures`);
+          assert.ok(rows.at(-1) >= template.ladder.length, `${lang} ${id} ranks`);
+        }
+        assert.equal(await guide.locator('.help-faq dt').count(), 8, `${lang} questions`);
+        for (const width of [640, 360]) {
+          await guide.setViewportSize({ width, height: 900 });
+          await sleep(200);
+          assert.deepEqual(await overflowing(guide), [], `${lang} guide at ${width}px`);
+          assert.ok(await guide.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${lang} no sideways scroll at ${width}px`);
+        }
+        await guide.setViewportSize({ width: 640, height: 900 });
+        await guide.screenshot({ path: join(outDir, `32-guide-${lang}.png`), fullPage: true, animations: 'disabled' });
+      }
+      // The guide and the data use notice link to each other.
+      await guide.getByRole('link', { name: 'Data use' }).click();
+      await guide.waitForURL(/\/welcome\/welcome\.html$/);
+      await guide.locator('.welcome-foot').getByRole('link', { name: 'Guide' }).click();
+      await guide.waitForURL(/\/help\/help\.html$/);
+      await guide.close();
       await app.storage.set({ settings });
     });
 

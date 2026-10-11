@@ -11,14 +11,16 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.7.1 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子。** 0.6.0、0.7.0 都没有发布，直接提交 0.7.1，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
+> **0.8.0 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子；按尼尔森可用性原则改进：出错时写明原因和下一步、出错的厂商标签带「!」、撤回同意前先确认、Chrome 没给权限时会说明、新增使用说明页、同意或更新后已打开的标签页不用刷新。** 0.6.0、0.7.0、0.7.1 都没有发布，直接提交 0.8.0，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
 >
-> 1. Package：上传 `dist/web-ai-monitor-0.7.1.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
+> 1. Package：上传 `dist/web-ai-monitor-0.8.0.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
 > 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。商店图标和小宣传图不用换；大宣传图如果上传过，也换成新的。
 > 3. Privacy：Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节）。数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变。
 > 4. Test instructions：替换（第 6 节）。
 >
 > Gemini 的取数和 ChatGPT 的订阅日期都只在模拟环境里验证过，提交前先用真实账号试一遍（第 9 节「本地准备」第 4 步）。
+>
+> scripting 的用途比 0.5.0 多了一项：同意数据说明后、以及扩展更新后，把包内的页面脚本放进之前就已打开的被监控网站标签页，所以它的 justification 也要换成新的。使用说明页只是包内的一页说明，不读取任何数据。
 >
 > 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 从 1 升到了 3（2 只在没有发布的 0.6.0 里用过；界面改版不涉及数据，不再升）：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
 
@@ -114,6 +116,7 @@ Web AI Monitor 用像素风的异世界冒险者公会卡，显示你的 AI 用�
 - 宝物袋：一眼看到额度余额（云端会话额度、用量额度；Codex 额度和限额重置次数；Google AI 额度）。
 - 冒险者资质按订阅方案评定；ChatGPT 的订阅续订 / 到期日自动读取，Claude 和 Gemini 可以自己填写。
 - 可选：用过的能量完全恢复时发一条桌面通知。
+- 出了问题会写明原因和下一步；设置里的「使用说明」讲清卡片上的每个元素。
 - 简体中文、日本語、English。
 
 隐私
@@ -141,6 +144,7 @@ FEATURES
 - Treasure pouch: your credit balances at a glance (cloud session credits and usage credits; Codex credits and limit resets; Google AI credits).
 - An adventurer rank from your plan, with the date your subscription renews or ends: read automatically for ChatGPT, entered by you for Claude and Gemini.
 - Optional: a desktop notice when a used gauge is full again.
+- When something goes wrong, the card says why and what to do next; the Guide in settings explains everything on the card.
 - Simplified Chinese, Japanese and English.
 
 PRIVACY
@@ -168,6 +172,7 @@ Claude（claude.ai）に対応し、ChatGPT（chatgpt.com）と Gemini（gemini.
 - 宝物袋：クレジット残高をひと目で（クラウドセッション枠と利用クレジット、Codex クレジットと制限リセット回数、Google AI クレジット）。
 - プランに応じた冒険者ランクと、サブスクの更新日・終了日（ChatGPT は自動取得、Claude と Gemini は入力）。
 - 任意：使ったゲージが全回復したらデスクトップ通知。
+- 問題があるときは、理由と次にすることをカードに表示。設定の「使い方」でカードの見方を説明しています。
 - 簡体字中国語・日本語・英語。
 
 プライバシー
@@ -212,10 +217,10 @@ Refreshes the usage on the interval the user picks (1-30 minutes) and right when
 Reads exactly one cookie, lastActiveOrg on claude.ai, so the usage request asks for the organization the user is currently in. No other cookie is read, and the value is only used in that request to claude.ai: never stored or sent anywhere else.
 ```
 
-**scripting justification**（264 字符）
+**scripting justification**（453 字符）
 
 ```text
-Used only after the user turns on "show the HUD on every site" or switches on ChatGPT or Gemini: registers the packaged HUD content script for those sites and adds it to tabs already open. No remote code. The script only displays the HUD and reads no page content.
+Adds the packaged content script to tabs that were open before it could run: claude.ai (and chatgpt.com or gemini.google.com if switched on) once the user agrees to the data use notice or after an update, so those tabs need no reload. After the user turns on "show the HUD on every site" or switches on ChatGPT or Gemini, it registers the script for those sites. No remote code. On other sites the script only displays the HUD and reads no page content.
 ```
 
 **notifications justification**（188 字符）
@@ -289,7 +294,7 @@ https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 4. Optional, in Settings: tick "ChatGPT" to monitor ChatGPT (asks for chatgpt.com; needs a ChatGPT login with Codex access). Tick "Gemini" to monitor Gemini (asks for gemini.google.com; needs a Google account signed in to Gemini). Tick "On every site" to show the HUD everywhere (asks for all-sites access; it only displays the HUD).
 5. Signed out, the popup says "Not registered: sign in to claude.ai".
 
-The extension is read-only. It never changes, bypasses or resets usage limits, never sends prompts, and never reads conversation or page content. Settings > "Data & privacy" shows the notice again and lets the user withdraw consent, which deletes the stored usage data.
+The extension is read-only. It never changes, bypasses or resets usage limits, never sends prompts, and never reads conversation or page content. Settings > "Data & privacy" shows the notice again and lets the user withdraw consent (after confirming), which deletes the stored usage data.
 ```
 
 ## 7. 后台「分发」（Distribution）

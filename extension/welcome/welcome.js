@@ -5,10 +5,12 @@
  */
 import { PRIVACY_POLICY_URL, giveConsent, hasConsent, withdrawConsent } from '../core/consent.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
+import { HELP_PATH } from '../core/links.js';
 import { LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
 import { SETTINGS_KEY, loadSettings, normalizeSettings, updateSettings } from '../core/settings.js';
 import { formatDate } from '../core/time.js';
 import { pixelSelect } from '../popup/controls.js';
+import { confirmChoice } from '../ui/confirm.js';
 import { consentNotice } from '../ui/consent.js';
 import { CREST, CREST_PALETTE, h, pixelArt } from '../ui/dom.js';
 
@@ -18,6 +20,8 @@ const app = doc.getElementById('app');
 let settings = normalizeSettings(null);
 /** What just happened, shown above the buttons: 'done', 'declined' or 'withdrawn'. */
 let note = null;
+/** Withdrawing asks first: true while that question is on screen. */
+let asking = false;
 
 const langSelect = pixelSelect(doc, { onChange: value => updateSettings(draft => { draft.lang = value; }) });
 
@@ -31,11 +35,26 @@ function render() {
   langSelect.setLabel(t('settings.language'));
 
   const button = (props, text) => h(doc, 'button', { type: 'button', ...props, text });
+  const ask = asking && hasConsent(settings)
+    ? confirmChoice(doc, {
+      question: t('consent.withdrawAsk'),
+      yes: t('consent.withdrawYes'),
+      no: t('action.cancel'),
+      onYes: withdraw,
+      onNo: () => {
+        asking = false;
+        render();
+        app.querySelector('.welcome-withdraw')?.focus();
+      },
+    })
+    : null;
   const actions = hasConsent(settings)
     ? [
       h(doc, 'p', { class: 'welcome-status', text: t('consent.agreed', { date: formatDate(settings.consent.at ?? Date.now(), t.tag) }) }),
-      button({ class: 'cmd', onclick: withdraw }, t('consent.withdraw')),
-      h(doc, 'span', { class: 'welcome-hint', text: t('consent.withdrawHint') }),
+      ...(ask ? [ask.el] : [
+        button({ class: 'cmd welcome-withdraw', onclick: () => { asking = true; render(); } }, t('consent.withdraw')),
+        h(doc, 'span', { class: 'welcome-hint', text: t('consent.withdrawHint') }),
+      ]),
     ]
     : [
       button({ class: 'pix-btn', onclick: agree }, t('consent.agree')),
@@ -55,8 +74,12 @@ function render() {
     h(doc, 'div', { class: 'rule' }),
     note ? h(doc, 'p', { class: 'welcome-note', role: 'status', text: t(`consent.${note}`) }) : null,
     h(doc, 'div', { class: 'welcome-actions' }, actions),
-    h(doc, 'p', { class: 'welcome-foot' }, h(doc, 'a', { href: PRIVACY_POLICY_URL, target: '_blank', rel: 'noopener', text: t('consent.policy') })),
+    h(doc, 'p', { class: 'welcome-foot' }, [
+      h(doc, 'a', { href: PRIVACY_POLICY_URL, target: '_blank', rel: 'noopener', text: t('consent.policy') }),
+      h(doc, 'a', { href: `/${HELP_PATH}`, text: t('help.title') }),
+    ]),
   ].filter(Boolean));
+  ask?.focus();
 }
 
 async function agree() {
@@ -71,6 +94,7 @@ function decline() {
 }
 
 async function withdraw() {
+  asking = false;
   note = 'withdrawn';
   settings = await withdrawConsent();
   render();

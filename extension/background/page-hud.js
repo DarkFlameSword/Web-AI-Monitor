@@ -38,13 +38,17 @@ export async function syncPageScripts() {
   return granted;
 }
 
-/** Tabs opened before the grant get the floating window without a reload. */
+/**
+ * Tabs opened before the grant get the floating window without a reload.
+ *
+ * @returns {Promise<number>} how many tabs were given the script.
+ */
 export async function injectOpenTabs() {
   const vendors = new Set(PROVIDERS.map(provider => provider.origin));
-  const tabs = await chrome.tabs.query({ url: [...ALL_SITES] });
-  await Promise.allSettled(tabs
-    .filter(tab => typeof tab.id === 'number' && !tab.discarded && tab.url && !vendors.has(new URL(tab.url).origin))
-    .map(tab => chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/loader.js'] })));
+  const tabs = (await chrome.tabs.query({ url: [...ALL_SITES] }))
+    .filter(tab => typeof tab.id === 'number' && !tab.discarded && tab.url && !vendors.has(new URL(tab.url).origin));
+  await Promise.allSettled(tabs.map(tab => chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/loader.js'] })));
+  return tabs.length;
 }
 
 const vendorScriptId = provider => `wam-vendor-${provider.id}`;
@@ -88,10 +92,34 @@ export async function syncVendorScripts() {
   return allowed;
 }
 
-/** The vendor's tabs opened before its site was allowed get the script now. */
+/**
+ * The vendor's tabs opened before its site was allowed get the script now.
+ *
+ * @returns {Promise<number>} how many tabs were given the script.
+ */
 export async function injectVendorTabs(provider) {
-  const tabs = await chrome.tabs.query({ url: originPattern(provider) });
-  await Promise.allSettled(tabs
-    .filter(tab => typeof tab.id === 'number' && !tab.discarded)
-    .map(tab => chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/loader.js'] })));
+  const tabs = (await chrome.tabs.query({ url: originPattern(provider) }))
+    .filter(tab => typeof tab.id === 'number' && !tab.discarded);
+  await Promise.allSettled(tabs.map(tab => chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/loader.js'] })));
+  return tabs.length;
+}
+
+/**
+ * Pages already open when the extension is installed, updated or agreed to
+ * have no live page script: the manifest's scripts only reach pages loaded
+ * later, and an update orphans the old ones. Give them one now, so the HUD
+ * shows and those tabs can fetch for the background without a reload. Only
+ * sites the extension may already script; the loader keeps a running copy.
+ *
+ * @param {object[]} providers  the vendors the user monitors.
+ * @param {{everywhere: boolean}} hud  the HUD settings.
+ * @returns {Promise<number>} how many tabs were given the script.
+ */
+export async function injectOpenPages(providers, hud) {
+  let reached = 0;
+  for (const provider of providers) {
+    if (await hasVendorSite(provider)) reached += await injectVendorTabs(provider);
+  }
+  if (hud.everywhere && await hasAllSites()) reached += await injectOpenTabs();
+  return reached;
 }

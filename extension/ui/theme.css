@@ -81,6 +81,8 @@
   -webkit-font-smoothing: none;
   text-rendering: optimizeSpeed;
   letter-spacing: 0;
+  /* Wrapped text never ends on a line of one character or word. */
+  text-wrap-style: pretty;
 }
 
 .wam *,
@@ -235,6 +237,16 @@
     0 1px 0 0 var(--seal),
     -1px 0 0 0 var(--seal),
     1px 0 0 0 var(--seal);
+}
+
+/* The headline, then the plain cause on its own line, then the way out. */
+.wam .notice-detail {
+  flex-basis: 100%;
+  color: var(--ink-2);
+}
+
+.wam .notice-action {
+  margin-left: auto;
 }
 
 .wam .gauges {
@@ -604,6 +616,35 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ------------------------------------------------------ "are you sure?" */
+
+/* The question in a vermilion-framed message window, the two answers under it. */
+.wam .confirm {
+  align-self: stretch;
+  margin: 0 1px;
+  padding: 4px 6px;
+  background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
+}
+
+.wam .confirm-q {
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+
+.wam .confirm-choices {
+  display: flex;
+  gap: 16px;
+}
+
+.wam .confirm-yes {
+  color: var(--seal);
 }
 
 /* ------------------------------------------------- data use notice */

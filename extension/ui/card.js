@@ -2,6 +2,7 @@ import { buildGaugeViews } from '../core/gauges.js';
 import { label } from '../core/i18n.js';
 import { qualificationExpiry, qualificationOf, subscriptionTerm } from '../core/rank.js';
 import { roleOf, treasureOf } from '../core/roles.js';
+import { STATUS_MESSAGES } from '../core/store.js';
 import { formatAgo, formatClock, formatCountdown, formatCountdownShort, formatDate } from '../core/time.js';
 import { buildWalletViews } from '../core/wallets.js';
 import { POUCH, POUCH_PALETTE, TREASURE_ART, h, pixelArt } from './dom.js';
@@ -234,18 +235,24 @@ class Pouch {
   }
 }
 
-/** The notice a card shows for its snapshot status, or null when all is well. */
-function noticeFor(snapshot) {
+/**
+ * The notice a card shows for its snapshot status, or null when all is well:
+ * the in-world headline, a plain line on the cause (popup only), and whether
+ * to offer opening the vendor's site.
+ */
+function noticeFor(snapshot, provider) {
   if (!snapshot) return { key: 'updated.loading', tone: 'info' };
   switch (snapshot.status) {
     case 'ok':
       return null;
     case 'signed_out':
-      return { key: 'error.signedOut', tone: 'warn', action: true };
+      return { key: STATUS_MESSAGES.signed_out, tone: 'warn', action: true };
     case 'no_data':
-      return { key: 'error.noData', tone: 'warn' };
+      return { key: STATUS_MESSAGES.no_data, detail: provider.template.noDataHint ?? { key: 'error.noDataHint' }, tone: 'warn', action: true };
     default:
-      return { key: 'error.unreachable', tone: 'warn' };
+      // Usually the vendor's site is down or out of reach, or the background
+      // request was stopped and no tab of the site is open to ask through.
+      return { key: STATUS_MESSAGES.unreachable, detail: { key: 'error.unreachableHint' }, tone: 'warn', action: true };
   }
 }
 
@@ -304,9 +311,10 @@ export class ProviderCard {
         this.qualification,
       ]);
     }
-    this.noticeText = h(doc, 'span');
-    this.noticeAction = h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => this.onOpenSite?.(provider) });
-    this.notice = h(doc, 'div', { class: 'notice', role: 'status' }, [this.noticeText, this.noticeAction]);
+    this.noticeText = h(doc, 'span', { class: 'notice-text' });
+    this.noticeDetail = h(doc, 'span', { class: 'notice-detail' });
+    this.noticeAction = h(doc, 'button', { class: 'cmd notice-action', type: 'button', onclick: () => this.onOpenSite?.(provider) });
+    this.notice = h(doc, 'div', { class: 'notice', role: 'status' }, [this.noticeText, this.noticeDetail, this.noticeAction]);
     this.gauges = h(doc, 'div', { class: 'gauges' });
     // The page HUD has no room for money; the popup shows it under the gauges.
     this.pouch = compact ? null : new Pouch(doc);
@@ -327,13 +335,17 @@ export class ProviderCard {
 
     this.renderQualification(snapshot, t, now);
 
-    const notice = noticeFor(snapshot);
+    const notice = noticeFor(snapshot, this.provider);
     this.notice.hidden = !notice;
     if (notice) {
+      const vars = { site: this.provider.site };
       this.notice.dataset.tone = notice.tone;
-      this.noticeText.textContent = t(notice.key, { site: this.provider.site });
+      this.noticeText.textContent = t(notice.key, vars);
+      // The page HUD keeps to the headline; the popup also says why.
+      this.noticeDetail.hidden = !notice.detail || this.compact;
+      this.noticeDetail.textContent = notice.detail ? label(t, { ...notice.detail, vars }) : '';
       this.noticeAction.hidden = !notice.action || !this.onOpenSite;
-      this.noticeAction.textContent = t('action.open', { site: this.provider.site });
+      this.noticeAction.textContent = t('action.open', vars);
     }
 
     const meters = snapshot?.meters ?? [];

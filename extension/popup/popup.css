@@ -87,6 +87,11 @@ body {
   white-space: normal;
 }
 
+/* Chrome did not grant what the field asked for. */
+.set-hint.denied {
+  color: var(--seal);
+}
+
 .set-inline {
   display: flex;
   align-items: center;
@@ -118,7 +123,8 @@ body {
 }
 
 .pix-check::before,
-.set-col > .cmd::before {
+.set-col > .cmd::before,
+.set-cmds > .cmd::before {
   content: '';
   position: absolute;
   left: -8px;
@@ -303,6 +309,12 @@ body {
   color: var(--ink);
 }
 
+/* Its last refresh failed: a vendor's tab carries a small vermilion "!". */
+.vendor-tabs .tab-alert {
+  margin-left: 2px;
+  color: var(--seal);
+}
+
 /* The selected tab keeps its pointer, like a chosen menu entry. */
 .vendor-tabs .tab.selected::before {
   visibility: visible;
@@ -333,12 +345,21 @@ body {
 
 /* Commands in a settings column line up with the checkboxes above them; their
    cursor sits in the gap on the left, like the checkboxes' cursor. */
-.set-col > .cmd {
+.set-col > .cmd,
+.set-cmds > .cmd {
   padding-left: 0;
 }
 
-.set-col > .cmd::before {
+.set-col > .cmd::before,
+.set-cmds > .cmd::before {
   top: 4px;
+}
+
+/* Commands side by side, the gap wide enough for the next one's cursor. */
+.set-cmds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
 }
 
 /* ------------------------------------------- data use notice (popup) */

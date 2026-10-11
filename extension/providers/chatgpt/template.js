@@ -53,6 +53,9 @@ export default Object.freeze({
     enterprise: { name: 'Enterprise', rank: 'S' },
   },
 
+  /** Why the vendor may answer without usage data, under the card's notice. */
+  noDataHint: { key: 'chatgpt.noData' },
+
   messages: {
     zh_CN: {
       'chatgpt.short': 'Codex / 5 小时',
@@ -63,6 +66,7 @@ export default Object.freeze({
       'chatgpt.workspace': '工作区额度',
       'chatgpt.credits': 'Codex 额度',
       'chatgpt.resets': '限额重置次数',
+      'chatgpt.noData': '只有能用 Codex 的账户才有用量数据',
     },
     ja: {
       'chatgpt.short': 'Codex / 5 時間',
@@ -73,6 +77,7 @@ export default Object.freeze({
       'chatgpt.workspace': 'ワークスペース枠',
       'chatgpt.credits': 'Codex クレジット',
       'chatgpt.resets': '制限リセット回数',
+      'chatgpt.noData': 'Codex を使えるアカウントだけに使用量データがあります',
     },
     en: {
       'chatgpt.short': 'Codex / 5 hours',
@@ -83,6 +88,7 @@ export default Object.freeze({
       'chatgpt.workspace': 'Workspace credits',
       'chatgpt.credits': 'Codex credits',
       'chatgpt.resets': 'Limit resets',
+      'chatgpt.noData': 'Only accounts with Codex access have usage data',
     },
   },
 });

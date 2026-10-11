@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { createTranslator, resolveLang } from '../extension/core/i18n.js';
+import { HELP, NOTICE_QUESTIONS, QUOTED } from '../extension/help/text.js';
 import { LANGS, MESSAGES } from '../extension/core/messages.js';
 import { formatAgo, formatBadgeDuration, formatCountdown, formatCountdownShort } from '../extension/core/time.js';
 import { PROVIDERS } from '../extension/providers/index.js';
@@ -25,6 +26,24 @@ test('every provider template translates its own strings in every language', () 
     const messages = provider.template.messages ?? {};
     const keys = Object.keys(messages.zh_CN ?? {}).sort();
     for (const lang of LANGS) assert.deepEqual(Object.keys(messages[lang] ?? {}).sort(), keys, `${provider.id} ${lang}`);
+  }
+});
+
+test('the guide has every string in every language, and quotes the card exactly', () => {
+  const reference = Object.keys(HELP.zh_CN).sort();
+  for (const lang of LANGS) {
+    assert.deepEqual(Object.keys(HELP[lang]).sort(), reference, lang);
+    for (const [key, text] of Object.entries(HELP[lang])) {
+      assert.ok(!(key in MESSAGES[lang]), `${key} would hide the card's own string`);
+      for (const [, name] of text.matchAll(/\{(\w+)\}/g)) assert.ok(name in QUOTED, `${lang} ${key}: {${name}}`);
+    }
+    for (const key of Object.values(QUOTED)) assert.ok(key in MESSAGES[lang], `${lang} ${key}`);
+    // "The card says ..." quotes the notice as the card prints it.
+    for (const [entry, key] of Object.entries(NOTICE_QUESTIONS)) {
+      const quoted = HELP[lang][`help.q.${entry}`].match(/「(.+?)」|"(.+?)"/);
+      assert.ok(quoted, `${lang} help.q.${entry} quotes the notice`);
+      assert.ok(MESSAGES[lang][key].includes(quoted[1] ?? quoted[2]), `${lang} help.q.${entry}`);
+    }
   }
 });
 

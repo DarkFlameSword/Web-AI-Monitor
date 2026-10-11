@@ -89,7 +89,7 @@ An entry the account does not have is left out; when neither exists, the whole p
 
 ## Features
 
-- **Consent first**: at install it opens a "Guild registration" data use notice that says what it reads, what it never does and where data stays. Until you click "Agree and start", the extension sends no request and shows no HUD; the popup shows only a short notice and the agree button. "Data & privacy" in settings shows the notice again, opens the [privacy policy](PRIVACY.md), or withdraws consent (which stops reading and deletes the saved usage data).
+- **Consent first**: at install it opens a "Guild registration" data use notice that says what it reads, what it never does and where data stays. Until you click "Agree and start", the extension sends no request and shows no HUD; the popup shows only a short notice and the agree button. "Data & privacy" in settings shows the notice again, opens the [privacy policy](PRIVACY.md), or withdraws consent (it asks "Withdraw consent?" first, with "Cancel" selected and Esc meaning cancel; once confirmed, reading stops and the saved usage data is deleted).
 - **Popup**: the guild card (adventurer rank and its expiry), gauges with countdowns, the treasure pouch, "Updated Ns ago", and the settings page. When more than one vendor is monitored, vendor tabs (Claude / ChatGPT / Gemini) appear at the top. The vendor you pick is saved in settings, and the page HUD and the toolbar icon switch with it.
 - **Settings**: every control is drawn in pixels like a Japanese RPG menu. The dropdown and the date field are small bevelled plates that open into framed sub-windows with a drop shadow; checkboxes are sunken slots with a vermilion tick; sliders are gold gauges. Whatever the pointer or the keyboard is on gets a vermilion frame and the blinking triangle cursor (no dotted browser outline). All text is at least 4.5:1 against its background. Everything works from the keyboard: arrow keys and Enter in the dropdown; in the calendar, arrow keys move the day, PageUp / PageDown change the month, Delete clears, Esc closes.
 - **Page HUD**: by default it only appears on the sites of the vendors you monitor (claude.ai, plus chatgpt.com and gemini.google.com once they are on). It shows one vendor at a time: whichever vendor is picked in the popup, the HUD in every tab switches at once to that vendor's own panel (MP / HP / SP for Claude, only MP / HP for ChatGPT and Gemini, and the same for the collapsed tab). Ticking "On every site (asks permission)" in settings is the only time the extension asks Chrome for access to all sites; once allowed, the HUD appears in the tabs already open, and unticking it gives the permission back. Its size is a slider in settings (100% - 200%; the pixels are sharpest at 100% and 200%). Drag it anywhere and it snaps to the nearest corner when released; collapse it into a 30x22 tab; it hides in full screen. It lives in a closed shadow DOM, so page styles do not touch it, and the pixel font works even on sites with a strict CSP.
@@ -102,6 +102,9 @@ An entry the account does not have is left out; when neither exists, the whole p
   - when any window reaches its reset time;
   - when you open the popup or come back to a tab (if the numbers are old);
   - only every 30 minutes while you are signed out.
+- **Errors say what to do**: when a fetch fails, the card says why and what to do next, with a button such as "Open claude.ai". When the site can't be reached it says "Lost contact with the guild: can't reach ..." and suggests opening the site to check it loads (the extension retries by itself); when the site answers with no usage data it gives that vendor's reason (ChatGPT: only accounts with Codex access have usage data; Gemini: its Settings > Usage has to show data). When several vendors are monitored, a failing vendor's tab carries a red "!" with the reason on hover, so it shows while another vendor's card is open.
+- **A refused permission is said out loud**: when you tick something that needs a permission and Chrome does not grant it, red text next to the switch says it stays off and that ticking it again asks again. This works even if the popup closed while Chrome asked: the next popup opens on settings to say so.
+- **Guide**: "Help > Guide" in settings (also linked at the foot of the data use notice) opens a page on reading the card, a table of each vendor's gauges, treasures and ranks (built from the vendor templates, so it always matches the cards) and common questions. "Feedback" opens this repository's GitHub issues.
 - **Languages**: English / Simplified Chinese / Japanese. It follows the browser (English for any other browser language) unless you pick one in settings.
 
 ## Install (developer mode)
@@ -111,7 +114,7 @@ An entry the account does not have is left out; when neither exists, the whole p
 3. Click "Load unpacked" and pick the repository's `extension/` folder.
 4. Make sure you are signed in to [claude.ai](https://claude.ai) in Chrome.
 5. A data use notice opens after install; click "Agree and start" to begin.
-6. claude.ai tabs that were open before the install need one reload before the HUD shows up. To show it on every site, tick "On every site" in the popup's settings.
+6. claude.ai tabs that were already open before the install (or an update) need no reload: once you agree to the data use notice (or, if you already had, once the update finishes), the extension adds its page script to them and the HUD shows up. To show it on every site, tick "On every site" in the popup's settings.
 
 There is no build step: `extension/` is everything Chrome loads.
 
@@ -141,7 +144,7 @@ At install it only asks for the permissions in the first table, so Chrome's inst
 | `storage` | Keeping usage snapshots and settings |
 | `alarms` | Timed refreshes, and refreshing at reset times |
 | `cookies` | Reading claude.ai's `lastActiveOrg`, to follow the organization you switch to on the site |
-| `scripting` | Once every site is allowed, registering the HUD script and adding it to open tabs |
+| `scripting` | After you agree to the data use notice (and after an update), adding the page script to monitored sites' tabs that were already open; once every site is allowed, registering the HUD script and adding it to open tabs |
 
 | Asked when needed (optional) | When |
 | --- | --- |
@@ -174,17 +177,21 @@ extension/
     time.js                   countdowns and time formats
     settings.js, store.js     settings and snapshots (chrome.storage.local)
     consent.js                consent to the data use notice: version, agree, withdraw (deletes usage data)
+    links.js                  the guide page and where to send feedback
     http.js                   the minimal HTTP interface a provider sees
   ui/                         theme and components (shared by the popup and the HUD)
     theme.css                 the guild card pixel theme
     card.js                   vendor card / gauge components
     pixel-icon.js             the toolbar icon's pixel art
     consent.js                the data use notice (in full on the welcome page, short in the popup)
+    confirm.js                the "Are you sure? Yes / No" question (before withdrawing consent)
   background/                 the only writer of data: polling, reset alarms, the tab proxy, the toolbar icon,
-                              recovery notifications (notify.js), all-sites permission and script registration (page-hud.js)
+                              recovery notifications (notify.js), all-sites permission, script registration and
+                              adding the page script to tabs that are already open (page-hud.js)
   content/                    the HUD + vendor page hooks (reply finished, proxied requests)
   popup/                      the popup
   welcome/                    the data use notice that opens at install
+  help/                       the guide: reading the card, each vendor's terms (from its template), questions
 ```
 
 Data flow:
@@ -248,7 +255,8 @@ npm run store:assets     # renders the store screenshots, promo tiles and store 
 
 `npm run preview` needs `npm install` and `npx playwright install chromium` first. It loads two copies of the extension in turn, the one as shipped (no optional permissions) and one with the optional permissions granted, and checks that:
 
-- a fresh install opens the data use notice; before agreeing, no request is sent (not even after a reply finishes), nothing is stored, no HUD shows and the popup shows only the short notice; agreeing fetches at once and shows the HUD; withdrawing deletes the usage data and hides the HUD, and agreeing again restores both;
+- a fresh install opens the data use notice; before agreeing, no request is sent (not even after a reply finishes), nothing is stored, no HUD shows and the popup shows only the short notice; agreeing fetches at once and shows the HUD (just one HUD in a tab that was already open); withdrawing asks first (the focus is on "Cancel", and Esc deletes nothing), and once confirmed deletes the usage data and hides the HUD; agreeing again restores both, and a page script left behind by an older version is replaced without reloading the tab;
+- a permission Chrome did not grant is said next to its switch, once, even if the popup closed while Chrome asked;
 - by default the HUD appears on claude.ai only, not on other sites, and no script is registered;
 - when the direct background request is blocked, data comes through a claude.ai tab, with both pouch entries parsed correctly;
 - the gauges refresh after a reply finishes;
@@ -260,10 +268,11 @@ npm run store:assets     # renders the store screenshots, promo tiles and store 
 - Gemini: once ticked, data comes through a gemini.google.com tab; the page hands back only the session token, the usage call's form and parameters are exactly right, and its card only has MP / HP and sapphires, with no other vendor's treasure; the HUD switches to Gemini too, and a reply finishing there fetches again;
 - picking a vendor tab in the popup switches the HUD on chatgpt.com and on ordinary pages, and the toolbar tooltip, to that vendor (the ChatGPT panel has no SP, collapsed or not), and picking Claude switches them all back;
 - the popup, its settings and the short notice before consent stay inside the card in Chinese, Japanese and English, with dates set and the calendar open;
+- the guide opens from settings and from the data use notice (the two link to each other); in all three languages every string is translated and filled in, every vendor's gauges and treasures are listed, and at 640 and 360 pixels wide nothing leaves the card and nothing scrolls sideways;
 - the refresh interval slider (mouse wheel, arrow keys) goes from 1 to 30 minutes and the timer follows; the HUD at 200% is exactly twice the size;
 - switching Claude off shows a hint in the popup and hides the HUD, and switching it back on restores both.
 
 
 ## Font
 
-The UI font is [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) (the 12px proportional variant, which includes glyphs from Ark Pixel Font), under the SIL Open Font License 1.1. The repository only keeps the ~380 glyphs the UI uses (about 12 KB), renamed `WAM Guild Pixel`; the license is in `extension/assets/fonts/`.
+The UI font is [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) (the 12px proportional variant, which includes glyphs from Ark Pixel Font), under the SIL Open Font License 1.1. The repository only keeps the ~730 glyphs the UI uses (about 21 KB), renamed `WAM Guild Pixel`; the license is in `extension/assets/fonts/`.

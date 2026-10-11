@@ -13,6 +13,13 @@
  * @property {number} attemptedAt                    Epoch ms of the last attempt.
  */
 
+/** What a failed refresh says, by snapshot status (keys in core/messages.js). */
+export const STATUS_MESSAGES = Object.freeze({
+  signed_out: 'error.signedOut',
+  unreachable: 'error.unreachable',
+  no_data: 'error.noData',
+});
+
 const PREFIX = 'snapshot:';
 
 export function snapshotKey(providerId) {

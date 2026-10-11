@@ -1,18 +1,13 @@
 import { buildGaugeViews, viewForRole } from '../core/gauges.js';
 import { label } from '../core/i18n.js';
 import { roleOf } from '../core/roles.js';
+import { STATUS_MESSAGES } from '../core/store.js';
 import { formatBadgeDuration, formatClock } from '../core/time.js';
 import { iconPixels } from '../ui/pixel-icon.js';
 
 const BADGE_TEXT = '#f7ead0';
 const BADGE_ALERT = '#9e2b25';
 const BADGE_QUIET = '#74553a';
-
-const STATUS_KEYS = Object.freeze({
-  signed_out: 'error.signedOut',
-  unreachable: 'error.unreachable',
-  no_data: 'error.noData',
-});
 
 /**
  * Paint the toolbar button: live mini gauges in the icon, a badge only when
@@ -62,7 +57,7 @@ export async function paintAction(provider, snapshot, t, now) {
     lines.push(line);
   }
   if (snapshot && snapshot.status !== 'ok') {
-    lines.push(t(STATUS_KEYS[snapshot.status] ?? 'error.unreachable', { site: provider.site }));
+    lines.push(t(STATUS_MESSAGES[snapshot.status] ?? STATUS_MESSAGES.unreachable, { site: provider.site }));
   }
   await chrome.action.setTitle({ title: lines.join('\n') });
   return ticking;

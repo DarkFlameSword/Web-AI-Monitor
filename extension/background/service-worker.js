@@ -14,7 +14,7 @@ import { providerIdOfKey, readSnapshot, writeSnapshot } from '../core/store.js';
 import { PROVIDERS, getProvider, originPattern } from '../providers/index.js';
 import { paintAction, paintIdle } from './action-icon.js';
 import { listenForClicks, notifyRecoveries } from './notify.js';
-import { ALL_SITES, injectOpenTabs, injectVendorTabs, syncPageScripts, syncVendorScripts } from './page-hud.js';
+import { ALL_SITES, injectOpenPages, injectOpenTabs, injectVendorTabs, syncPageScripts, syncVendorScripts } from './page-hud.js';
 import { fetchUsage } from './transport.js';
 
 /*
@@ -179,6 +179,26 @@ function setUp(reason) {
 
 listenForClicks();
 
+/** Time for a page script just added to load before a fetch asks through its tab. */
+const PAGE_SCRIPT_SETTLE_MS = 500;
+/** The most the first fetch waits for that: a tab still loading takes its script late. */
+const REACH_WAIT_MS = 2000;
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Agreed already: add the page script to the monitored vendors' tabs (and
+ * every site's, if on) that were open before this install, update or consent.
+ * Resolves when those scripts are likely up, so a fetch can ask through them.
+ */
+async function reachOpenPages() {
+  const settings = await loadSettings();
+  if (!hasConsent(settings)) return;
+  const reaching = injectOpenPages(enabledProviders(PROVIDERS, settings), settings.hud)
+    .then(reached => reached && wait(PAGE_SCRIPT_SETTLE_MS));
+  await Promise.race([reaching, wait(REACH_WAIT_MS)]);
+}
+
 /** The data use notice opens in a tab on install, and after an update while it is not agreed. */
 async function welcome(reason) {
   if (reason !== 'install' && reason !== 'update') return;
@@ -187,8 +207,12 @@ async function welcome(reason) {
 }
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
-  setUp('install');
   welcome(reason).catch(error => console.warn('[Web AI Monitor] welcome page failed:', error));
+  // After an update the open tabs' page scripts are orphaned, and the first
+  // fetch may need to ask through one: give them a new one first.
+  reachOpenPages()
+    .catch(error => console.warn('[Web AI Monitor] open pages not reached:', error))
+    .finally(() => setUp('install'));
 });
 chrome.runtime.onStartup.addListener(() => setUp('startup'));
 
@@ -242,9 +266,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   if (changes[SETTINGS_KEY]) {
     ensurePollAlarm();
-    // Just agreed to the data use notice: the first fetch.
+    // Just agreed to the data use notice: reach the pages already open (their
+    // tabs may be needed to fetch through), then the first fetch.
     const { oldValue, newValue } = changes[SETTINGS_KEY];
-    if (!hasConsent(normalizeSettings(oldValue)) && hasConsent(normalizeSettings(newValue))) refreshAll('install');
+    if (!hasConsent(normalizeSettings(oldValue)) && hasConsent(normalizeSettings(newValue))) {
+      reachOpenPages()
+        .catch(error => console.warn('[Web AI Monitor] open pages not reached:', error))
+        .finally(() => refreshAll('install'));
+    }
   }
   if (changes[SETTINGS_KEY] || Object.keys(changes).some(key => providerIdOfKey(key))) repaint();
 });

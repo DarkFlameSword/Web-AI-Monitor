@@ -1,6 +1,7 @@
 import { ALL_SITES } from '../background/page-hud.js';
 import { PRIVACY_POLICY_URL, WELCOME_PATH, giveConsent, hasConsent, withdrawConsent } from '../core/consent.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
+import { FEEDBACK_URL, HELP_PATH } from '../core/links.js';
 import { DEFAULT_LANG, LANG_NAMES, LANG_TAGS, LANGS } from '../core/messages.js';
 import { subscriptionTerm } from '../core/rank.js';
 import {
@@ -13,10 +14,11 @@ import {
   normalizeSettings,
   updateSettings,
 } from '../core/settings.js';
-import { providerIdOfKey, readSnapshots } from '../core/store.js';
+import { STATUS_MESSAGES, providerIdOfKey, readSnapshots } from '../core/store.js';
 import { formatDate } from '../core/time.js';
 import { PROVIDERS, originPattern } from '../providers/index.js';
 import { ProviderCard } from '../ui/card.js';
+import { confirmChoice } from '../ui/confirm.js';
 import { consentNotice } from '../ui/consent.js';
 import { CREST, CREST_PALETTE, h, pixelArt } from '../ui/dom.js';
 import { pixelDate, pixelSelect } from './controls.js';
@@ -31,7 +33,44 @@ const state = {
   refreshing: false,
   /** Optional permissions currently granted; vendors by provider id. */
   perms: { allSites: false, notify: false, vendors: {} },
+  /** The permission Chrome last did not grant: 'allSites', 'notify' or 'vendor:<id>'. */
+  denied: null,
 };
+
+/**
+ * Chrome asks for a permission in its own dialog, and the popup may close
+ * while it does. So the request is remembered for the browser session, and
+ * if the permission is still missing when the popup opens again, it says so.
+ */
+const ASKING_KEY = 'wam:asking';
+const ASKING_FRESH_MS = 10 * 60_000;
+
+/** Must be called inside the click: Chrome only asks during a user gesture. */
+function askPermission(what, query) {
+  const asked = chrome.permissions.request(query);
+  chrome.storage.session.set({ [ASKING_KEY]: { what, at: Date.now() } }).catch(() => {});
+  state.denied = null;
+  return asked
+    .catch(() => false)
+    .then(granted => {
+      chrome.storage.session.remove(ASKING_KEY).catch(() => {});
+      if (!granted) state.denied = what;
+      return granted;
+    });
+}
+
+const isGranted = (what, perms) => (what === 'allSites' ? perms.allSites
+  : what === 'notify' ? perms.notify
+    : Boolean(perms.vendors[String(what).replace(/^vendor:/, '')]));
+
+/** A request the popup closed on, and Chrome did not grant. */
+async function deniedWhileClosed(perms) {
+  const asking = (await chrome.storage.session.get(ASKING_KEY).catch(() => ({})))[ASKING_KEY];
+  if (!asking) return null;
+  await chrome.storage.session.remove(ASKING_KEY).catch(() => {});
+  if (Date.now() - asking.at > ASKING_FRESH_MS || isGranted(asking.what, perms)) return null;
+  return asking.what;
+}
 
 let t = createTranslator(DEFAULT_LANG);
 const translators = new Map();
@@ -52,6 +91,8 @@ const settingsCmd = h(doc, 'button', {
   type: 'button',
   onclick: () => {
     state.view = state.view === 'settings' ? 'status' : 'settings';
+    // Leaving settings unanswered is a "no".
+    if (state.view !== 'settings') closeWithdrawAsk();
     render();
   },
 });
@@ -132,7 +173,7 @@ const providerChecks = PROVIDERS.map(provider => ({
     if (checked && provider.optionalPermission) {
       // Asking for the vendor's site must start inside the click. Once it is
       // granted the worker also switches the vendor on, in case the popup closed.
-      chrome.permissions.request({ origins: [originPattern(provider)] })
+      askPermission(`vendor:${provider.id}`, { origins: [originPattern(provider)] })
         .then(granted => granted && updateSettings(draft => { draft.providers[provider.id] = true; }))
         .then(saved => saved && requestRefresh('manual'))
         .finally(refreshPermissions);
@@ -184,7 +225,7 @@ const hudShow = checkbox(checked => updateSettings(draft => { draft.hud.enabled 
 // grants into settings, in case the popup closes while Chrome asks.
 const hudEverywhere = checkbox(checked => {
   if (checked) {
-    chrome.permissions.request({ origins: [...ALL_SITES] })
+    askPermission('allSites', { origins: [...ALL_SITES] })
       .then(granted => granted && updateSettings(draft => { draft.hud.enabled = true; draft.hud.everywhere = true; }))
       .finally(refreshPermissions);
   } else {
@@ -193,9 +234,10 @@ const hudEverywhere = checkbox(checked => {
   }
 });
 const hudEverywhereHint = h(doc, 'span', { class: 'set-hint wrap' });
+const notifyHint = h(doc, 'span', { class: 'set-hint wrap' });
 const notifyRecovered = checkbox(checked => {
   if (checked) {
-    chrome.permissions.request({ permissions: ['notifications'] })
+    askPermission('notify', { permissions: ['notifications'] })
       .then(granted => granted && updateSettings(draft => { draft.notify.recovered = true; }))
       .finally(refreshPermissions);
   } else {
@@ -213,6 +255,7 @@ const labels = {
   notify: h(doc, 'span', { class: 'set-label' }),
   poll: h(doc, 'span', { class: 'set-label' }),
   data: h(doc, 'span', { class: 'set-label' }),
+  help: h(doc, 'span', { class: 'set-label' }),
 };
 const privacyNote = h(doc, 'p', { class: 'set-note' });
 
@@ -224,18 +267,48 @@ function openPage(url) {
 const dataCmds = {
   details: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => openPage(chrome.runtime.getURL(WELCOME_PATH)) }),
   policy: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => openPage(PRIVACY_POLICY_URL) }),
-  withdraw: h(doc, 'button', {
-    class: 'cmd',
-    type: 'button',
-    onclick: () => withdrawConsent().then(next => {
+  withdraw: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => askWithdraw() }),
+};
+const withdrawHint = h(doc, 'span', { class: 'set-hint wrap' });
+/** The guide to what the card shows, and where to report a problem. */
+const helpCmds = {
+  guide: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => openPage(chrome.runtime.getURL(HELP_PATH)) }),
+  feedback: h(doc, 'button', { class: 'cmd', type: 'button', onclick: () => openPage(FEEDBACK_URL) }),
+};
+
+/**
+ * Withdrawing stops everything and deletes the usage data, so it asks first:
+ * the question takes the command's place until it is answered.
+ */
+let withdrawAsk = null;
+function askWithdraw() {
+  withdrawAsk = confirmChoice(doc, {
+    question: t('consent.withdrawAsk'),
+    yes: t('consent.withdrawYes'),
+    no: t('action.cancel'),
+    onYes: () => withdrawConsent().then(next => {
+      closeWithdrawAsk();
       state.settings = next;
       state.snapshots = {};
       state.view = 'status';
       render();
     }),
-  }),
-};
-const withdrawHint = h(doc, 'span', { class: 'set-hint wrap' });
+    onNo: () => {
+      closeWithdrawAsk();
+      dataCmds.withdraw.focus();
+    },
+  });
+  dataCmds.withdraw.hidden = true;
+  withdrawHint.hidden = true;
+  dataCmds.withdraw.after(withdrawAsk.el);
+  withdrawAsk.focus();
+}
+function closeWithdrawAsk() {
+  withdrawAsk?.el.remove();
+  withdrawAsk = null;
+  dataCmds.withdraw.hidden = false;
+  withdrawHint.hidden = false;
+}
 const row = (label, controls) => h(doc, 'div', { class: 'set-row' }, [label, h(doc, 'div', { class: 'set-col' }, controls)]);
 
 settingsView.append(
@@ -243,9 +316,10 @@ settingsView.append(
   row(labels.providers, [...providerChecks.flatMap(item => [item.check.wrap, item.hint]), providersMore]),
   row(labels.expiry, [...expiryFields.map(item => item.wrap), expiryHint, expiryAutoHint]),
   row(labels.hud, [hudShow.wrap, hudEverywhere.wrap, hudEverywhereHint, h(doc, 'div', { class: 'set-inline' }, [labels.size, sizeSlider.wrap])]),
-  row(labels.notify, notifyRecovered.wrap),
+  row(labels.notify, [notifyRecovered.wrap, notifyHint]),
   row(labels.poll, pollSlider.wrap),
   row(labels.data, [dataCmds.details, dataCmds.policy, dataCmds.withdraw, withdrawHint]),
+  row(labels.help, h(doc, 'div', { class: 'set-cmds' }, [helpCmds.guide, helpCmds.feedback])),
   h(doc, 'div', { class: 'rule' }),
   privacyNote,
 );
@@ -260,11 +334,13 @@ function renderSettings() {
   labels.notify.textContent = t('settings.notify');
   labels.poll.textContent = t('settings.poll');
   labels.data.textContent = t('settings.data');
+  labels.help.textContent = t('settings.help');
   dataCmds.details.textContent = t('consent.details');
   dataCmds.policy.textContent = t('consent.policy');
   dataCmds.withdraw.textContent = t('consent.withdraw');
   withdrawHint.textContent = t('consent.withdrawHint');
-  hudEverywhereHint.textContent = t('settings.hudEverywhereHint');
+  helpCmds.guide.textContent = t('help.title');
+  helpCmds.feedback.textContent = t('help.report');
   providersMore.textContent = t('settings.providersMore');
   expiryHint.textContent = t('settings.rankExpiryHint');
   privacyNote.textContent = t('settings.privacy');
@@ -277,13 +353,19 @@ function renderSettings() {
   langSelect.setLabel(t('settings.language'));
 
   const watching = monitored();
+  // Chrome did not grant the last permission asked for (and still has not).
+  const denied = state.denied && !isGranted(state.denied, state.perms) ? state.denied : null;
+  const deniedHint = (el, what, usual) => {
+    el.textContent = denied === what ? t('settings.denied') : usual;
+    el.classList.toggle('denied', denied === what);
+  };
   for (const { provider, check, hint } of providerChecks) {
     check.input.checked = watching.includes(provider);
     check.text.textContent = provider.name;
     check.extra.textContent = provider.optionalPermission && !check.input.checked ? t('settings.needsPermission') : '';
     // What switching it on reads: said before Chrome asks, not needed once it is on.
     if (hint) {
-      hint.textContent = t('settings.vendorHint', { site: provider.site });
+      deniedHint(hint, `vendor:${provider.id}`, t('settings.vendorHint', { site: provider.site }));
       hint.hidden = check.input.checked;
     }
   }
@@ -310,9 +392,12 @@ function renderSettings() {
   hudEverywhere.input.checked = settings.hud.everywhere && state.perms.allSites;
   hudEverywhere.input.disabled = !settings.hud.enabled;
   hudEverywhere.text.textContent = t('settings.hudEverywhere');
+  deniedHint(hudEverywhereHint, 'allSites', t('settings.hudEverywhereHint'));
   hudEverywhereHint.hidden = hudEverywhere.input.checked;
   notifyRecovered.input.checked = settings.notify.recovered && state.perms.notify;
   notifyRecovered.text.textContent = t('settings.notifyRecovered');
+  deniedHint(notifyHint, 'notify', '');
+  notifyHint.hidden = denied !== 'notify';
 }
 
 // ----------------------------------------------------------------- status
@@ -338,18 +423,25 @@ function renderTabs(watching, active) {
   tabs.setAttribute('aria-label', t('popup.tabs'));
   tabs.replaceChildren(...watching.map(provider => {
     const selected = provider === active;
+    // A vendor whose last refresh failed gets a "!", its reason on hover, so
+    // it shows while another vendor's card is open.
+    const status = state.snapshots[provider.id]?.status;
+    const problem = status && status !== 'ok' ? STATUS_MESSAGES[status] ?? STATUS_MESSAGES.unreachable : null;
+    const reason = problem ? translatorFor(provider)(problem, { site: provider.site }) : null;
     return h(doc, 'button', {
       class: selected ? 'cmd tab selected' : 'cmd tab',
       type: 'button',
       role: 'tab',
       'aria-selected': String(selected),
+      title: reason,
+      'aria-label': reason ? `${provider.name}: ${reason}` : null,
       // Saved in settings, so the page HUD and the toolbar icon switch too.
       onclick: () => {
         state.settings = { ...state.settings, activeProvider: provider.id };
         render();
         updateSettings(draft => { draft.activeProvider = provider.id; });
       },
-    }, provider.name);
+    }, [provider.name, reason ? h(doc, 'span', { class: 'tab-alert', 'aria-hidden': 'true', text: '!' }) : null]);
   }));
 }
 
@@ -484,6 +576,8 @@ const [settings, snapshots, perms] = await Promise.all([
   readSnapshots(PROVIDERS.map(provider => provider.id)),
   readPermissions(),
 ]);
-Object.assign(state, { settings, snapshots, perms });
+Object.assign(state, { settings, snapshots, perms, denied: await deniedWhileClosed(perms) });
+// Said where it was asked for: in settings.
+if (state.denied && hasConsent(settings)) state.view = 'settings';
 render();
 if (hasConsent(settings)) requestRefresh('popup');

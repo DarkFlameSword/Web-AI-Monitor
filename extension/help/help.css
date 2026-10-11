@@ -1,0 +1,104 @@
+/* The guide, on the welcome page's card (welcome.css). */
+
+.help .help-p {
+  margin: 0 0 6px;
+  color: var(--ink-2);
+}
+
+.help .consent-heading {
+  margin-top: 14px;
+}
+
+/* One vendor's terms, in a small framed window. */
+.help-vendor {
+  margin: 8px 1px 0;
+  padding: 6px 8px 8px;
+  background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--frame-2),
+    0 1px 0 0 var(--frame-2),
+    -1px 0 0 0 var(--frame-2),
+    1px 0 0 0 var(--frame-2);
+}
+
+.help-vendor-name {
+  margin: 0;
+  font: inherit;
+  color: var(--ink);
+}
+
+.help-sub {
+  margin: 6px 0 2px;
+  color: var(--ink-3);
+}
+
+/* Term on the left, what it stands for on the right. */
+.help-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.help-grid dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
+
+.help-grid dd {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.help-abbr.role-mp {
+  color: var(--mp-text);
+}
+
+.help-abbr.role-hp {
+  color: var(--hp-text);
+}
+
+.help-abbr.role-sp {
+  color: var(--sp-text);
+}
+
+.help-abbr.role-ex {
+  color: var(--ex-text);
+}
+
+.help-faq {
+  margin: 0;
+}
+
+.help-faq dt {
+  margin-top: 8px;
+  color: var(--ink);
+}
+
+.help-faq dd {
+  margin: 2px 0 0;
+  padding-left: 12px;
+  color: var(--ink-2);
+}
+
+.help-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+}
+
+.help-links a {
+  color: var(--seal);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.help-links a:hover,
+.help-links a:focus-visible {
+  color: var(--seal-lo);
+  outline: none;
+  text-decoration-style: solid;
+}
