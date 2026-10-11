@@ -6,7 +6,8 @@
 //   store-icon.png                 128x128
 //
 // Promo tiles cannot be localized in the store, so they carry only the
-// name and the icon (and an English HUD on the marquee).
+// name and the icon (and an English HUD on the marquee), in the same browser
+// window as the screenshots.
 //
 // The popup and the page HUD in them are the extension's own, captured from
 // Chromium against the mocked vendor sites (scripts/harness.mjs). Captions
@@ -226,16 +227,18 @@ const skeleton = widths => widths.map(width => `<div class="sk" style="width:${w
  * Every screenshot is the same plain browser window with the caption on its
  * page, and the extension where it really appears: popups hang from its
  * toolbar icon, the HUD sits in the page's corner. Placeholder text fills
- * the page where nothing else is (under the caption it is filled to fit
- * when drawn), so nothing overlaps.
+ * the page where nothing else is (under or beside the caption it is filled
+ * to fit when drawn), so nothing overlaps.
  *
- * @param {{caption: string, media: string, article: 'middle' | 'under', popup?: boolean}} scene
+ * @param {{caption: string, media: string, article: 'middle' | 'under' | 'beside', popup?: boolean}} scene
  */
 function browserScene({ caption, media, article, popup = false }) {
   const page = article === 'middle'
     ? `${caption}<div class="article middle"><div class="h"></div>${skeleton([100, 92, 96, 70, 100, 88, 94, 60])}`
       + `<div class="h next"></div>${skeleton([100, 90, 96, 84, 52])}</div>`
-    : `<div class="left">${caption}<div class="article" data-fill><div class="h"></div></div></div>`;
+    : article === 'beside'
+      ? `${caption}<div class="article beside" data-fill><div class="h"></div></div>`
+      : `<div class="left">${caption}<div class="article" data-fill><div class="h"></div></div></div>`;
   return `
 <div class="win">
   <div class="tabs"><div class="tab"></div></div>
@@ -271,28 +274,45 @@ function screenshotHtml(index, locale, img) {
   }
 }
 
+/**
+ * The promo tiles stand in the screenshots' browser window: the name and the
+ * icon on a card where a screenshot has its caption, placeholder text beside
+ * it and, on the marquee, the HUD in the page's corner. The small tile draws
+ * the window at half size, so its name and icon stay large.
+ */
 function promoHtml(kind) {
+  const card = `
+.page > .tile { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.tile .icon { flex: none; }
+.tile h1 { margin: 0; font-weight: 400; color: #3b2412; white-space: nowrap; }
+.article.beside { position: absolute; }`;
+  const tile = '<div class="tile parchment"><img class="icon pixel" src="/icon.png" alt=""><h1>Web AI Monitor</h1></div>';
   if (kind === 'small') {
     return `
-<style>
-.tile { position: absolute; left: 24px; top: 24px; right: 32px; bottom: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.tile .icon { width: 96px; height: 96px; flex: none; margin-bottom: 12px; }
-.tile h1 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 400; color: #3b2412; white-space: nowrap; }
-.tile h2 { margin: 4px 0 0; font-size: 24px; line-height: 32px; font-weight: 400; color: #9e2b25; white-space: nowrap; }
+<style>${card}
+.tabs { height: 20px; padding-left: 8px; }
+.tab { width: 110px; height: 16px; border-radius: 4px 4px 0 0; }
+.bar { height: 22px; gap: 8px; padding: 0 8px; }
+.url { height: 15px; border-radius: 8px; }
+.icon { width: 16px; height: 16px; }
+.page { top: 42px; }
+.article .h { height: 14px; margin-bottom: 16px; }
+.article .sk { height: 6px; margin-bottom: 10px; }
+.page > .tile { left: 24px; top: 20px; width: 220px; height: 188px; padding: 0 16px; }
+.tile .icon { width: 96px; height: 96px; margin-bottom: 12px; }
+.tile h1 { font-size: 24px; line-height: 32px; }
+.article.beside { left: 268px; top: 24px; width: 148px; }
 </style>
-<div class="tile parchment"><img class="icon pixel" src="/icon.png" alt=""><h1>Web AI Monitor</h1></div>`;
+${browserScene({ caption: tile, article: 'beside', media: '' })}`;
   }
   return `
-<style>
-.tile { position: absolute; left: 56px; top: 56px; bottom: 64px; width: 780px; display: flex; align-items: center; gap: 48px; padding: 0 48px; }
-.tile .icon { width: 192px; height: 192px; flex: none; }
-.tile h1 { margin: 0; font-size: 48px; line-height: 64px; font-weight: 400; color: #3b2412; white-space: nowrap; }
-.tile h2 { margin: 8px 0 0; font-size: 36px; line-height: 48px; font-weight: 400; color: #9e2b25; white-space: nowrap; }
-.tile p { margin: 24px 0 0; font-size: 24px; line-height: 32px; color: #74553a; white-space: nowrap; }
-.side { position: absolute; left: 880px; right: 40px; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; }
+<style>${card}
+.page > .tile { left: 56px; top: 48px; width: 440px; height: 376px; padding: 0 32px; }
+.tile .icon { width: 192px; height: 192px; margin-bottom: 24px; }
+.tile h1 { font-size: 48px; line-height: 64px; }
+.article.beside { left: 552px; top: 56px; width: 320px; }
 </style>
-<div class="tile parchment"><img class="icon pixel" src="/icon.png" alt=""><div><h1>Web AI Monitor</h1></div></div>
-<div class="side"><img src="/img/hud-claude@2x.png" alt=""></div>`;
+${browserScene({ caption: tile, article: 'beside', media: '<div class="media corner"><img class="shot" src="/img/hud-claude@2x.png" alt=""></div>' })}`;
 }
 
 const SIZES = { screenshot: [1280, 800], small: [440, 280], marquee: [1400, 560] };
@@ -348,7 +368,7 @@ async function render(browser, captures, fonts) {
     // Nothing may cross its area's edge (the stage, or the page under the
     // browser's toolbar) or lie on top of another block.
     const clash = await page.evaluate(() => {
-      const blocks = [...document.querySelectorAll('.caption, .tile, .shot, .side img, .article')]
+      const blocks = [...document.querySelectorAll('.caption, .tile, .shot, .article')]
         .map(el => ({ el, r: el.getBoundingClientRect(), area: (el.closest('.page') ?? el.closest('.stage')).getBoundingClientRect() }));
       const out = blocks.filter(({ r, area }) => r.left < area.left || r.top < area.top || r.right > area.right || r.bottom > area.bottom)
         .map(({ el }) => `outside: ${el.className || el.tagName}`);

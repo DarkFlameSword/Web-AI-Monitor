@@ -14,7 +14,7 @@
 > **0.8.1 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子；按尼尔森可用性原则改进：出错时写明原因和下一步、出错的厂商标签带「!」、撤回同意前先确认、Chrome 没给权限时会说明、新增使用说明页、同意或更新后已打开的标签页不用刷新；设置里的「数据与隐私」默认收起。** 0.6.0、0.7.0、0.7.1、0.8.0 都没有发布，直接提交 0.8.1，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
 >
 > 1. Package：上传 `dist/web-ai-monitor-0.8.1.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
-> 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。商店图标和小宣传图不用换；大宣传图如果上传过，也换成新的。
+> 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。小宣传图换成新的（背景改成了和截图一样的浏览器窗口），大宣传图如果上传过也换；商店图标不用换。
 > 3. Privacy：Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节）。数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变。
 > 4. Test instructions：替换（第 6 节）。
 >
@@ -68,7 +68,7 @@ npm run store:assets              # 重新生成 docs/store/images/ 下的全部
 
 第一次运行还会用 `npm pack` 下载完整的 Fusion Pixel Font（放在 `.cache/`），所以需要联网。
 
-截图里的弹窗和悬浮窗都是扩展本身在 Chromium 里渲染的真实界面（数据来自模拟的 claude.ai / chatgpt.com），说明文字用完整的 Fusion Pixel Font 排版。五张截图都放在同一个浏览器窗口场景里：弹窗从工具栏的扩展图标下方垂下，悬浮窗在网页右下角，说明框在网页左上角，其余空白用占位文章补满。脚本会检查每张图里文字不超出说明框、各块互不重叠、都不超出网页区域。
+截图里的弹窗和悬浮窗都是扩展本身在 Chromium 里渲染的真实界面（数据来自模拟的 claude.ai / chatgpt.com），说明文字用完整的 Fusion Pixel Font 排版。五张截图都放在同一个浏览器窗口场景里：弹窗从工具栏的扩展图标下方垂下，悬浮窗在网页右下角，说明框在网页左上角，其余空白用占位文章补满。两张宣传图也放在同一个浏览器窗口里：名称和图标的卡片在说明框的位置，旁边是占位文章，大宣传图的右下角是悬浮窗；小宣传图把窗口画成一半大，名称和图标保持够大。脚本会检查每张图里文字不超出说明框或卡片、各块互不重叠、都不超出网页区域。
 
 截图和宣传图都是 24 位 PNG、无透明通道（后台要求「JPEG or 24-bit PNG (no alpha)」）；商店图标按规范带透明边距。五张截图依次是：能量条、页内悬浮窗、Claude 和 ChatGPT 各自的卡片、悬浮窗跟随切换、设置。
 
@@ -78,8 +78,8 @@ npm run store:assets              # 重新生成 docs/store/images/ 下的全部
 | --- | --- | --- |
 | Store icon | `store-icon.png` | 128x128，图案 96x96 + 每边 16px 透明边距 |
 | Global assets → Global screenshots（必填） | `en/screenshot-1..5.png` | 所有没有单独上传截图的语言都显示这一组，所以放英文 |
-| Global assets → Small promo tile | `promo-small.png` | 440x280；宣传图不能按语言区分，所以只放名称和图标 |
-| Global assets → Marquee promo tile | `promo-marquee.png` | 1400x560，可选 |
+| Global assets → Small promo tile | `promo-small.png` | 440x280；宣传图不能按语言区分，所以只放名称和图标，背景和截图一样是浏览器窗口 |
+| Global assets → Marquee promo tile | `promo-marquee.png` | 1400x560，可选；同样的浏览器窗口，右下角是英文悬浮窗 |
 | Localized assets → Localized screenshots | 中文：`zh_CN/screenshot-1..5.png`；日文：`ja/screenshot-1..5.png` | **每种语言分别上传**，见下 |
 | 两个 promo video | 留空 | 可选 |
 
