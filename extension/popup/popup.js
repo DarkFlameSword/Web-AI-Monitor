@@ -96,7 +96,11 @@ function slider({ min, max, step, format, onCommit }) {
     clearTimeout(timer);
     onCommit(Number(input.value));
   };
-  const show = () => { value.textContent = format(Number(input.value)); };
+  const show = () => {
+    value.textContent = format(Number(input.value));
+    // How far the gauge is filled, for the track's gold.
+    input.style.setProperty('--pct', String((Number(input.value) - min) / (max - min)));
+  };
   input.addEventListener('input', show);
   input.addEventListener('change', commit);
   input.addEventListener('wheel', event => {

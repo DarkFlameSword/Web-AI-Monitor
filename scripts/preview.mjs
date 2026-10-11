@@ -55,7 +55,8 @@ async function main() {
       console.log(results.at(-1));
     }
   };
-  const shoot = (target, name) => target.screenshot({ path: join(outDir, `${name}.png`) });
+  // Animations stopped, so the menu cursor and the gauges hold still for the shot.
+  const shoot = (target, name) => target.screenshot({ path: join(outDir, `${name}.png`), animations: 'disabled' });
 
   // ------------------------------------------------- default build
   {

@@ -79,6 +79,7 @@ body {
 
 .set-sub {
   flex: none;
+  color: var(--ink-2);
 }
 
 /* A longer hint under a field: wraps instead of running past the card. */
@@ -97,8 +98,13 @@ body {
   color: var(--ink-3);
 }
 
-/* Checkbox drawn as a 10px pixel box with a pixel tick. */
+/*
+ * Checkbox: a sunken 10px slot with a vermilion tick. While the pointer or
+ * the keyboard is on it, the slot's frame turns vermilion and the menu
+ * cursor shows in the gap on its left.
+ */
 .pix-check {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -107,8 +113,36 @@ body {
 }
 
 .pix-check:has(input:disabled) {
-  color: var(--ink-3);
+  color: var(--ink-4);
   cursor: default;
+}
+
+.pix-check::before,
+.set-col > .cmd::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 4px;
+  width: 1px;
+  height: 1px;
+  color: var(--seal);
+  visibility: hidden;
+  background: currentColor;
+  box-shadow:
+    0 1px, 0 2px, 0 3px, 0 4px, 0 5px, 0 6px,
+    1px 1px, 1px 2px, 1px 3px, 1px 4px, 1px 5px,
+    2px 2px, 2px 3px, 2px 4px,
+    3px 3px;
+}
+
+.pix-check:hover::before,
+.pix-check:has(input:focus-visible)::before {
+  visibility: visible;
+  animation: wam-cursor 0.8s steps(1, end) infinite;
+}
+
+.pix-check:has(input:disabled)::before {
+  visibility: hidden;
 }
 
 .pix-check input {
@@ -127,10 +161,30 @@ body {
   margin: 1px;
   background: var(--paper-2);
   box-shadow:
+    inset 1px 1px 0 0 var(--paper-3),
     0 -1px 0 0 var(--ink),
     0 1px 0 0 var(--ink),
     -1px 0 0 0 var(--ink),
     1px 0 0 0 var(--ink);
+}
+
+.pix-check:hover .box,
+.pix-check input:focus-visible + .box {
+  box-shadow:
+    inset 1px 1px 0 0 var(--paper-3),
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
+}
+
+.pix-check:has(input:disabled) .box {
+  background: var(--paper);
+  box-shadow:
+    0 -1px 0 0 var(--ink-4),
+    0 1px 0 0 var(--ink-4),
+    -1px 0 0 0 var(--ink-4),
+    1px 0 0 0 var(--ink-4);
 }
 
 /* Two-pixel tick; the pseudo-element is its top-right pixel at (7, 2). */
@@ -151,12 +205,10 @@ body {
     -4px 4px, -3px 4px;
 }
 
-.pix-check input:focus-visible + .box {
-  outline: 1px dotted var(--seal);
-  outline-offset: 3px;
-}
-
-/* Slider: a notched ink track and a block thumb, plus its value. */
+/*
+ * Slider: a gauge. The gold fill runs up to the thumb (--pct, 0 to 1, is set
+ * by popup.js), and the thumb is a small vermilion plate.
+ */
 .pix-range {
   display: inline-flex;
   align-items: center;
@@ -164,6 +216,8 @@ body {
 }
 
 .pix-range input {
+  --pct: 0;
+  --fill: calc(3px + (100% - 6px) * var(--pct));
   appearance: none;
   width: 92px;
   height: 14px;
@@ -172,42 +226,56 @@ body {
   cursor: pointer;
 }
 
+.pix-range input:focus-visible {
+  outline: none;
+}
+
 .pix-range input:disabled {
   cursor: default;
   opacity: 0.5;
 }
 
 .pix-range input::-webkit-slider-runnable-track {
-  height: 4px;
-  background: var(--paper-3);
+  height: 6px;
+  background:
+    linear-gradient(var(--gold-hi), var(--gold-hi)) 0 0 / var(--fill) 1px no-repeat,
+    linear-gradient(var(--gold-lo), var(--gold-lo)) 0 100% / var(--fill) 1px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) 0 0 / var(--fill) 100% no-repeat,
+    var(--paper-3);
   box-shadow:
     0 -1px 0 0 var(--ink),
     0 1px 0 0 var(--ink),
     -1px 0 0 0 var(--ink),
     1px 0 0 0 var(--ink);
+}
+
+.pix-range input:not(:disabled):hover::-webkit-slider-runnable-track,
+.pix-range input:focus-visible::-webkit-slider-runnable-track {
+  box-shadow:
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
 }
 
 .pix-range input::-webkit-slider-thumb {
   appearance: none;
   width: 6px;
   height: 12px;
-  margin-top: -4px;
+  margin-top: -3px;
   background: var(--seal);
   box-shadow:
-    inset 0 1px 0 0 var(--hp-crit-hi),
+    inset 0 1px 0 0 var(--seal-hi),
+    inset 0 -1px 0 0 var(--seal-lo),
     0 -1px 0 0 var(--ink),
     0 1px 0 0 var(--ink),
     -1px 0 0 0 var(--ink),
     1px 0 0 0 var(--ink);
 }
 
-.pix-range input:focus-visible {
-  outline: 1px dotted var(--seal);
-  outline-offset: 3px;
-}
-
 .pix-range-value {
   min-width: 42px;
+  color: var(--ink);
   white-space: nowrap;
 }
 
@@ -258,9 +326,19 @@ body {
 /* A date the vendor reported: plain text where the date field would be. */
 .set-auto {
   margin-left: auto;
-  color: var(--ink-2);
+  color: var(--ink);
   line-height: 18px;
   white-space: nowrap;
+}
+
+/* Commands in a settings column line up with the checkboxes above them; their
+   cursor sits in the gap on the left, like the checkboxes' cursor. */
+.set-col > .cmd {
+  padding-left: 0;
+}
+
+.set-col > .cmd::before {
+  top: 4px;
 }
 
 /* ------------------------------------------- data use notice (popup) */

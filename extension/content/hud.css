@@ -39,6 +39,7 @@
   padding: 0 1px;
 }
 
+/* Collapse: a tiny bevelled plate, vermilion while pointed at. */
 .hud-btn {
   position: absolute;
   top: 7px;
@@ -54,6 +55,8 @@
   color: var(--ink-2);
   background: var(--paper-2);
   box-shadow:
+    inset 0 1px 0 0 var(--lag),
+    inset 0 -1px 0 0 var(--paper-3),
     0 -1px 0 0 var(--frame-2),
     0 1px 0 0 var(--frame-2),
     -1px 0 0 0 var(--frame-2),
@@ -63,9 +66,16 @@
 
 .hud-btn:hover,
 .hud-btn:focus-visible {
-  color: var(--paper);
-  background: var(--frame);
+  color: var(--seal);
+  background: var(--paper);
   outline: none;
+  box-shadow:
+    inset 0 1px 0 0 var(--lag),
+    inset 0 -1px 0 0 var(--paper-3),
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
 }
 
 /* Collapsed: a small tab with three mini gauges. */
@@ -82,9 +92,14 @@
   touch-action: none;
 }
 
+/* With the keyboard on it, its frame turns vermilion. */
 .hud-chip:focus-visible {
-  outline: 1px dotted var(--seal);
-  outline-offset: 3px;
+  outline: none;
+  box-shadow:
+    0 -2px 0 0 var(--seal),
+    0 2px 0 0 var(--seal),
+    -2px 0 0 0 var(--seal),
+    2px 0 0 0 var(--seal);
 }
 
 .hud-chip .mini {

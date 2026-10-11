@@ -46,11 +46,17 @@ body {
   color: var(--ink);
 }
 
+/* What just happened, in a message window. */
 .welcome-note {
-  margin: 0 0 10px;
+  margin: 0 1px 10px;
   padding: 4px 6px;
   color: var(--ink);
   background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--frame-2),
+    0 1px 0 0 var(--frame-2),
+    -1px 0 0 0 var(--frame-2),
+    1px 0 0 0 var(--frame-2);
 }
 
 .welcome-actions {
@@ -76,4 +82,13 @@ body {
 
 .welcome-foot a {
   color: var(--seal);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.welcome-foot a:hover,
+.welcome-foot a:focus-visible {
+  color: var(--seal-lo);
+  outline: none;
+  text-decoration-style: solid;
 }

@@ -11,16 +11,16 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.7.0 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取。** 0.6.0 没有发布，直接提交 0.7.0，不要发布 0.6.0。按第 9 节的步骤操作，后台要改的是：
+> **0.7.1 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子。** 0.6.0、0.7.0 都没有发布，直接提交 0.7.1，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
 >
-> 1. Package：上传 `dist/web-ai-monitor-0.7.0.zip`（`npm run package`）。0.6.0 还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
-> 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。商店图标和两张宣传图不用换。
+> 1. Package：上传 `dist/web-ai-monitor-0.7.1.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
+> 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。商店图标和小宣传图不用换；大宣传图如果上传过，也换成新的。
 > 3. Privacy：Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节）。数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变。
 > 4. Test instructions：替换（第 6 节）。
 >
 > Gemini 的取数和 ChatGPT 的订阅日期都只在模拟环境里验证过，提交前先用真实账号试一遍（第 9 节「本地准备」第 4 步）。
 >
-> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 从 1 升到了 3（2 只在没有发布的 0.6.0 里用过）：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
+> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 从 1 升到了 3（2 只在没有发布的 0.6.0 里用过；界面改版不涉及数据，不再升）：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
 
 ## 1. 提交前检查清单
 

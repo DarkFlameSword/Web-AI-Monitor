@@ -1,6 +1,11 @@
 /*
  * Pixel form controls (popup/controls.js): the dropdown and the calendar.
  * Shared by the popup and the welcome page; needs ui/theme.css first.
+ *
+ * A field is a bevelled plate (light top edge, shaded bottom edge) in a
+ * notched ink frame; the frame turns vermilion while the pointer or the
+ * keyboard is on it, or while its window is open. The open list or calendar
+ * is a sub-window: ink frame, an inner rule, and a drop shadow.
  */
 
 /* --------------------------------------------- pixel dropdown */
@@ -25,6 +30,8 @@
   text-align: left;
   background: var(--paper-2);
   box-shadow:
+    inset 0 1px 0 0 var(--lag),
+    inset 0 -1px 0 0 var(--paper-3),
     0 -1px 0 0 var(--ink),
     0 1px 0 0 var(--ink),
     -1px 0 0 0 var(--ink),
@@ -33,12 +40,20 @@
 }
 
 .pix-dd-btn:hover {
-  background: var(--paper-3);
+  background: var(--paper);
 }
 
-.pix-dd-btn:focus-visible {
-  outline: 1px dotted var(--seal);
-  outline-offset: 3px;
+.pix-dd-btn:hover,
+.pix-dd-btn:focus-visible,
+.pix-dd-btn[aria-expanded='true'] {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 0 var(--lag),
+    inset 0 -1px 0 0 var(--paper-3),
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
 }
 
 /* Pixel arrow pointing down. */
@@ -58,11 +73,17 @@
   pointer-events: none;
 }
 
+.pix-dd-btn:hover::after,
+.pix-dd-btn:focus-visible::after,
+.pix-dd-btn[aria-expanded='true']::after {
+  color: var(--seal);
+}
+
 .pix-dd-btn[aria-expanded='true']::after {
   transform: scaleY(-1);
 }
 
-/* The open list: a small parchment window with an offset pixel shadow. */
+/* The open list: a parchment sub-window, framed twice, casting a pixel shadow. */
 .pix-menu,
 .pix-cal {
   position: absolute;
@@ -70,15 +91,17 @@
   left: 1px;
   top: calc(100% + 4px);
   margin: 0;
-  padding: 4px 0;
+  padding: 4px 2px;
   list-style: none;
   background: var(--paper);
   box-shadow:
+    inset 0 0 0 1px var(--paper),
+    inset 0 0 0 2px var(--frame-2),
     0 -1px 0 0 var(--ink),
     0 1px 0 0 var(--ink),
     -1px 0 0 0 var(--ink),
     1px 0 0 0 var(--ink),
-    3px 3px 0 0 var(--paper-3);
+    3px 3px 0 0 var(--shade);
 }
 
 .pix-menu {
@@ -103,6 +126,10 @@
   background: var(--paper-2);
 }
 
+.pix-opt[aria-selected='true']:focus {
+  color: var(--seal);
+}
+
 /* Same pixel pointer as the menu commands. */
 .pix-opt:focus::before {
   content: '';
@@ -118,6 +145,7 @@
     1px 1px, 1px 2px, 1px 3px, 1px 4px, 1px 5px,
     2px 2px, 2px 3px, 2px 4px,
     3px 3px;
+  animation: wam-cursor 0.8s steps(1, end) infinite;
 }
 
 /* --------------------------------------------- pixel calendar */
@@ -145,6 +173,10 @@
   right: 1px;
   width: 172px;
   padding: 6px 6px 4px;
+}
+
+.pix-cal-title {
+  color: var(--ink);
 }
 
 .pix-cal-head {
@@ -231,11 +263,21 @@
 .pix-cal-day.selected {
   color: var(--seal-ink);
   background: var(--seal);
+  box-shadow:
+    inset 0 1px 0 0 var(--seal-hi),
+    inset 0 -1px 0 0 var(--seal-lo);
 }
 
+/* The keyboard's day: a vermilion frame, or a light one on the chosen day. */
 .pix-cal-day:focus-visible {
-  outline: 1px dotted var(--seal);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--seal);
+}
+
+.pix-cal-day.selected:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--seal-lo),
+    inset 0 0 0 2px var(--lag);
 }
 
 .pix-cal-foot {

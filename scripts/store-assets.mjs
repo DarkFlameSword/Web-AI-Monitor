@@ -87,7 +87,7 @@ async function capture(app, locale, scale) {
     hud: { enabled: true, everywhere: true, collapsed: false, scale: 1 },
     rankExpiry: { claude: later(29), chatgpt: later(12), gemini: later(20) },
   };
-  const shoot = async (target, name) => { shots[name] = await target.screenshot({ type: 'png', omitBackground: true }); };
+  const shoot = async (target, name) => { shots[name] = await target.screenshot({ type: 'png', omitBackground: true, animations: 'disabled' }); };
 
   // Claude alone: the gauges, pouch hidden, for the first image.
   await app.storage.set({ settings: { ...base, providers: { chatgpt: false, gemini: false }, activeProvider: 'claude' } });

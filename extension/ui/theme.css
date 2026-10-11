@@ -4,6 +4,16 @@
  * is one CSS pixel; the font is a 12px bitmap face, so sizes stay multiples
  * of it. Frames are drawn with offset box-shadows, which leaves the corners
  * notched like a pixel window.
+ *
+ * Controls follow one RPG menu language: fields are small bevelled plates,
+ * open lists and calendars are framed sub-windows with a drop shadow, and
+ * whatever the pointer or the keyboard is on gets a vermilion frame or the
+ * blinking triangle cursor (never the browser's dotted outline).
+ *
+ * Text inks, on --paper: --ink 11:1, --ink-2 6.8:1, --ink-3 5.2:1 (4.7:1 on
+ * --paper-2), all above the 4.5:1 small text needs. --ink-4 (3:1) is only
+ * for disabled controls. Gauge colors are for bars; their labels use the
+ * darker *-text inks.
  */
 
 .wam {
@@ -13,11 +23,19 @@
   --frame: #5b3a1e;
   --frame-2: #a27c4f;
   --ink: #3b2412;
-  --ink-2: #74553a;
-  --ink-3: #a68862;
+  --ink-2: #634630;
+  --ink-3: #735740;
+  --ink-4: #9a7d59;
   --seal: #9e2b25;
+  --seal-hi: #c4483e;
+  --seal-lo: #6e1c18;
   --seal-ink: #f7ead0;
   --lag: #fff4d6;
+  --gold: #b8892f;
+  --gold-hi: #e2bf68;
+  --gold-lo: #7d5a1a;
+  /* Under a window that floats above the card. */
+  --shade: rgba(43, 26, 13, 0.3);
 
   --mp: #3a6ea5;
   --mp-hi: #79a7dc;
@@ -46,6 +64,14 @@
   --ex: #8c7b63;
   --ex-hi: #b4a387;
   --ex-lo: #5f523f;
+
+  /* Gauge labels as text: the same hues, dark enough to read. */
+  --mp-text: #2c5a8c;
+  --hp-text: #356b25;
+  --hp-low-text: #7e5a0d;
+  --hp-crit-text: #9e2b25;
+  --sp-text: #8c520a;
+  --ex-text: #665843;
 
   color: var(--ink);
   font-family: 'WAM Guild Pixel', ui-monospace, monospace;
@@ -184,20 +210,31 @@
     1px 0 0 0 var(--seal);
 }
 
+/* A message window inside the card. */
 .wam .notice {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 4px 8px;
-  margin-top: 8px;
+  margin: 8px 1px 0;
   padding: 4px 6px;
   color: var(--ink-2);
   background: var(--paper-2);
+  box-shadow:
+    0 -1px 0 0 var(--frame-2),
+    0 1px 0 0 var(--frame-2),
+    -1px 0 0 0 var(--frame-2),
+    1px 0 0 0 var(--frame-2);
 }
 
 .wam .notice[data-tone='warn'] {
   color: var(--seal);
+  box-shadow:
+    0 -1px 0 0 var(--seal),
+    0 1px 0 0 var(--seal),
+    -1px 0 0 0 var(--seal),
+    1px 0 0 0 var(--seal);
 }
 
 .wam .gauges {
@@ -222,6 +259,7 @@
   --c: var(--ex);
   --c-hi: var(--ex-hi);
   --c-lo: var(--ex-lo);
+  --c-text: var(--ex-text);
   min-width: 0;
 }
 
@@ -229,18 +267,21 @@
   --c: var(--mp);
   --c-hi: var(--mp-hi);
   --c-lo: var(--mp-lo);
+  --c-text: var(--mp-text);
 }
 
 .wam .gauge.role-hp {
   --c: var(--hp);
   --c-hi: var(--hp-hi);
   --c-lo: var(--hp-lo);
+  --c-text: var(--hp-text);
 }
 
 .wam .gauge.role-hp.level-low {
   --c: var(--hp-low);
   --c-hi: var(--hp-low-hi);
   --c-lo: var(--hp-low-lo);
+  --c-text: var(--hp-low-text);
 }
 
 .wam .gauge.role-hp.level-critical,
@@ -248,16 +289,18 @@
   --c: var(--hp-crit);
   --c-hi: var(--hp-crit-hi);
   --c-lo: var(--hp-crit-lo);
+  --c-text: var(--hp-crit-text);
 }
 
 .wam .gauge.role-sp {
   --c: var(--sp);
   --c-hi: var(--sp-hi);
   --c-lo: var(--sp-lo);
+  --c-text: var(--sp-text);
 }
 
 .wam .g-abbr {
-  color: var(--c);
+  color: var(--c-text);
 }
 
 .wam .g-val small {
@@ -267,11 +310,11 @@
 
 .wam .gauge.level-critical .g-val,
 .wam .gauge.level-empty .g-val {
-  color: var(--hp-crit);
+  color: var(--hp-crit-text);
 }
 
 .wam .gauge.ready .g-time {
-  color: var(--sp-lo);
+  color: var(--sp-text);
 }
 
 .wam .gauge.state-sealed .g-val,
@@ -535,15 +578,23 @@
 .wam .cmd:hover::before,
 .wam .cmd:focus-visible::before {
   visibility: visible;
+  animation: wam-cursor 0.8s steps(1, end) infinite;
 }
 
 .wam .cmd:disabled {
-  color: var(--ink-3);
+  color: var(--ink-4);
   cursor: default;
 }
 
 .wam .cmd:disabled::before {
   visibility: hidden;
+}
+
+/* The menu cursor bobs one pixel, as it waits for a choice. */
+@keyframes wam-cursor {
+  50% {
+    transform: translateX(1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -578,7 +629,7 @@
   list-style: none;
 }
 
-/* Each item hangs from a small pixel square. */
+/* Each item hangs from a small pixel diamond, like a menu list. */
 .wam .consent-list li {
   position: relative;
   padding-left: 12px;
@@ -592,11 +643,17 @@
 .wam .consent-list li::before {
   content: '';
   position: absolute;
-  left: 2px;
-  top: 7px;
-  width: 3px;
-  height: 3px;
-  background: var(--frame-2);
+  left: 3px;
+  top: 6px;
+  width: 1px;
+  height: 1px;
+  color: var(--frame-2);
+  background: currentColor;
+  box-shadow:
+    -1px 1px, 0 1px, 1px 1px,
+    -2px 2px, -1px 2px, 0 2px, 1px 2px, 2px 2px,
+    -1px 3px, 0 3px, 1px 3px,
+    0 4px;
 }
 
 .wam .consent-disclaimer {
@@ -604,10 +661,11 @@
   color: var(--ink-3);
 }
 
-/* A plain pixel button for the one action that matters on a screen. */
+/* The one action that matters on a screen: a raised vermilion plate. */
 .wam .pix-btn {
+  position: relative;
   height: 20px;
-  margin: 1px;
+  margin: 1px 1px 2px;
   padding: 0 10px;
   border: 0;
   font: inherit;
@@ -615,19 +673,55 @@
   color: var(--seal-ink);
   background: var(--seal);
   box-shadow:
-    inset 0 1px 0 0 var(--hp-crit-hi),
+    inset 0 1px 0 0 var(--seal-hi),
+    inset 0 -1px 0 0 var(--seal-lo),
     0 -1px 0 0 var(--ink),
     0 1px 0 0 var(--ink),
     -1px 0 0 0 var(--ink),
-    1px 0 0 0 var(--ink);
+    1px 0 0 0 var(--ink),
+    0 2px 0 0 var(--frame);
   cursor: pointer;
 }
 
 .wam .pix-btn:hover {
-  background: var(--hp-crit);
+  background: #ad3029;
+}
+
+/* Pressed: it sinks by the pixel it stood on. */
+.wam .pix-btn:active {
+  top: 1px;
+  box-shadow:
+    inset 0 1px 0 0 var(--seal-lo),
+    0 -1px 0 0 var(--ink),
+    0 1px 0 0 var(--ink),
+    -1px 0 0 0 var(--ink),
+    1px 0 0 0 var(--ink);
 }
 
 .wam .pix-btn:focus-visible {
-  outline: 1px dotted var(--seal);
-  outline-offset: 3px;
+  outline: none;
+}
+
+/* The menu cursor, outside the plate on its left. */
+.wam .pix-btn::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 6px;
+  width: 1px;
+  height: 1px;
+  color: var(--seal);
+  visibility: hidden;
+  background: currentColor;
+  box-shadow:
+    0 1px, 0 2px, 0 3px, 0 4px, 0 5px, 0 6px,
+    1px 1px, 1px 2px, 1px 3px, 1px 4px, 1px 5px,
+    2px 2px, 2px 3px, 2px 4px,
+    3px 3px;
+}
+
+.wam .pix-btn:hover::before,
+.wam .pix-btn:focus-visible::before {
+  visibility: visible;
+  animation: wam-cursor 0.8s steps(1, end) infinite;
 }
