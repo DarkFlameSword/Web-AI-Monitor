@@ -1,5 +1,6 @@
 import { hasConsent } from '../core/consent.js';
 import { buildGaugeViews, viewForRole } from '../core/gauges.js';
+import { EMPTY_GRPC_REQUEST, GRPC_HEADERS } from '../core/http.js';
 import { browserLanguage, createTranslator, resolveLang } from '../core/i18n.js';
 import { DEFAULT_LANG } from '../core/messages.js';
 import {
@@ -57,23 +58,42 @@ function readCookie(name) {
   return null;
 }
 
-/** May the background have this tab make this request? Only what the provider allow-lists. */
-function proxyAllowed(provider, method, path, form) {
+/**
+ * May the background have this tab make this request? Only what the provider
+ * allow-lists: a GET of a listed path, or a POST of a listed path whose form
+ * or JSON body passes the rule's check, or a gRPC-web call (no arguments) to
+ * a path whose rule allows one.
+ */
+function proxyAllowed(provider, { method, path, form, json, grpc }) {
   if (typeof path !== 'string') return false;
-  if (method === 'GET') return form === undefined && provider.proxyPaths.some(pattern => pattern.test(path));
-  if (method !== 'POST' || !form || typeof form !== 'object' || Object.values(form).some(value => typeof value !== 'string')) return false;
-  return (provider.proxyPosts ?? []).some(rule => rule.path.test(path) && rule.form(form));
+  const bodies = [form, json, grpc].filter(value => value !== undefined).length;
+  if (method === 'GET') return bodies === 0 && provider.proxyPaths.some(pattern => pattern.test(path));
+  if (method !== 'POST' || bodies !== 1) return false;
+  const rules = (provider.proxyPosts ?? []).filter(rule => rule.path.test(path));
+  if (grpc !== undefined) return grpc === true && rules.some(rule => rule.grpc === true);
+  if (json !== undefined) return Boolean(json) && typeof json === 'object' && rules.some(rule => rule.json?.(json) === true);
+  if (!form || typeof form !== 'object' || Object.values(form).some(value => typeof value !== 'string')) return false;
+  return rules.some(rule => rule.form?.(form) === true);
+}
+
+/** The body of an allowed POST: a form, JSON, or an empty gRPC-web message. */
+function postBody({ form, json, grpc }) {
+  if (grpc) return Uint8Array.from(EMPTY_GRPC_REQUEST);
+  if (json !== undefined) return JSON.stringify(json);
+  return new URLSearchParams(form);
 }
 
 /**
  * Make one of the provider's allow-listed requests as this page (its
  * cookies, its origin), with only the headers the provider allows, and hand
- * back only what the provider keeps of the reply.
+ * back only what the provider keeps of the reply. A gRPC-web reply goes back
+ * as an array of bytes.
  */
-async function proxyRequest(provider, { method = 'GET', path, headers, form, as = 'json' }) {
-  if (!proxyAllowed(provider, method, path, form)) return { ok: false, error: { status: 0, code: 'forbidden' } };
+async function proxyRequest(provider, { method = 'GET', path, headers, form, json, grpc, as = 'json' }) {
+  if (!proxyAllowed(provider, { method, path, form, json, grpc })) return { ok: false, error: { status: 0, code: 'forbidden' } };
   const allowed = new Set((provider.proxyHeaders ?? []).map(name => name.toLowerCase()));
-  const sent = as === 'json' ? { accept: 'application/json' } : {};
+  const sent = grpc ? { ...GRPC_HEADERS } : as === 'json' ? { accept: 'application/json' } : {};
+  if (json !== undefined) sent['content-type'] = 'application/json';
   for (const [name, value] of Object.entries(headers && typeof headers === 'object' ? headers : {})) {
     if (allowed.has(name.toLowerCase()) && typeof value === 'string') sent[name.toLowerCase()] = value;
   }
@@ -83,9 +103,17 @@ async function proxyRequest(provider, { method = 'GET', path, headers, form, as 
       credentials: 'include',
       cache: 'no-store',
       headers: sent,
-      body: method === 'POST' ? new URLSearchParams(form) : undefined,
+      body: method === 'POST' ? postBody({ form, json, grpc }) : undefined,
     });
     let body;
+    if (grpc) {
+      if (!response.ok) return { ok: false, error: { status: response.status, code: 'http' } };
+      if (!(response.headers.get('content-type') ?? '').includes('grpc')) {
+        return { ok: false, error: { status: response.status, code: 'not_grpc' } };
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      return { ok: true, body: Array.from(provider.proxyBody ? provider.proxyBody(path, bytes) : bytes) };
+    }
     if (as === 'json') {
       if (!(response.headers.get('content-type') ?? '').includes('json')) {
         return { ok: false, error: { status: response.status, code: 'not_json' } };

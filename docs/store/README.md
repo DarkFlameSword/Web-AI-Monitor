@@ -11,18 +11,16 @@
 - 商店图片要求：https://developer.chrome.com/docs/webstore/images
 - 审核流程：https://developer.chrome.com/docs/webstore/review-process
 
-> **0.8.1 更新（商店里是 0.5.0）：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子；按尼尔森可用性原则改进：出错时写明原因和下一步、出错的厂商标签带「!」、撤回同意前先确认、Chrome 没给权限时会说明、新增使用说明页、同意或更新后已打开的标签页不用刷新；设置里的「数据与隐私」默认收起。** 0.6.0、0.7.0、0.7.1、0.8.0 都没有发布，直接提交 0.8.1，不要发布更早的包。按第 9 节的步骤操作，后台要改的是：
+> **0.9.0 更新：支持 Grok（可选，读取 grok.com 上的用量、方案和订阅周期）。** 0.9.0 包含 0.8.1 及更早版本的全部改动，直接提交 0.9.0，不要发布更早的包。如果商店里还是 0.5.0（0.6.0 - 0.8.1 都没有发布），这次一起上线的还有：支持 Gemini；ChatGPT 的订阅续订 / 到期日自动读取；文字颜色和所有控件改成日式 RPG 菜单的样子；按尼尔森可用性原则改进（出错时写明原因和下一步、出错的厂商标签带「!」、撤回同意前先确认、Chrome 没给权限时会说明、新增使用说明页、同意或更新后已打开的标签页不用刷新、「数据与隐私」默认收起）；宣传图换成浏览器窗口背景。按第 9 节的步骤操作，后台要改的是：
 >
-> 1. Package：上传 `dist/web-ai-monitor-0.8.1.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
-> 2. Store listing：三种语言的详细说明（第 4 节）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。小宣传图换成新的（背景改成了和截图一样的浏览器窗口），大宣传图如果上传过也换；商店图标不用换。
-> 3. Privacy：Single purpose，以及 storage、scripting、Host permission 三个 justification（第 5 节）。数据使用勾选的 5 个类别不变（订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变。
+> 1. Package：上传 `dist/web-ai-monitor-0.9.0.zip`（`npm run package`）。之前提交的包还在审核中时，先在三点菜单里选「Cancel review」；已通过审核、在等你手动发布时，先选「Cancel publish」退回草稿；只是上传过的草稿，直接上传新包覆盖即可。
+> 2. Store listing：三种语言的详细说明（第 4 节，加了 Grok）；截图每种语言都删掉旧的 5 张，按 1 - 5 的顺序重新上传（第 3 节）。从 0.5.0 更新时，小宣传图也换成新的，大宣传图如果上传过也换；商店图标不用换。
+> 3. Privacy：Single purpose，以及 scripting、Host permission 两个 justification（第 5 节，都加了 Grok）；从 0.5.0 更新时 storage 的 justification 也要换。数据使用勾选的 5 个类别不变（Grok 的方案和订阅日期归在已勾选的 Financial and payment information 里），隐私政策网址也不变，打开一次确认已是新内容。
 > 4. Test instructions：替换（第 6 节）。
 >
-> Gemini 的取数和 ChatGPT 的订阅日期都只在模拟环境里验证过，提交前先用真实账号试一遍（第 9 节「本地准备」第 4 步）。
+> Grok 的取数按 grok.com 自己的网页在 2026 年 10 月用的接口实现（`/rest/subscriptions`、`/rest/rate-limits` 和 gRPC-web 的 `GetGrokCreditsConfig`），只在模拟环境里验证过；Gemini 的取数和 ChatGPT 的订阅日期也一样。提交前先用真实账号试一遍（第 9 节「本地准备」第 4 步），Grok 最好免费账号和付费账号各试一次。
 >
-> scripting 的用途比 0.5.0 多了一项：同意数据说明后、以及扩展更新后，把包内的页面脚本放进之前就已打开的被监控网站标签页，所以它的 justification 也要换成新的。使用说明页只是包内的一页说明，不读取任何数据。
->
-> 新增的 `optional_host_permissions: https://gemini.google.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Gemini 和 ChatGPT 的订阅日期都是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 从 1 升到了 3（2 只在没有发布的 0.6.0 里用过；界面改版不涉及数据，不再升）：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
+> 新增的 `optional_host_permissions: https://grok.com/*` 是可选权限，不会让已安装的用户被禁用或弹出新的权限提示。读取 Grok 是新的数据使用，所以扩展里的 `DATA_PRACTICES_VERSION` 从 3 升到了 4：已同意过的用户更新后会自动打开数据说明页，重新同意之前扩展不读取任何数据。
 
 ## 1. 提交前检查清单
 
@@ -108,27 +106,27 @@ npm run store:assets              # 重新生成 docs/store/images/ 下的全部
 ```text
 Web AI Monitor 用像素风的异世界冒险者公会卡，显示你的 AI 用量还剩多少，以及每项限额的恢复倒计时。
 
-支持 Claude（claude.ai），可选支持 ChatGPT（chatgpt.com）和 Gemini（gemini.google.com）。只读：只显示你自己的限额，从不修改、绕过或重置任何限额。
+支持 Claude（claude.ai），可选支持 ChatGPT（chatgpt.com）、Gemini（gemini.google.com）和 Grok（grok.com）。只读：只显示你自己的限额，从不修改、绕过或重置任何限额。
 
 功能
-- 每项限额一条能量条，都显示剩余量和恢复倒计时：Claude 是魔力 MP = 当前会话、体力 HP = 每周全部模型、奥义 SP = 每周 Fable；ChatGPT 和 Gemini 是 MP = 5 小时窗口、HP = 每周上限。
+- 每项限额一条能量条，都显示剩余量和恢复倒计时：Claude 是魔力 MP = 当前会话、体力 HP = 每周全部模型、奥义 SP = 每周 Fable；ChatGPT 和 Gemini 是 MP = 5 小时窗口、HP = 每周上限；Grok 的付费方案是 HP = 每周额度，免费账户是 MP = Fast 模式剩余次数。
 - 页内悬浮窗：在 claude.ai 上直接显示，授权后可在任意网页显示；可拖动、收起，大小 100% - 200%；显示你在弹窗里选中的那家 AI。
 - 宝物袋：一眼看到额度余额（云端会话额度、用量额度；Codex 额度和限额重置次数；Google AI 额度）。
-- 冒险者资质按订阅方案评定；ChatGPT 的订阅续订 / 到期日自动读取，Claude 和 Gemini 可以自己填写。
+- 冒险者资质按订阅方案评定；ChatGPT 和 Grok 的订阅续订 / 到期日自动读取，Claude 和 Gemini 可以自己填写。
 - 可选：用过的能量完全恢复时发一条桌面通知。
 - 出了问题会写明原因和下一步；设置里的「使用说明」讲清卡片上的每个元素。
 - 简体中文、日本語、English。
 
 隐私
 - 安装后先显示数据说明，你同意之前不读取任何数据。
-- 只用你已有的登录状态读取 claude.ai（开启后含 chatgpt.com、gemini.google.com）上的用量数据，从不读取对话或网页内容。
+- 只用你已有的登录状态读取 claude.ai（开启后含 chatgpt.com、gemini.google.com、grok.com）上的用量数据，从不读取对话或网页内容。
 - 数据只保存在你的浏览器里；没有统计、广告，也没有自己的服务器。
-- 可选功能（所有网页显示悬浮窗、ChatGPT、Gemini、通知）只在你开启时才申请对应权限。
+- 可选功能（所有网页显示悬浮窗、ChatGPT、Gemini、Grok、通知）只在你开启时才申请对应权限。
 
 开源：https://github.com/DarkFlameSword/Web-AI-Monitor
 隐私政策：https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 
-非官方工具，与 Anthropic、OpenAI、Google 无关联，也未获得其认可。Claude 是 Anthropic, PBC 的商标；ChatGPT 是 OpenAI 的商标；Gemini 是 Google LLC 的商标。
+非官方工具，与 Anthropic、OpenAI、Google、xAI 无关联，也未获得其认可。Claude 是 Anthropic, PBC 的商标；ChatGPT 是 OpenAI 的商标；Gemini 是 Google LLC 的商标；Grok 是 xAI 的商标。
 ```
 
 ### 详细说明：English
@@ -136,27 +134,27 @@ Web AI Monitor 用像素风的异世界冒险者公会卡，显示你的 AI 用�
 ```text
 Web AI Monitor shows how much of your AI usage limits you have left, with a live countdown to each reset, drawn as a pixel-art adventurer's guild card.
 
-Works with Claude (claude.ai) and, optionally, ChatGPT (chatgpt.com) and Gemini (gemini.google.com). Read-only: it only displays your own limits and never changes, bypasses or resets them.
+Works with Claude (claude.ai) and, optionally, ChatGPT (chatgpt.com), Gemini (gemini.google.com) and Grok (grok.com). Read-only: it only displays your own limits and never changes, bypasses or resets them.
 
 FEATURES
-- One gauge per limit, each with what is left and a live countdown to its reset. Claude: MP = current session, HP = weekly (all models), SP = weekly Fable. ChatGPT and Gemini: MP = 5-hour window, HP = weekly cap.
+- One gauge per limit, each with what is left and a live countdown to its reset. Claude: MP = current session, HP = weekly (all models), SP = weekly Fable. ChatGPT and Gemini: MP = 5-hour window, HP = weekly cap. Grok: HP = the weekly pool on paid plans, MP = Fast queries left on a free account.
 - An on-page HUD: on claude.ai out of the box, on any site if you allow it. Drag it, collapse it, resize it (100% - 200%). It shows the vendor you pick in the popup.
 - Treasure pouch: your credit balances at a glance (cloud session credits and usage credits; Codex credits and limit resets; Google AI credits).
-- An adventurer rank from your plan, with the date your subscription renews or ends: read automatically for ChatGPT, entered by you for Claude and Gemini.
+- An adventurer rank from your plan, with the date your subscription renews or ends: read automatically for ChatGPT and Grok, entered by you for Claude and Gemini.
 - Optional: a desktop notice when a used gauge is full again.
 - When something goes wrong, the card says why and what to do next; the Guide in settings explains everything on the card.
 - Simplified Chinese, Japanese and English.
 
 PRIVACY
 - At install it shows a data use notice and reads nothing until you agree.
-- It reads only your usage data from claude.ai (and chatgpt.com or gemini.google.com if you turn them on), using your existing sign-in. It never reads your conversations or page content.
+- It reads only your usage data from claude.ai (and chatgpt.com, gemini.google.com or grok.com if you turn them on), using your existing sign-in. It never reads your conversations or page content.
 - Data stays in your browser. No analytics, no ads, no servers of our own.
-- Optional features (HUD on every site, ChatGPT, Gemini, notifications) ask for their permission only when you turn them on.
+- Optional features (HUD on every site, ChatGPT, Gemini, Grok, notifications) ask for their permission only when you turn them on.
 
 Open source: https://github.com/DarkFlameSword/Web-AI-Monitor
 Privacy policy: https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 
-Unofficial; not affiliated with or endorsed by Anthropic, OpenAI or Google. Claude is a trademark of Anthropic, PBC. ChatGPT is a trademark of OpenAI. Gemini is a trademark of Google LLC.
+Unofficial; not affiliated with or endorsed by Anthropic, OpenAI, Google or xAI. Claude is a trademark of Anthropic, PBC. ChatGPT is a trademark of OpenAI. Gemini is a trademark of Google LLC. Grok is a trademark of xAI.
 ```
 
 ### 詳細説明：日本語
@@ -164,27 +162,27 @@ Unofficial; not affiliated with or endorsed by Anthropic, OpenAI or Google. Clau
 ```text
 Web AI Monitor は、AI の使用制限があとどれだけ残っているかと、各制限がリセットされるまでのカウントダウンを、ピクセルアートの「冒険者ギルドカード」で表示します。
 
-Claude（claude.ai）に対応し、ChatGPT（chatgpt.com）と Gemini（gemini.google.com）にも任意で対応します。読み取り専用：表示するのはあなた自身の制限だけで、制限を変更・回避・リセットすることはありません。
+Claude（claude.ai）に対応し、ChatGPT（chatgpt.com）、Gemini（gemini.google.com）、Grok（grok.com）にも任意で対応します。読み取り専用：表示するのはあなた自身の制限だけで、制限を変更・回避・リセットすることはありません。
 
 機能
-- 制限ごとのゲージで、残量とリセットまでの時間をリアルタイム表示。Claude は魔力 MP = 現在のセッション、体力 HP = 週間（全モデル）、奥義 SP = 週間 Fable。ChatGPT と Gemini は MP = 5 時間枠、HP = 週間上限。
+- 制限ごとのゲージで、残量とリセットまでの時間をリアルタイム表示。Claude は魔力 MP = 現在のセッション、体力 HP = 週間（全モデル）、奥義 SP = 週間 Fable。ChatGPT と Gemini は MP = 5 時間枠、HP = 週間上限。Grok は有料プランが HP = 週間枠、無料アカウントが MP = Fast の残り回数。
 - ページ上の HUD：claude.ai ではそのまま表示、許可すればどのサイトでも表示。ドラッグ・折りたたみ・サイズ変更（100% - 200%）。ポップアップで選んだ AI を表示します。
 - 宝物袋：クレジット残高をひと目で（クラウドセッション枠と利用クレジット、Codex クレジットと制限リセット回数、Google AI クレジット）。
-- プランに応じた冒険者ランクと、サブスクの更新日・終了日（ChatGPT は自動取得、Claude と Gemini は入力）。
+- プランに応じた冒険者ランクと、サブスクの更新日・終了日（ChatGPT と Grok は自動取得、Claude と Gemini は入力）。
 - 任意：使ったゲージが全回復したらデスクトップ通知。
 - 問題があるときは、理由と次にすることをカードに表示。設定の「使い方」でカードの見方を説明しています。
 - 簡体字中国語・日本語・英語。
 
 プライバシー
 - インストール時にデータの説明を表示し、同意するまで何も読み取りません。
-- 既存のログイン状態を使って claude.ai（有効にした場合は chatgpt.com、gemini.google.com も）の使用量データだけを読み取ります。会話やページの内容は読み取りません。
+- 既存のログイン状態を使って claude.ai（有効にした場合は chatgpt.com、gemini.google.com、grok.com も）の使用量データだけを読み取ります。会話やページの内容は読み取りません。
 - データはブラウザ内にのみ保存されます。解析・広告・独自サーバーはありません。
-- オプション機能（すべてのサイトでの HUD、ChatGPT、Gemini、通知）は、オンにするときに初めて権限を求めます。
+- オプション機能（すべてのサイトでの HUD、ChatGPT、Gemini、Grok、通知）は、オンにするときに初めて権限を求めます。
 
 オープンソース：https://github.com/DarkFlameSword/Web-AI-Monitor
 プライバシーポリシー：https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 
-非公式ツールです。Anthropic、OpenAI、Google とは関係がなく、承認も受けていません。Claude は Anthropic, PBC の商標です。ChatGPT は OpenAI の商標です。Gemini は Google LLC の商標です。
+非公式ツールです。Anthropic、OpenAI、Google、xAI とは関係がなく、承認も受けていません。Claude は Anthropic, PBC の商標です。ChatGPT は OpenAI の商標です。Gemini は Google LLC の商標です。Grok は xAI の商標です。
 ```
 
 ## 5. 后台「隐私权」（Privacy practices）
@@ -192,12 +190,12 @@ Claude（claude.ai）に対応し、ChatGPT（chatgpt.com）と Gemini（gemini.
 ### 单一用途（Single purpose）
 
 ```text
-Shows the signed-in user's own AI usage limits (Claude, and optionally ChatGPT and Gemini) and the countdown to each reset, in the toolbar popup and an optional on-page HUD. Read-only: it never changes, bypasses or resets any limit.
+Shows the signed-in user's own AI usage limits (Claude, and optionally ChatGPT, Gemini and Grok) and the countdown to each reset, in the toolbar popup and an optional on-page HUD. Read-only: it never changes, bypasses or resets any limit.
 ```
 
 ### 权限理由（Permission justification）
 
-后台按下面的顺序列出输入框，每个框的上限是 1,000 字符。所有主机权限（必需的 claude.ai，以及可选的 chatgpt.com、gemini.google.com 和所有网站）共用一个「Host permission justification」框。页面上「Due to the Host Permission, your extension may require an in-depth review」的黄色提示是正常的，有主机权限的扩展都会显示。
+后台按下面的顺序列出输入框，每个框的上限是 1,000 字符。所有主机权限（必需的 claude.ai，以及可选的 chatgpt.com、gemini.google.com、grok.com 和所有网站）共用一个「Host permission justification」框。页面上「Due to the Host Permission, your extension may require an in-depth review」的黄色提示是正常的，有主机权限的扩展都会显示。
 
 **storage justification**（208 字符）
 
@@ -217,10 +215,10 @@ Refreshes the usage on the interval the user picks (1-30 minutes) and right when
 Reads exactly one cookie, lastActiveOrg on claude.ai, so the usage request asks for the organization the user is currently in. No other cookie is read, and the value is only used in that request to claude.ai: never stored or sent anywhere else.
 ```
 
-**scripting justification**（453 字符）
+**scripting justification**（469 字符）
 
 ```text
-Adds the packaged content script to tabs that were open before it could run: claude.ai (and chatgpt.com or gemini.google.com if switched on) once the user agrees to the data use notice or after an update, so those tabs need no reload. After the user turns on "show the HUD on every site" or switches on ChatGPT or Gemini, it registers the script for those sites. No remote code. On other sites the script only displays the HUD and reads no page content.
+Adds the packaged content script to tabs that were open before it could run: claude.ai (and chatgpt.com, gemini.google.com or grok.com if switched on) once the user agrees to the data use notice or after an update, so those tabs need no reload. After the user turns on "show the HUD on every site" or switches on ChatGPT, Gemini or Grok, it registers the script for those sites. No remote code. On other sites the script only displays the HUD and reads no page content.
 ```
 
 **notifications justification**（188 字符）
@@ -229,16 +227,18 @@ Adds the packaged content script to tabs that were open before it could run: cla
 Optional permission, requested only when the user ticks "tell me when a gauge is full again" in settings: shows one desktop notice when a used limit resets. No other notifications, no ads.
 ```
 
-**Host permission justification**（995 字符）
+**Host permission justification**（985 字符）
 
 ```text
 https://claude.ai/* (required): reads the user's own usage with their existing session, and shows the HUD there.
 
-https://chatgpt.com/* (optional, asked only when the user ticks ChatGPT): reads the user's own Codex usage and subscription period (start, end, renews). The session access token is kept in memory for those requests, never stored.
+Optional, each asked only when the user ticks that AI:
+- chatgpt.com: Codex usage and subscription period (start, end, renews). The session access token stays in memory for those requests.
+- gemini.google.com: Gemini usage (as its Settings > Usage page shows). The app page's session token stays in memory for at most 30 minutes.
+- grok.com: Grok usage (the weekly pool, or a free account's Fast queries), plan and subscription period, with the user's sign-in; no token is read.
+Tokens are never stored.
 
-https://gemini.google.com/* (optional, asked only when the user ticks Gemini): reads the user's own Gemini usage (as its Settings > Usage page shows) with one read-only request. The session token from the Gemini app page is kept in memory for at most 30 minutes, never stored.
-
-On these three sites it also notes when a reply finishes (request URL and timing only, never content) to refresh right away.
+On these sites it also notes when a reply finishes (request URL and timing only, never content) to refresh right away.
 
 http://*/* and https://*/* (optional, asked only when the user ticks "show the HUD on every site"): only to display the HUD; no page content, URLs or browsing history is read.
 
@@ -257,15 +257,15 @@ Read-only throughout: it never changes, bypasses or resets any limit.
 
 | 后台类别 | 勾选 | 本扩展的实际情况 |
 | --- | --- | --- |
-| Personally identifiable information（姓名、地址、邮箱、年龄、证件号） | **勾选** | 扩展不使用也不保存姓名或邮箱，但 claude.ai 的组织列表、chatgpt.com 的会话接口和 Gemini 的应用页面里可能带有账户名、邮箱，扩展收到后立即丢弃（经标签页取 Gemini 页面时，页面只交回会话令牌）。按 FAQ，读到响应内容就算经手，从严勾选 |
+| Personally identifiable information（姓名、地址、邮箱、年龄、证件号） | **勾选** | 扩展不使用也不保存姓名或邮箱，但 claude.ai 的组织列表、chatgpt.com 的会话接口、Gemini 的应用页面和 grok.com 的订阅接口里可能带有账户名、邮箱或账户 ID，扩展收到后立即丢弃（经标签页读取时，Gemini 页面只交回会话令牌，Grok 只交回方案和订阅周期）。按 FAQ，读到响应内容就算经手，从严勾选 |
 | Health information（健康数据） | 不勾 | 不涉及 |
-| Financial and payment information（交易、信用卡、信用评级、财务报表、付款记录） | **勾选** | 读取额度余额（云端会话额度、Codex 额度、Google AI 额度）和本月已用的用量额度金额、月度上限，用来显示宝物袋；开启 ChatGPT 后读取订阅本期的开始和结束时间、是否自动续订，用来显示资质续期 / 过期时间。从不读取银行卡、账单或价格 |
-| Authentication information（密码、凭据、安全问题、PIN） | **勾选** | 用浏览器已有的登录会话请求用量；读取 claude.ai 的 `lastActiveOrg` cookie；开启 ChatGPT 后取得会话访问令牌，只在内存中用于读取用量和订阅周期的这几次请求；开启 Gemini 后从应用页面取得会话令牌，只在内存中保留最多 30 分钟；都不保存 |
+| Financial and payment information（交易、信用卡、信用评级、财务报表、付款记录） | **勾选** | 读取额度余额（云端会话额度、Codex 额度、Google AI 额度）和本月已用的用量额度金额、月度上限，用来显示宝物袋；开启 ChatGPT 后读取订阅本期的开始和结束时间、是否自动续订，开启 Grok 后读取方案、本期结束时间和是否自动续订，用来显示冒险者资质和资质续期 / 过期时间。从不读取银行卡、账单或价格 |
+| Authentication information（密码、凭据、安全问题、PIN） | **勾选** | 用浏览器已有的登录会话请求用量；读取 claude.ai 的 `lastActiveOrg` cookie；开启 ChatGPT 后取得会话访问令牌，只在内存中用于读取用量和订阅周期的这几次请求；开启 Gemini 后从应用页面取得会话令牌，只在内存中保留最多 30 分钟；都不保存。Grok 只用浏览器已有的登录会话，不读取令牌 |
 | Personal communications（邮件、短信、聊天消息） | 不勾 | 从不读取对话、提示词或回复内容 |
 | Location（地区、IP、GPS） | 不勾 | 不读取位置 |
 | Web history（访问过的网页列表、标题、访问时间） | 不勾 | 不读取浏览记录；在其他网站上只显示悬浮窗，不读取网址 |
-| User activity（网络监测、点击、鼠标位置、滚动、键盘记录） | **勾选** | 在 claude.ai / chatgpt.com / gemini.google.com 页面上观察网页自身请求的地址和耗时（不含内容），用来在回复结束时立即刷新，属于网络监测 |
-| Website content（文字、图片、声音、视频、链接） | **勾选** | 读取 claude.ai / chatgpt.com / gemini.google.com 接口返回的用量数据（已用比例、重置时间、方案、额度），以及 ChatGPT 的订阅周期 |
+| User activity（网络监测、点击、鼠标位置、滚动、键盘记录） | **勾选** | 在 claude.ai / chatgpt.com / gemini.google.com / grok.com 页面上观察网页自身请求的地址和耗时（不含内容），用来在回复结束时立即刷新，属于网络监测 |
+| Website content（文字、图片、声音、视频、链接） | **勾选** | 读取 claude.ai / chatgpt.com / gemini.google.com / grok.com 接口返回的用量数据（已用比例、剩余次数、重置时间、方案、额度），以及 ChatGPT 和 Grok 的订阅周期 |
 
 即勾选 5 项：Personally identifiable information、Financial and payment information、Authentication information、User activity、Website content。
 
@@ -291,7 +291,7 @@ https://github.com/DarkFlameSword/Web-AI-Monitor/blob/main/PRIVACY.md
 1. Sign in to https://claude.ai (test account above; a free account works, paid plans show more gauges).
 2. Install the extension. A "Guild registration" tab opens with the data use notice. Click "Agree and start". Nothing is read before this.
 3. Click the toolbar icon: the popup shows the MP / HP / SP gauges with live reset countdowns. Open claude.ai: the HUD appears in the bottom-right corner.
-4. Optional, in Settings: tick "ChatGPT" to monitor ChatGPT (asks for chatgpt.com; needs a ChatGPT login with Codex access). Tick "Gemini" to monitor Gemini (asks for gemini.google.com; needs a Google account signed in to Gemini). Tick "On every site" to show the HUD everywhere (asks for all-sites access; it only displays the HUD).
+4. Optional, in Settings: tick "ChatGPT" to monitor ChatGPT (asks for chatgpt.com; needs a ChatGPT login with Codex access). Tick "Gemini" to monitor Gemini (asks for gemini.google.com; needs a Google account signed in to Gemini). Tick "Grok" to monitor Grok (asks for grok.com; needs a grok.com login). Tick "On every site" to show the HUD everywhere (asks for all-sites access; it only displays the HUD).
 5. Signed out, the popup says "Not registered: sign in to claude.ai".
 
 The extension is read-only. It never changes, bypasses or resets usage limits, never sends prompts, and never reads conversation or page content. Settings > "Data & privacy" > "Show" shows the notice again and lets the user withdraw consent (after confirming), which deletes the stored usage data.
@@ -309,9 +309,9 @@ The extension is read-only. It never changes, bypasses or resets usage limits, n
 | --- | --- |
 | 2026 年起：所有数据收集都要在扩展界面里披露并取得明确同意，商店描述里写不算 | 安装时打开数据说明页，点「同意并开始」之前不发任何请求、不显示悬浮窗、不观察页面请求；弹窗在同意前只显示简短说明和同意按钮；设置里可以随时查看说明、撤回同意（撤回即删除用量数据）。数据使用方式改变时，把 `extension/core/consent.js` 的 `DATA_PRACTICES_VERSION` 加一，所有用户会重新看到说明并重新同意 |
 | 2026 年起：禁止规避 AI 服务的安全措施或用量限制 | 扩展只读，只显示用户自己的限额；描述、单一用途、测试说明都写明「从不修改、绕过或重置限额」，避免「解锁」「绕过」等字眼 |
-| 与窃取 AI 对话的恶意扩展技术相似（在 claude.ai / chatgpt.com / gemini.google.com 上运行内容脚本） | 不改写页面的 `fetch`，只用 `PerformanceObserver` 看请求地址和耗时；代理请求限定在白名单里：Claude 和 ChatGPT 只能 GET 列出的路径，Gemini 只能取 app 页面和发那一个只读的用量查询（表单必须完全一致）；ChatGPT 会话接口经标签页返回时只交回令牌、账户 id 和方案，Gemini 的 app 页面只交回会话令牌等 4 个值，其余内容不离开页面。权限理由和测试说明都写明 |
+| 与窃取 AI 对话的恶意扩展技术相似（在 claude.ai / chatgpt.com / gemini.google.com / grok.com 上运行内容脚本） | 不改写页面的 `fetch`，只用 `PerformanceObserver` 看请求地址和耗时；代理请求限定在白名单里：Claude 和 ChatGPT 只能 GET 列出的路径，Gemini 只能取 app 页面和发那一个只读的用量查询（表单必须完全一致），Grok 只能 GET 订阅接口、POST 那一个 Fast 次数查询（请求体必须完全一致）和调用不带参数的计费查询；ChatGPT 会话接口经标签页返回时只交回令牌、账户 id 和方案，Gemini 的 app 页面只交回会话令牌等 4 个值，Grok 只交回方案、订阅周期和用量数字（账户 ID 等不交回），其余内容不离开页面。权限理由和测试说明都写明 |
 | 宽泛的主机权限、cookies + 主机权限会延长审核 | 所有网站权限是可选的，默认关闭，只在用户勾选时申请；`cookies` 只读一个 cookie，理由写明 |
-| 商标 | 名称和图标不含 Claude / ChatGPT / Gemini 字样或标志，Gemini 的宝物用蓝宝石而不是类似其标志的四角星；描述里用「支持 Claude」的写法，并附非官方声明和商标归属 |
+| 商标 | 名称和图标不含 Claude / ChatGPT / Gemini / Grok 字样或标志，Gemini 的宝物用蓝宝石而不是类似其标志的四角星；描述里用「支持 Claude」的写法，并附非官方声明和商标归属 |
 | 扩展可被网站识别（指纹；不违反政策，只是隐私加固项） | 悬浮窗模块必须声明为 `web_accessible_resources` 才能被内容脚本 `import()`。实测开启 Chrome 的 `use_dynamic_url` 后内容脚本无法再加载这些模块、悬浮窗失效，所以没有开启；这些文件里只有界面代码，没有任何数据 |
 | 第三方服务条款 | 只读取用户自己的用量，请求频率由用户控制（1 - 30 分钟），未登录时自动降到 30 分钟一次 |
 

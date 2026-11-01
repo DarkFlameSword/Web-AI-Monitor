@@ -24,6 +24,8 @@ import { parseIso } from './time.js';
  * @property {{key: string, vars?: object}|null} hint
  * @property {number} value                    Remaining, 0-100, as shown to the user.
  * @property {number|null} resetsAt            Epoch ms.
+ * @property {{key: string, short?: string}|null} idle  What the time column says when the vendor
+ *           gives no reset time (a rolling window), in full and in the page HUD; default "standby".
  * @property {boolean} recovering              The window ended; fresh numbers not fetched yet.
  * @property {'ok'|'low'|'critical'|'empty'} level
  * @property {boolean} ready                   Full ultimate gauge.
@@ -90,6 +92,7 @@ function gaugeView(def, meter, now) {
     label: def.label,
     primary: def.primary !== false,
     hint: null,
+    idle: def.idle ?? null,
   };
   if (!meter) {
     return {

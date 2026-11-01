@@ -8,7 +8,8 @@
  *                A vendor that reports the paid period returns it as
  *                subscription, and the user need not enter its end date.
  *   proxyPaths   paths an open vendor tab may GET for the background
- *   proxyPosts   [{path, form(fields)}] it may POST, form checked too (optional)
+ *   proxyPosts   [{path, form(fields) | json(body) | grpc: true}] it may POST, the
+ *                form or JSON body checked too, or a gRPC-web call with no arguments (optional)
  *   proxyHeaders request headers allowed on that route (optional)
  *   proxyBody(path, body)  trims a reply before the tab hands it back (optional)
  *   isActivity(path, durationMs)         did a finished page request spend quota?
@@ -22,8 +23,9 @@
 import chatgpt from './chatgpt/provider.js';
 import claude from './claude/provider.js';
 import gemini from './gemini/provider.js';
+import grok from './grok/provider.js';
 
-export const PROVIDERS = Object.freeze([claude, chatgpt, gemini]);
+export const PROVIDERS = Object.freeze([claude, chatgpt, gemini, grok]);
 
 /** Host pattern a provider's site needs. */
 export function originPattern(provider) {

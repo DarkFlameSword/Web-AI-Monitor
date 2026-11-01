@@ -2,7 +2,7 @@
 
 [English](#english) | [简体中文](#简体中文)
 
-Effective date: 2026-10-11
+Effective date: 2026-11-01
 
 ## English
 
@@ -18,24 +18,25 @@ The extension only reads what it needs to show your usage limits:
 
 | Data | Where from | Why |
 | --- | --- | --- |
-| Your usage: percentage used of each limit, reset times, your plan, credit balances and the amount of credits spent this month | claude.ai, using your existing sign-in session (and chatgpt.com or gemini.google.com, only if you turn ChatGPT or Gemini on) | To draw the gauges, countdowns and credits |
+| Your usage: percentage used of each limit, reset times, your plan, credit balances and the amount of credits spent this month | claude.ai, using your existing sign-in session (and chatgpt.com, gemini.google.com or grok.com, only if you turn ChatGPT, Gemini or Grok on) | To draw the gauges, countdowns and credits |
 | The `lastActiveOrg` cookie on claude.ai (an organization ID) | claude.ai | To show the usage of the organization you are currently in |
 | Your ChatGPT subscription period: when the current period started and ends, and whether it renews (the dates ChatGPT shows for your plan in its settings) | chatgpt.com, only if you turn ChatGPT on (asked again every few hours at most) | To show when your plan renews or ends, so you do not have to enter that date |
 | A ChatGPT access token, from chatgpt.com's own session endpoint | chatgpt.com, only if you turn ChatGPT on | To request your Codex usage and subscription period. It is held in memory for those requests only and is never stored or sent anywhere else |
 | A Gemini session token (with the page's build label, session id and language), from the Gemini app page | gemini.google.com, only if you turn Gemini on | To request your Gemini usage, the same data as Gemini's Settings > Usage page. It is held in memory for at most 30 minutes and is never stored or sent anywhere else |
-| The addresses and durations of the page's own network requests (never their content) | claude.ai, chatgpt.com and gemini.google.com pages only | To notice when a reply has finished, so the gauges refresh right away |
+| Your Grok plan and subscription period: the plan's tier, billing system and display name, when the current period ends and whether it renews; on a paid plan, how much of the weekly usage pool is used and when its week ends; on a free account, the Fast queries left | grok.com, only if you turn Grok on, using your existing sign-in session (no token is read) | To draw the gauges, your rank and when your plan renews or ends, so you do not have to enter that date |
+| The addresses and durations of the page's own network requests (never their content) | claude.ai, chatgpt.com, gemini.google.com and grok.com pages only | To notice when a reply has finished, so the gauges refresh right away |
 
-Responses from these sites may also contain your account name or email address. The extension does not use them and discards them right away; they are never stored.
+Responses from these sites may also contain your account name, email address or account ID. The extension does not use them and discards them right away (from a site's own tab, they never leave the page); they are never stored.
 
 ### Data categories
 
 As declared in the Chrome Web Store's privacy practices, the extension handles these categories of data, only on your device and only to show your usage:
 
-- **Personally identifiable information**: responses from claude.ai, chatgpt.com and gemini.google.com (including the Gemini app page) may include your account name or email address. They are discarded right away and never used or stored.
-- **Financial and payment information**: credit balances and the amount of usage credits spent this month, with its monthly cap; the start and end of your current ChatGPT subscription period and whether it renews (never any card, invoice or price).
+- **Personally identifiable information**: responses from claude.ai, chatgpt.com, gemini.google.com (including the Gemini app page) and grok.com may include your account name, email address or account ID. They are discarded right away and never used or stored.
+- **Financial and payment information**: credit balances and the amount of usage credits spent this month, with its monthly cap; the start and end of your current ChatGPT subscription period and whether it renews; your Grok plan, the end of its current period and whether it renews (never any card, invoice or price).
 - **Authentication information**: your existing sign-in session (used by the browser for the requests), the `lastActiveOrg` cookie, the ChatGPT access token held in memory for the usage and subscription requests only, and the Gemini session token held in memory for at most 30 minutes.
-- **User activity**: the addresses and durations of the page's own network requests on claude.ai, chatgpt.com and gemini.google.com (never their content).
-- **Website content**: the usage data returned by claude.ai, chatgpt.com and gemini.google.com.
+- **User activity**: the addresses and durations of the page's own network requests on claude.ai, chatgpt.com, gemini.google.com and grok.com (never their content).
+- **Website content**: the usage data returned by claude.ai, chatgpt.com, gemini.google.com and grok.com.
 
 It does not handle health information, personal communications, location or web history.
 
@@ -48,7 +49,7 @@ It does not handle health information, personal communications, location or web 
 
 ### Where data is stored
 
-The latest usage snapshot (the numbers above, without any token or cookie) and your settings are stored only in your browser, in `chrome.storage.local`. They are deleted when you withdraw consent (usage data) or uninstall the extension (everything). The only network requests the extension makes go to claude.ai, chatgpt.com and gemini.google.com themselves, over HTTPS, the same way their own web pages do.
+The latest usage snapshot (the numbers above, without any token or cookie) and your settings are stored only in your browser, in `chrome.storage.local`. They are deleted when you withdraw consent (usage data) or uninstall the extension (everything). The only network requests the extension makes go to claude.ai, chatgpt.com, gemini.google.com and grok.com themselves, over HTTPS, the same way their own web pages do.
 
 ### Permissions
 
@@ -61,6 +62,7 @@ The latest usage snapshot (the numbers above, without any token or cookie) and y
 | `scripting` | Add the extension's own page script to tabs that were already open: on the sites it monitors once you agree (and after an update), on other sites only after you allow it |
 | `https://chatgpt.com/*` (optional) | Asked only when you turn ChatGPT on |
 | `https://gemini.google.com/*` (optional) | Asked only when you turn Gemini on |
+| `https://grok.com/*` (optional) | Asked only when you turn Grok on |
 | `http://*/*`, `https://*/*` (optional) | Asked only when you turn on the HUD for every site; used only to display the HUD |
 | `notifications` (optional) | Asked only when you turn on the "fully restored" notice |
 
@@ -78,6 +80,7 @@ Changes are published in this file, with a new effective date. If a change affec
 
 Changes so far:
 
+- 2026-11-01: Grok support (optional): its usage, plan and subscription period, read with your existing sign-in. Everyone who had agreed before is asked to agree again.
 - 2026-10-11: Gemini support (optional), and the ChatGPT subscription period (start, end, whether it renews) read automatically. What it reads is listed above; everyone who had agreed before is asked to agree again.
 - 2026-10-05: first version.
 
@@ -85,7 +88,7 @@ Changes so far:
 
 Questions or requests: open an issue at https://github.com/DarkFlameSword/Web-AI-Monitor/issues
 
-Web AI Monitor is an unofficial tool, not affiliated with or endorsed by Anthropic, OpenAI or Google. Claude is a trademark of Anthropic, PBC. ChatGPT is a trademark of OpenAI. Gemini is a trademark of Google LLC.
+Web AI Monitor is an unofficial tool, not affiliated with or endorsed by Anthropic, OpenAI, Google or xAI. Claude is a trademark of Anthropic, PBC. ChatGPT is a trademark of OpenAI. Gemini is a trademark of Google LLC. Grok is a trademark of xAI.
 
 ## 简体中文
 
@@ -101,24 +104,25 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 
 | 数据 | 来源 | 用途 |
 | --- | --- | --- |
-| 你的用量：各项限额的已用比例、重置时间、订阅方案、额度余额和本月已用额度 | claude.ai，使用你已有的登录会话（开启 ChatGPT 或 Gemini 后也包括 chatgpt.com 或 gemini.google.com） | 显示能量条、倒计时和宝物袋 |
+| 你的用量：各项限额的已用比例、重置时间、订阅方案、额度余额和本月已用额度 | claude.ai，使用你已有的登录会话（开启 ChatGPT、Gemini 或 Grok 后也包括 chatgpt.com、gemini.google.com 或 grok.com） | 显示能量条、倒计时和宝物袋 |
 | claude.ai 的 `lastActiveOrg` cookie（组织 ID） | claude.ai | 显示你当前所在组织的用量 |
 | 你的 ChatGPT 订阅周期：本期的开始和结束时间、是否自动续订（与 ChatGPT 设置里显示的订阅日期相同） | chatgpt.com，仅在你开启 ChatGPT 后（最多每几个小时问一次） | 显示方案何时续订或到期，你不用再手动填写这个日期 |
 | ChatGPT 访问令牌，来自 chatgpt.com 自身的会话接口 | chatgpt.com，仅在你开启 ChatGPT 后 | 用来请求你的 Codex 用量和订阅周期。只在内存中用于这些请求，从不保存，也不发往其他任何地方 |
 | Gemini 会话令牌（以及页面的版本标识、会话 id 和语言），来自 Gemini 应用页面 | gemini.google.com，仅在你开启 Gemini 后 | 用来请求你的 Gemini 用量，与 Gemini「设置 > 用量」页面的数据相同。只在内存中保留最多 30 分钟，从不保存，也不发往其他任何地方 |
-| 网页自身网络请求的地址和耗时（从不读取内容） | 仅 claude.ai、chatgpt.com 和 gemini.google.com 页面 | 判断回复何时结束，以便立即刷新 |
+| 你的 Grok 方案和订阅周期：方案等级、计费系统和显示名称，本期结束时间、是否自动续订；付费方案的每周用量额度已用比例和本周期结束时间；免费账户的 Fast 剩余次数 | grok.com，仅在你开启 Grok 后，使用你已有的登录会话（不读取任何令牌） | 显示能量条、冒险者资质和方案何时续订或到期，你不用再手动填写这个日期 |
+| 网页自身网络请求的地址和耗时（从不读取内容） | 仅 claude.ai、chatgpt.com、gemini.google.com 和 grok.com 页面 | 判断回复何时结束，以便立即刷新 |
 
-这些网站的响应里也可能包含你的账户名或邮箱。本扩展不使用它们并立即丢弃，从不保存。
+这些网站的响应里也可能包含你的账户名、邮箱或账户 ID。本扩展不使用它们并立即丢弃（经网站自己的标签页读取时，它们不会离开网页），从不保存。
 
 ### 数据类别
 
 与 Chrome 应用商店「隐私权」中的声明一致，本扩展经手以下类别的数据，只在你的设备上、只用于显示你的用量：
 
-- **个人身份信息**：claude.ai、chatgpt.com 和 gemini.google.com 的响应（包括 Gemini 应用页面）里可能带有你的账户名或邮箱，收到后立即丢弃，从不使用或保存。
-- **财务和付款信息**：额度余额，以及本月已用的用量额度金额和月度上限；ChatGPT 订阅本期的开始和结束时间、是否自动续订（从不读取银行卡、账单或价格）。
+- **个人身份信息**：claude.ai、chatgpt.com、gemini.google.com（包括 Gemini 应用页面）和 grok.com 的响应里可能带有你的账户名、邮箱或账户 ID，收到后立即丢弃，从不使用或保存。
+- **财务和付款信息**：额度余额，以及本月已用的用量额度金额和月度上限；ChatGPT 订阅本期的开始和结束时间、是否自动续订；Grok 的方案、本期结束时间、是否自动续订（从不读取银行卡、账单或价格）。
 - **身份验证信息**：你已有的登录会话（浏览器发请求时自动使用）、`lastActiveOrg` cookie、只在内存中用于读取用量和订阅周期的 ChatGPT 访问令牌，以及只在内存中保留最多 30 分钟的 Gemini 会话令牌。
-- **用户活动**：claude.ai、chatgpt.com 和 gemini.google.com 页面上网页自身网络请求的地址和耗时（从不读取内容）。
-- **网站内容**：claude.ai、chatgpt.com 和 gemini.google.com 返回的用量数据。
+- **用户活动**：claude.ai、chatgpt.com、gemini.google.com 和 grok.com 页面上网页自身网络请求的地址和耗时（从不读取内容）。
+- **网站内容**：claude.ai、chatgpt.com、gemini.google.com 和 grok.com 返回的用量数据。
 
 不经手健康信息、个人通讯、位置和浏览记录。
 
@@ -131,7 +135,7 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 
 ### 数据存在哪里
 
-最近一次的用量快照（上表中的数字，不含任何令牌或 cookie）和你的设置只保存在你的浏览器中（`chrome.storage.local`）。撤回同意时删除用量数据，卸载扩展时全部删除。本扩展的网络请求只发往 claude.ai、chatgpt.com 和 gemini.google.com 本身，经由 HTTPS，与它们自己的网页一样。
+最近一次的用量快照（上表中的数字，不含任何令牌或 cookie）和你的设置只保存在你的浏览器中（`chrome.storage.local`）。撤回同意时删除用量数据，卸载扩展时全部删除。本扩展的网络请求只发往 claude.ai、chatgpt.com、gemini.google.com 和 grok.com 本身，经由 HTTPS，与它们自己的网页一样。
 
 ### 权限
 
@@ -144,6 +148,7 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 | `scripting` | 把扩展自带的页面脚本放进已打开的标签页：被监控的网站在你同意后（以及扩展更新后），其他网站只在你允许后 |
 | `https://chatgpt.com/*`（可选） | 只在你开启 ChatGPT 时申请 |
 | `https://gemini.google.com/*`（可选） | 只在你开启 Gemini 时申请 |
+| `https://grok.com/*`（可选） | 只在你开启 Grok 时申请 |
 | `http://*/*`、`https://*/*`（可选） | 只在你开启「所有网页都显示」时申请，只用来显示悬浮窗 |
 | `notifications`（可选） | 只在你开启「能量完全恢复时提醒」时申请 |
 
@@ -161,6 +166,7 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 
 变更记录：
 
+- 2026-11-01：支持 Grok（可选）：用你已有的登录状态读取它的用量、方案和订阅周期。之前已同意的用户会被要求重新同意。
 - 2026-10-11：支持 Gemini（可选）；自动读取 ChatGPT 的订阅周期（开始、结束、是否自动续订）。读取的内容见上文；之前已同意的用户会被要求重新同意。
 - 2026-10-05：第一版。
 
@@ -168,4 +174,4 @@ Web AI Monitor（以下称「本扩展」）是一个浏览器扩展，用来显
 
 如有问题或请求，请在 https://github.com/DarkFlameSword/Web-AI-Monitor/issues 提交 issue。
 
-Web AI Monitor 是非官方工具，与 Anthropic、OpenAI、Google 无关联，也未获得其认可。Claude 是 Anthropic, PBC 的商标；ChatGPT 是 OpenAI 的商标；Gemini 是 Google LLC 的商标。
+Web AI Monitor 是非官方工具，与 Anthropic、OpenAI、Google、xAI 无关联，也未获得其认可。Claude 是 Anthropic, PBC 的商标；ChatGPT 是 OpenAI 的商标；Gemini 是 Google LLC 的商标；Grok 是 xAI 的商标。

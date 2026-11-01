@@ -89,7 +89,7 @@ async function main() {
         await welcome.bringToFront();
         await welcome.evaluate(() => document.fonts.ready);
         await waitFor(async () => /冒险者登记/.test(await welcome.locator('body').innerText()), 'the notice in Chinese');
-        for (const expected of [/lastActiveOrg/, /不读取对话内容/, /不修改、绕过或重置任何限额/, /只在内存中/, /gemini\.google\.com/, /与 Anthropic、OpenAI、Google 无关联/]) {
+        for (const expected of [/lastActiveOrg/, /不读取对话内容/, /不修改、绕过或重置任何限额/, /只在内存中/, /gemini\.google\.com/, /grok\.com/, /与 Anthropic、OpenAI、Google、xAI 无关联/]) {
           assert.match(await welcome.locator('body').innerText(), expected);
         }
         await welcome.setViewportSize({ width: 960, height: 1100 });
@@ -190,7 +190,7 @@ async function main() {
         await sleep(300);
         assert.equal(await page.getByLabel('所有网页都显示（需授权）').isChecked(), false);
         assert.equal(await page.getByLabel('能量完全恢复时提醒').isChecked(), false);
-        for (const name of ['ChatGPT', 'Gemini']) {
+        for (const name of ['ChatGPT', 'Gemini', 'Grok']) {
           const vendor = page.locator('label.pix-check', { hasText: name });
           assert.equal(await vendor.locator('input').isChecked(), false, `${name} is off by default`);
           assert.match(await vendor.innerText(), /需授权/);
@@ -277,7 +277,9 @@ async function main() {
 
     await check('every-site HUD: registered, shown on a strict-CSP page with the pixel font', async () => {
       const registered = await app.ask(() => chrome.scripting.getRegisteredContentScripts());
-      assert.deepEqual(registered.map(script => script.id).sort(), ['wam-page-hud', 'wam-vendor-chatgpt', 'wam-vendor-gemini']);
+      // The every-site HUD, and each vendor whose site is behind an optional permission (all granted here).
+      const vendors = PROVIDERS.filter(provider => provider.optionalPermission).map(provider => `wam-vendor-${provider.id}`);
+      assert.deepEqual(registered.map(script => script.id).sort(), ['wam-page-hud', ...vendors].sort());
       const page = await app.context.newPage();
       await page.goto('https://strict.example.com/');
       await waitFor(() => hudOn(page), 'HUD on the strict page');
@@ -461,6 +463,78 @@ async function main() {
       await gem.close();
     });
 
+    await check('Grok: switched on in settings, its pool or its Fast count through its tab, on its own card and HUD', async () => {
+      await app.storage.set({ settings: { lang: 'zh_CN', hud: { everywhere: true }, providers: { chatgpt: true, gemini: true } } });
+      const tab = await app.context.newPage();
+      await tab.goto('https://grok.com/');
+      await sleep(1200);
+      const page = await app.openPopup();
+      await page.getByRole('button', { name: '设置' }).click();
+      await page.locator('label.pix-check', { hasText: 'Grok' }).click();
+      await waitFor(async () => (await app.storage.get('settings'))?.providers?.grok === true, 'Grok on');
+      const snap = await waitFor(async () => {
+        const value = await app.storage.get('snapshot:grok');
+        return value?.status === 'ok' && value;
+      }, 'a Grok snapshot');
+      // A paid account: Ultra (its tier still says SuperGrok Heavy), metered by the weekly pool.
+      assert.equal(snap.plan, 'ultra');
+      assert.deepEqual(snap.meters.map(m => [m.kind, Math.round(m.used)]), [['weekly_pool', 37]]);
+      assert.equal(snap.subscription.renews, true);
+      assert.ok(Date.parse(snap.subscription.endsAt) > Date.now() + 23 * DAY);
+      // The billing call went out as grok.com's own page makes it: gRPC-web, one empty message.
+      assert.deepEqual(mock.grokCredits, { contentType: 'application/grpc-web+proto', grpcWeb: '1', body: [0, 0, 0, 0, 0] });
+      assert.doesNotMatch(JSON.stringify(snap), /user-secret|TOP_UP/);
+      // Its end date is read, so settings show it instead of a date field.
+      assert.match(await page.locator('.set-auto').allInnerTexts().then(texts => texts.join(' ')), /\d/);
+
+      await page.getByRole('button', { name: '返回' }).click();
+      await page.getByRole('tab', { name: 'Grok' }).click();
+      await sleep(600);
+      const text = await page.locator('body').innerText();
+      // MP is sealed on a paid plan: its line says why instead of its name.
+      for (const expected of [/封印中/, /付费方案只按每周额度计算/, /Grok \/ 每周/, /冒险者资质\s*A/, /Ultra/, /资质续期时间/]) {
+        assert.match(text, expected);
+      }
+      assert.doesNotMatch(text, /绿宝石|金币|魔晶石|回复药水|蓝宝石|奥义|宝物袋/);
+      assert.deepEqual(await overflowing(page), []);
+      await shoot(page.locator('body'), '33-popup-grok');
+      // The HUD keeps to the gauges the plan has: HP only.
+      await waitFor(async () => (await hudText(tab)).startsWith('Grok'), 'the HUD on Grok');
+      const lines = (await hudText(tab)).split('\n');
+      assert.ok(lines.includes('HP') && !lines.includes('MP') && !lines.includes('SP'), lines.join(' '));
+      await sleep(400);
+      await shoot(tab.locator('web-ai-monitor-hud'), '34-hud-grok');
+
+      // The account goes free. A reply finishes there: its Fast count is read, and the pool is sealed.
+      mock.grok = { paid: false };
+      await sleep(4200); // past the "activity" freshness window
+      const before = (await app.storage.get('snapshot:grok')).attemptedAt;
+      await tab.evaluate(() => fetch('/rest/app-chat/conversations/new', { method: 'POST' }));
+      const after = await waitFor(async () => {
+        const value = await app.storage.get('snapshot:grok');
+        return value.attemptedAt > before && value;
+      }, 'a refresh after the reply');
+      assert.equal(after.status, 'ok');
+      assert.equal(after.plan, 'free');
+      assert.deepEqual(after.meters.map(m => [m.kind, Math.round(m.used)]), [['fast', 30]]);
+      assert.equal(after.subscription, null);
+      assert.deepEqual(mock.grokRateLimits, { requestKind: 'DEFAULT', modelName: 'grok-3' });
+      await sleep(600);
+      const free = await page.locator('body').innerText();
+      for (const expected of [/Grok \/ Fast 模式/, /滚动恢复/, /免费账户没有每周额度/, /冒险者资质\s*E/, /\b70\/100\b/]) assert.match(free, expected);
+      assert.deepEqual(await overflowing(page), []);
+      await shoot(page.locator('body'), '35-popup-grok-free');
+      await waitFor(async () => {
+        const hud = (await hudText(tab)).split('\n');
+        return hud.includes('MP') && !hud.includes('HP') && hud.includes('滚动');
+      }, 'the HUD on the Fast count, its window rolling');
+      delete mock.grok;
+      const settings = await app.storage.get('settings');
+      await app.storage.set({ settings: { ...settings, activeProvider: 'claude' } });
+      await page.close();
+      await tab.close();
+    });
+
     await check('the popup tab picks the vendor the HUD and the toolbar icon show', async () => {
       const gpt = await app.context.newPage();
       await gpt.goto('https://chatgpt.com/');
@@ -511,7 +585,7 @@ async function main() {
       for (const lang of ['zh_CN', 'ja', 'en']) {
         await app.storage.set({ settings: { ...settings, lang, rankExpiry: { claude: later(29), chatgpt: later(12) } } });
         const page = await app.openPopup();
-        for (const tab of ['Claude', 'ChatGPT', 'Gemini']) {
+        for (const tab of ['Claude', 'ChatGPT', 'Gemini', 'Grok']) {
           await page.getByRole('tab', { name: tab }).click();
           await sleep(300);
           assert.deepEqual(await overflowing(page), [], `${lang} ${tab} card`);
@@ -588,19 +662,20 @@ async function main() {
       // Fresh numbers for the shots: a reply finishes on each vendor's site (the
       // worker route is stopped here, so their tabs fetch).
       const sites = [];
-      for (const url of ['https://chatgpt.com/', 'https://gemini.google.com/app']) {
+      for (const url of ['https://chatgpt.com/', 'https://gemini.google.com/app', 'https://grok.com/']) {
         const site = await app.context.newPage();
         await site.goto(url);
         await waitFor(() => hudOn(site), `HUD on ${url}`);
         sites.push(site);
       }
       const attempted = async id => (await app.storage.get(`snapshot:${id}`))?.attemptedAt ?? 0;
-      const before = { chatgpt: await attempted('chatgpt'), gemini: await attempted('gemini') };
+      const before = { chatgpt: await attempted('chatgpt'), gemini: await attempted('gemini'), grok: await attempted('grok') };
       await sleep(4200); // past the "activity" freshness window
       await sites[0].evaluate(() => fetch('/backend-api/conversation', { method: 'POST' }));
       await sites[1].evaluate(() => fetch('/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate', { method: 'POST' }));
+      await sites[2].evaluate(() => fetch('/rest/app-chat/conversations/new', { method: 'POST' }));
       await waitFor(async () => {
-        for (const id of ['claude', 'chatgpt', 'gemini']) {
+        for (const id of ['claude', 'chatgpt', 'gemini', 'grok']) {
           const snap = await app.storage.get(`snapshot:${id}`);
           if (snap?.status !== 'ok' || snap.attemptedAt <= (before[id] ?? -1)) return false;
         }
@@ -635,6 +710,15 @@ async function main() {
       await waitFor(async () => (await hudText(other)).startsWith('Gemini'), 'HUD on Gemini');
       await sleep(500);
       await shoot(other.locator('web-ai-monitor-hud'), '31-en-hud-gemini');
+
+      await page.getByRole('tab', { name: 'Grok' }).click();
+      await sleep(600);
+      assert.match(await page.locator('body').innerText(), /Rank renews/);
+      assert.doesNotMatch(await page.locator('body').innerText(), /Lost contact/);
+      await shoot(page.locator('body'), '36-en-popup-grok');
+      await waitFor(async () => (await hudText(other)).startsWith('Grok'), 'HUD on Grok');
+      await sleep(500);
+      await shoot(other.locator('web-ai-monitor-hud'), '37-en-hud-grok');
 
       await page.getByRole('button', { name: 'Settings' }).click();
       await sleep(400);

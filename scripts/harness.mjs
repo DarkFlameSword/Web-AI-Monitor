@@ -129,6 +129,72 @@ function geminiReply(body) {
   }).join('')}`;
 }
 
+/**
+ * grok.com's /rest/subscriptions: by default an Ultra account on The X
+ * Subscription (moved over from SuperGrok Heavy, so its tier keeps the old
+ * name), renewing in 24 days; `paid: false` is a free account.
+ */
+export function grokSubscriptions({ paid = true } = {}) {
+  if (!paid) return { subscriptions: [], dominantPlan: { plan: 'free', surfaceNames: { SURFACE_DISPLAY: 'Free' } } };
+  const iso = ms => new Date(Date.now() + ms).toISOString();
+  return {
+    subscriptions: [{
+      xaiUserId: 'user-secret-0001',
+      tier: 'SUBSCRIPTION_TIER_SUPER_GROK_PRO',
+      status: 'SUBSCRIPTION_STATUS_ACTIVE',
+      createTime: iso(-6 * DAY),
+      billingInterval: 'BILLING_INTERVAL_MONTHLY',
+      billingPeriodEnd: iso(24 * DAY),
+      cancelAtPeriodEnd: false,
+      futureOffers: [],
+      billingSystem: 'BILLING_SYSTEM_COMMERCE',
+    }],
+    dominantPlan: { plan: 'supergrok.heavy', surfaceNames: { SURFACE_DISPLAY: 'SuperGrok Heavy', SURFACE_JWT: 'SUBSCRIPTION_TIER_SUPER_GROK_PRO' } },
+  };
+}
+
+/**
+ * A GetGrokCreditsConfig reply (gRPC-web, protobuf): the weekly pool `used`
+ * percent spent, its period ending in 3 days, the use per product and a
+ * payment field the extension does not read; then the trailers frame.
+ */
+export function grokCredits({ used = 37 } = {}) {
+  const varint = value => {
+    const out = [];
+    let rest = value;
+    do {
+      const low = rest % 128;
+      rest = Math.floor(rest / 128);
+      out.push(rest ? low | 0x80 : low);
+    } while (rest);
+    return out;
+  };
+  const field = (number, wire, payload) => [...varint(number * 8 + wire), ...payload];
+  const nested = (number, payload) => field(number, 2, [...varint(payload.length), ...payload]);
+  const float = (number, value) => {
+    const out = Buffer.alloc(4);
+    out.writeFloatLE(value);
+    return field(number, 5, [...out]);
+  };
+  const stamp = (number, ms) => nested(number, field(1, 0, varint(Math.floor(ms / 1000))));
+  const frame = (bytes, flag = 0) => {
+    const head = Buffer.alloc(5);
+    head[0] = flag;
+    head.writeUInt32BE(bytes.length, 1);
+    return [...head, ...bytes];
+  };
+  const end = Date.now() + 3 * DAY + 4 * HOUR;
+  const config = [
+    ...float(1, used),
+    ...nested(4, [...field(1, 0, [1]), ...stamp(2, end - 7 * DAY), ...stamp(3, end)]),
+    ...stamp(5, end),
+    ...nested(7, [...field(1, 0, [4]), ...float(2, used - 2)]),
+    ...nested(7, [...field(1, 0, [5]), ...float(2, 2)]),
+    ...nested(12, [...Buffer.from('TOP_UP_METHOD_SAVED_PAYMENT_METHOD')]),
+  ];
+  return Buffer.from([...frame(nested(1, config)), ...frame([...Buffer.from('grpc-status:0\r\n')], 0x80)]);
+}
+
 export const ARTICLE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Field notes</title>
 <style>body{margin:0;font:16px/1.6 Georgia,serif;color:#222;background:#fafafa}
 main{max-width:640px;margin:48px auto;padding:0 24px}h1{font-size:32px;margin:0 0 16px}p{margin:0 0 16px;color:#444}</style>
@@ -220,6 +286,25 @@ export async function launch(extensionPath, mock, { deviceScaleFactor = 2, viewp
     // The app page: its session values in WIZ_global_data, an email that must stay in the page, and an article.
     const wiz = `<script>window.WIZ_global_data = {"cfb2h":"boq_assistant-bard-web-server_20261008.07_p0","oPEP7c":"someone@example.com","SNlM0e":"${GEMINI_TOKEN}","FdrFJe":"-4021337","TuX5cc":"en"};</script>`;
     return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('<title>', `${wiz}<title>`).replace('Field notes</h1>', 'gemini.google.com (mock)</h1>') });
+  });
+  await context.route('https://grok.com/**', async route => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+    // Like the other vendors: the worker route is stopped, the page route works.
+    if (request.serviceWorker()) return route.fulfill({ status: 403, contentType: 'text/html', body: '<html>challenge</html>' });
+    const grok = mock.grok ?? {};
+    if (pathname === '/rest/subscriptions') return route.fulfill({ json: grokSubscriptions(grok) });
+    if (pathname === '/rest/rate-limits') {
+      mock.grokRateLimits = JSON.parse(request.postData() ?? 'null');
+      return route.fulfill({ json: { windowSizeSeconds: 7200, remainingQueries: grok.fastLeft ?? 14, totalQueries: 20, remainingTokens: 90000, totalTokens: 160000 } });
+    }
+    if (pathname === '/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig') {
+      const headers = request.headers();
+      mock.grokCredits = { contentType: headers['content-type'], grpcWeb: headers['x-grpc-web'], body: [...(request.postDataBuffer() ?? [])] };
+      return route.fulfill({ status: 200, headers: { 'content-type': 'application/grpc-web+proto' }, body: grokCredits(grok) });
+    }
+    if (pathname.startsWith('/rest/app-chat/conversations/')) return route.fulfill({ contentType: 'application/json', body: '{"result":{}}\n' });
+    return route.fulfill({ contentType: 'text/html', body: ARTICLE.replace('Field notes</h1>', 'grok.com (mock)</h1>') });
   });
   await context.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: ARTICLE }));
   await context.route('https://strict.example.com/**', route => route.fulfill({

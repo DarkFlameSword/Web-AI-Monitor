@@ -1,4 +1,4 @@
-import { HttpError, deserializeError, isAuthError } from '../core/http.js';
+import { EMPTY_GRPC_REQUEST, GRPC_HEADERS, HttpError, deserializeError, isAuthError } from '../core/http.js';
 
 /**
  * Straight from the service worker. The extension holds host permission for
@@ -31,6 +31,43 @@ export function directHttp(provider) {
     },
     postForm(path, fields, { headers = {} } = {}) {
       return fetchText(provider.origin + path, { method: 'POST', headers, body: new URLSearchParams(fields) });
+    },
+    async postJson(path, json, { headers = {} } = {}) {
+      let response;
+      try {
+        response = await fetch(provider.origin + path, {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { ...headers, accept: 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify(json),
+        });
+      } catch {
+        throw new HttpError(0, 'network');
+      }
+      if (!(response.headers.get('content-type') ?? '').includes('json')) {
+        throw new HttpError(response.status, 'not_json');
+      }
+      if (!response.ok) throw new HttpError(response.status);
+      return response.json();
+    },
+    async postGrpc(path) {
+      let response;
+      try {
+        response = await fetch(provider.origin + path, {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: GRPC_HEADERS,
+          body: Uint8Array.from(EMPTY_GRPC_REQUEST),
+        });
+      } catch {
+        throw new HttpError(0, 'network');
+      }
+      if (!response.ok) throw new HttpError(response.status, 'http');
+      // A bot challenge answers with an HTML page.
+      if (!(response.headers.get('content-type') ?? '').includes('grpc')) throw new HttpError(response.status, 'not_grpc');
+      return new Uint8Array(await response.arrayBuffer());
     },
     async getCookie(name) {
       try {
@@ -80,6 +117,14 @@ export function tabHttp(provider, tabId) {
     },
     postForm(path, form, { headers = {} } = {}) {
       return proxied({ method: 'POST', path, headers, form, as: 'text' });
+    },
+    postJson(path, json, { headers = {} } = {}) {
+      return proxied({ method: 'POST', path, headers, json, as: 'json' });
+    },
+    async postGrpc(path) {
+      // Bytes cross extension messaging as a plain array.
+      const body = await proxied({ method: 'POST', path, grpc: true, as: 'bytes' });
+      return Uint8Array.from(Array.isArray(body) ? body : []);
     },
     async getCookie(name) {
       try {

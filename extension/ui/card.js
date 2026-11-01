@@ -100,7 +100,7 @@ class GaugeRow {
     else if (view.state === 'sealed') text = '';
     else if (view.recovering) text = t('time.recovering');
     else if (view.ready) text = t('status.ready');
-    else if (view.resetsAt === null) text = t('time.standby');
+    else if (view.resetsAt === null) text = view.idle ? t(this.compact ? view.idle.short ?? view.idle.key : view.idle.key) : t('time.standby');
     else if (this.compact) text = formatCountdownShort(view.resetsAt - now, t);
     else text = t('time.resetsIn', { t: formatCountdown(view.resetsAt - now, t) });
     if (this.time.textContent !== text) this.time.textContent = text;

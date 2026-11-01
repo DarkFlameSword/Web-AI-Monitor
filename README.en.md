@@ -2,15 +2,15 @@
 
 [简体中文](README.md) | English
 
-A Chrome extension (Manifest V3) that shows how much of each AI's usage limits you have left, with live reset countdowns, as a pixel-art "adventurer's guild card" from an isekai fantasy world. It currently supports Claude, ChatGPT and Gemini. Each vendor's limit plan template, data fetching and UI are decoupled: every vendor has its own set of gauges, treasures and rank ladder, and nothing from one vendor is forced onto another.
+A Chrome extension (Manifest V3) that shows how much of each AI's usage limits you have left, with live reset countdowns, as a pixel-art "adventurer's guild card" from an isekai fantasy world. It currently supports Claude, ChatGPT, Gemini and Grok. Each vendor's limit plan template, data fetching and UI are decoupled: every vendor has its own set of gauges, treasures and rank ladder, and nothing from one vendor is forced onto another.
 
-| Claude | ChatGPT | Gemini |
-| --- | --- | --- |
-| ![Claude card](docs/screenshots/en/popup-claude.png) | ![ChatGPT card](docs/screenshots/en/popup-chatgpt.png) | ![Gemini card](docs/screenshots/en/popup-gemini.png) |
+| Claude | ChatGPT | Gemini | Grok |
+| --- | --- | --- | --- |
+| ![Claude card](docs/screenshots/en/popup-claude.png) | ![ChatGPT card](docs/screenshots/en/popup-chatgpt.png) | ![Gemini card](docs/screenshots/en/popup-gemini.png) | ![Grok card](docs/screenshots/en/popup-grok.png) |
 
 | Page HUD (follows the vendor picked in the popup) | Settings (pixel calendar) |
 | --- | --- |
-| ![Claude HUD](docs/screenshots/en/hud-claude.png)<br><br>![ChatGPT HUD](docs/screenshots/en/hud-chatgpt.png)<br><br>![Gemini HUD](docs/screenshots/en/hud-gemini.png)<br><br>Collapsed: ![Claude collapsed](docs/screenshots/hud-collapsed.png) ![ChatGPT collapsed](docs/screenshots/hud-collapsed-chatgpt.png) | ![Settings](docs/screenshots/en/settings.png)<br><br>![Calendar](docs/screenshots/en/settings-calendar.png) |
+| ![Claude HUD](docs/screenshots/en/hud-claude.png)<br><br>![ChatGPT HUD](docs/screenshots/en/hud-chatgpt.png)<br><br>![Gemini HUD](docs/screenshots/en/hud-gemini.png)<br><br>![Grok HUD](docs/screenshots/en/hud-grok.png)<br><br>Collapsed: ![Claude collapsed](docs/screenshots/hud-collapsed.png) ![ChatGPT collapsed](docs/screenshots/hud-collapsed-chatgpt.png) | ![Settings](docs/screenshots/en/settings.png)<br><br>![Calendar](docs/screenshots/en/settings-calendar.png) |
 
 The UI is available in English (default), Simplified Chinese and Japanese. The screenshots above are the English UI; the [Chinese README](README.md) shows the Chinese one.
 
@@ -59,9 +59,22 @@ There is no ultimate gauge (SP) and no other vendor's treasure. The rank ladder 
 
 Gemini is not monitored by default. Only when you tick Gemini under "Monitored AI" in settings does the extension ask Chrome for access to gemini.google.com. Once you allow it, fetching starts; unticking it gives the permission back.
 
+## The Grok scheme
+
+Since August 2026 grok.com meters in one of two ways: paid plans with one weekly pool shared by every Grok product (chat, Imagine, voice, Grok Build and so on), free accounts with a count of Fast-mode queries that refill on a rolling window. An account has one or the other, so the other gauge on the Grok card reads "Sealed":
+
+| Element | Grok meaning | Notes |
+| --- | --- | --- |
+| MP Mana | Fast-mode queries left (free accounts) | A rolling window: the site gives no refill time, so the card says "Rolling window"; once none is left, it shows how long to wait |
+| HP Health | The weekly pool (paid plans) | Counts down to the end of the current week; colours as for Claude |
+
+There is no ultimate gauge (SP) and no treasure pouch (grok.com reports no credit balance next to the limits). The rank ladder follows The X Subscription (from October 2026): Ultra = A, Super = B, Premium = C, Plus = D, Free = E. SuperGrok plans bought before it keep their names and rank as the plan that replaced them (SuperGrok Heavy = A, SuperGrok Plus = B, SuperGrok = C, SuperGrok Lite = D). When the current period ends, and whether it renews, are read from grok.com, so there is nothing to enter.
+
+Grok is not monitored by default. Only when you tick Grok under "Monitored AI" in settings does the extension ask Chrome for access to grok.com. Once you allow it, fetching starts; unticking it gives the permission back.
+
 ## Adventurer rank
 
-Under the vendor's name the popup shows the "Adventurer rank" and when the rank expires (the ChatGPT and Gemini ladders are above):
+Under the vendor's name the popup shows the "Adventurer rank" and when the rank expires (the ChatGPT, Gemini and Grok ladders are above):
 
 | Claude plan | Rank |
 | --- | --- |
@@ -72,7 +85,7 @@ Under the vendor's name the popup shows the "Adventurer rank" and when the rank 
 | Team / Enterprise (organization plans, not on the personal ladder) | B / S |
 
 - The rule lives in the vendor template: `ladder` lists the personal plans from highest to lowest. The first is A, and each step down is one letter lower. For another vendor, list its personal plans the same way. Organization plans state their rank in the template directly.
-- **ChatGPT, read automatically**: when the current subscription period started and ends, and whether it renews, come from chatgpt.com's subscription endpoint, so there is nothing to enter. A plan that renews shows "Rank renews ..." and never turns red; a cancelled one shows "Rank expires ...". Hover it for the period's start and end. The dates are asked for at most every 6 hours, and again right away when the plan changes or the period ends.
+- **ChatGPT, read automatically**: when the current subscription period started and ends, and whether it renews, come from chatgpt.com's subscription endpoint, so there is nothing to enter. A plan that renews shows "Rank renews ..." and never turns red; a cancelled one shows "Rank expires ...". Hover it for the period's start and end. The dates are asked for at most every 6 hours, and again right away when the plan changes or the period ends. **Grok is read automatically too**: the end of the current period and whether it renews come from grok.com's subscriptions endpoint with every refresh.
 - **Claude and Gemini, entered by you**: their web endpoints do not give the subscription dates (Gemini's renewal date only appears on the Google Account's payments and subscriptions page), so you pick the date under "Subscription ends" in settings, on a pixel calendar (one date per vendor: the day your subscription ends). Clear it from the calendar's footer, or with Delete. The rank is still valid on that day; after it, the card says "Rank expired on ...". It turns red within three days of the date and once it has passed. If ChatGPT's dates ever cannot be read, a date field appears for it too, and a date you pick there is used.
 - On a paid plan with no date, the card shows "Rank expiry not set"; clicking it jumps straight to that vendor's date field in settings. Free plans show nothing. The HUD puts the rank and its expiry in the seal's tooltip.
 
@@ -90,15 +103,15 @@ An entry the account does not have is left out; when neither exists, the whole p
 ## Features
 
 - **Consent first**: at install it opens a "Guild registration" data use notice that says what it reads, what it never does and where data stays. Until you click "Agree and start", the extension sends no request and shows no HUD; the popup shows only a short notice and the agree button. "Data & privacy" in settings is folded by default; "Show" unfolds it to show the notice again, open the [privacy policy](PRIVACY.md), or withdraw consent (it asks "Withdraw consent?" first, with "Cancel" selected and Esc meaning cancel; once confirmed, reading stops and the saved usage data is deleted).
-- **Popup**: the guild card (adventurer rank and its expiry), gauges with countdowns, the treasure pouch, "Updated Ns ago", and the settings page. When more than one vendor is monitored, vendor tabs (Claude / ChatGPT / Gemini) appear at the top. The vendor you pick is saved in settings, and the page HUD and the toolbar icon switch with it.
+- **Popup**: the guild card (adventurer rank and its expiry), gauges with countdowns, the treasure pouch, "Updated Ns ago", and the settings page. When more than one vendor is monitored, vendor tabs (Claude / ChatGPT / Gemini / Grok) appear at the top. The vendor you pick is saved in settings, and the page HUD and the toolbar icon switch with it.
 - **Settings**: every control is drawn in pixels like a Japanese RPG menu. The dropdown and the date field are small bevelled plates that open into framed sub-windows with a drop shadow; checkboxes are sunken slots with a vermilion tick; sliders are gold gauges. Whatever the pointer or the keyboard is on gets a vermilion frame and the blinking triangle cursor (no dotted browser outline). All text is at least 4.5:1 against its background. Everything works from the keyboard: arrow keys and Enter in the dropdown; in the calendar, arrow keys move the day, PageUp / PageDown change the month, Delete clears, Esc closes.
-- **Page HUD**: by default it only appears on the sites of the vendors you monitor (claude.ai, plus chatgpt.com and gemini.google.com once they are on). It shows one vendor at a time: whichever vendor is picked in the popup, the HUD in every tab switches at once to that vendor's own panel (MP / HP / SP for Claude, only MP / HP for ChatGPT and Gemini, and the same for the collapsed tab). Ticking "On every site (asks permission)" in settings is the only time the extension asks Chrome for access to all sites; once allowed, the HUD appears in the tabs already open, and unticking it gives the permission back. Its size is a slider in settings (100% - 200%; the pixels are sharpest at 100% and 200%). Drag it anywhere and it snaps to the nearest corner when released; collapse it into a 30x22 tab; it hides in full screen. It lives in a closed shadow DOM, so page styles do not touch it, and the pixel font works even on sites with a strict CSP.
-- **Monitored AI**: every supported vendor has a switch in settings (Claude on by default; ChatGPT and Gemini off by default, and ticking one asks for chatgpt.com or gemini.google.com). A vendor switched off is no longer fetched, and the popup, HUD and toolbar icon stop showing it. The toolbar icon also shows the vendor picked in the popup; if that vendor is switched off, the popup, HUD and toolbar all fall back to the first vendor still monitored.
+- **Page HUD**: by default it only appears on the sites of the vendors you monitor (claude.ai, plus chatgpt.com, gemini.google.com and grok.com once they are on). It shows one vendor at a time: whichever vendor is picked in the popup, the HUD in every tab switches at once to that vendor's own panel (MP / HP / SP for Claude, only MP / HP for ChatGPT, Gemini and Grok, and the same for the collapsed tab). Ticking "On every site (asks permission)" in settings is the only time the extension asks Chrome for access to all sites; once allowed, the HUD appears in the tabs already open, and unticking it gives the permission back. Its size is a slider in settings (100% - 200%; the pixels are sharpest at 100% and 200%). Drag it anywhere and it snaps to the nearest corner when released; collapse it into a 30x22 tab; it hides in full screen. It lives in a closed shadow DOM, so page styles do not touch it, and the pixel font works even on sites with a strict CSP.
+- **Monitored AI**: every supported vendor has a switch in settings (Claude on by default; ChatGPT, Gemini and Grok off by default, and ticking one asks for chatgpt.com, gemini.google.com or grok.com). A vendor switched off is no longer fetched, and the popup, HUD and toolbar icon stop showing it. The toolbar icon also shows the vendor picked in the popup; if that vendor is switched off, the popup, HUD and toolbar all fall back to the first vendor still monitored.
 - **Recovery notification** (off by default): ticking "Tell me when a gauge is full again" is when the notification permission is requested. When a used MP / HP / SP refills at its reset time, you get one desktop notification (once per window; notices missed by more than an hour while the browser was closed are dropped). Clicking it opens claude.ai.
-- **Toolbar icon**: the icon itself is the current vendor's mini gauges (three bars for Claude; ChatGPT and Gemini have no SP, so two), live. There is no badge normally: it only shows the number left when MP is below 20%, and the time until MP returns (such as `45m`) once MP is empty. The tooltip has the full numbers and reset times.
+- **Toolbar icon**: the icon itself is the current vendor's mini gauges (three bars for Claude; ChatGPT, Gemini and Grok have no SP, so two), live. There is no badge normally: it only shows the number left when MP is below 20%, and the time until MP returns (such as `45m`) once MP is empty. The tooltip has the full numbers and reset times.
 - **When it refreshes**:
   - on a timer in the background (5 minutes by default; any value from 1 to 30 minutes with the slider in settings, by dragging, the mouse wheel or the arrow keys);
-  - about a second after each reply (or Codex task) finishes on claude.ai / chatgpt.com / gemini.google.com;
+  - about a second after each reply (or Codex task) finishes on claude.ai / chatgpt.com / gemini.google.com / grok.com;
   - when any window reaches its reset time;
   - when you open the popup or come back to a tab (if the numbers are old);
   - only every 30 minutes while you are signed out.
@@ -130,7 +143,12 @@ There is no build step: `extension/` is everything Chrome loads.
 - It reads the endpoints gemini.google.com's own web app uses (also not public), the same ones behind its Settings > Usage page:
   - `GET https://gemini.google.com/app`: the session token `SNlM0e` (plus `cfb2h`, `FdrFJe` and the language) from the page's `WIZ_global_data`. The token is kept in memory for at most 30 minutes, fetched again when it expires or is refused, and never stored. When this goes through a tab, the page hands back only these values; the account name, email, chats and the rest of the page stay in the page;
   - `POST https://gemini.google.com/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc` (GetUsageInfo; the form is only the `at` token and a fixed `f.req`): the plan tier (1 Free, 2 Pro, 3 / 6 Ultra, 4 Plus), the used fraction and reset time of the 5-hour and weekly windows, and the Google AI credits balance. The reply starts with `)]}'`, followed by length-prefixed JSON frames. The endpoint and its format follow the open-source project [HanaokaYuzu/Gemini-API](https://github.com/HanaokaYuzu/Gemini-API).
-- The background service worker asks directly first. If that is blocked (for example, it gets a challenge page), it borrows an open tab of that vendor and asks same-origin as the page. A tab only makes allow-listed requests: for Claude and ChatGPT, read-only GETs of the paths above (ChatGPT passes on only the two request headers above); for Gemini, the app page and that one read-only usage call, whose form must match exactly.
+- It reads the endpoints grok.com's own web app uses (also not public), the same ones behind its Settings > Usage page, with your existing sign-in and no token:
+  - `GET https://grok.com/rest/subscriptions`: the account's subscriptions. Only the active one is used (`status` is `SUBSCRIPTION_STATUS_ACTIVE`; the newest if several are), and only its `tier`, `billingSystem`, `billingPeriodEnd` and `cancelAtPeriodEnd`, plus `dominantPlan`'s display name. A tier keeps its old name after a move to The X Subscription (an Ultra account still says `SUPER_GROK_PRO`), so names map as "old plan -> the plan that replaced it", and a `BILLING_SYSTEM_LEGACY` subscription shows its SuperGrok name. A 401 means signed out. Through a tab, the page hands back only these fields; `xaiUserId` and the rest never leave it;
+  - paid plans: `POST https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig` (gRPC-web; the request is an empty message): the percent of the weekly pool used (protobuf field 1, a float), the current period (field 4) and its end (field 5). Through a tab, the page hands back only those three fields; the use per product, the payment method and the rest never leave it;
+  - free accounts (or a paid plan whose pool cannot be read): `POST https://grok.com/rest/rate-limits` with exactly `{"requestKind":"DEFAULT","modelName":"grok-3"}` (Fast mode): `remainingQueries`, `totalQueries`, and `waitTimeSeconds` once none is left. Through a tab, only those numbers come back.
+  - The calls follow the open-source projects [JoshuaWang2211/grok-usage-watch](https://github.com/JoshuaWang2211/grok-usage-watch), [titanlyy/grok-watch](https://github.com/titanlyy/grok-watch) and [AstroQore/vibe-bar](https://github.com/AstroQore/vibe-bar) (the subscription fields).
+- The background service worker asks directly first. If that is blocked (for example, it gets a challenge page), it borrows an open tab of that vendor and asks same-origin as the page. A tab only makes allow-listed requests: for Claude and ChatGPT, read-only GETs of the paths above (ChatGPT passes on only the two request headers above); for Gemini, the app page and that one read-only usage call, whose form must match exactly; for Grok, a GET of the subscriptions, a POST of that one Fast query (its body must match exactly), and the billing call, which takes no arguments.
 - Data is only kept locally in `chrome.storage.local` and is never sent to any third-party server.
 - None of this starts before you agree to the data use notice; see the [privacy policy](PRIVACY.md).
 
@@ -151,6 +169,7 @@ At install it only asks for the permissions in the first table, so Chrome's inst
 | `optional_host_permissions: http(s)://*/*` | When you tick "On every site"; unticking gives it back |
 | `optional_host_permissions: https://chatgpt.com/*` | When you tick ChatGPT under "Monitored AI"; unticking gives it back |
 | `optional_host_permissions: https://gemini.google.com/*` | When you tick Gemini under "Monitored AI"; unticking gives it back |
+| `optional_host_permissions: https://grok.com/*` | When you tick Grok under "Monitored AI"; unticking gives it back |
 | `optional_permissions: notifications` | When you tick "Tell me when a gauge is full again"; unticking gives it back |
 
 If you revoke any of these yourself in `chrome://extensions`, the matching setting switches off too.
@@ -168,6 +187,10 @@ extension/
     chatgpt/template.js       ChatGPT's own scheme: MP / HP + EX, mana crystals / potions, a ladder from Pro
     gemini/provider.js        Gemini: the session token from /app + batchexecute's GetUsageInfo -> Meter[] + Wallet[]
     gemini/template.js        Gemini's own scheme: MP (5 hours) / HP (weekly), sapphires, a ladder from Ultra
+    grok/provider.js          Grok: /rest/subscriptions for the plan and period; the gRPC GetGrokCreditsConfig
+                              on paid plans, /rest/rate-limits on free accounts -> Meter[]
+    grok/proto.js             just enough protobuf / gRPC-web to read and trim that one billing call
+    grok/template.js          Grok's own scheme: MP (Fast queries, free) / HP (weekly pool, paid), a ladder from Ultra
   core/                       vendor-agnostic
     gauges.js                 Meter[] + template -> each card row (left, level, READY, sealed, recovering)
     wallets.js                Wallet[] + template -> each pouch row (balance, cap, expiry, state)
@@ -232,10 +255,10 @@ Each layer has one job:
    };
    ```
 
-2. Create `extension/providers/<id>/provider.js` exporting `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http, { now, previous }) }`, where `fetchUsage` returns `{ meters, wallets, plan, subscription? }` (`wallets` may be an empty array). If the vendor reports the paid period, return it as `subscription: { startsAt, endsAt, renews, checkedAt }`; the card then uses it and the user enters no date (ChatGPT works this way). `previous` is the last snapshot, handy for asking less often for data that rarely changes. For extra request headers (a Bearer token, say), use `http.getJson(path, { headers })` and list the headers that may pass through a tab in `proxyHeaders`. `http` also has `getText` (a page as text) and `postForm` (post a form, read the reply as text); a POST through a tab must match a rule in `proxyPosts`, which checks the path and the form (Gemini works this way). If a response carries sensitive fields you do not need, use `proxyBody(path, body)` so the tab hands back only what you need.
+2. Create `extension/providers/<id>/provider.js` exporting `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http, { now, previous }) }`, where `fetchUsage` returns `{ meters, wallets, plan, subscription? }` (`wallets` may be an empty array). If the vendor reports the paid period, return it as `subscription: { startsAt, endsAt, renews, checkedAt }`; the card then uses it and the user enters no date (ChatGPT works this way). `previous` is the last snapshot, handy for asking less often for data that rarely changes. For extra request headers (a Bearer token, say), use `http.getJson(path, { headers })` and list the headers that may pass through a tab in `proxyHeaders`. `http` also has `getText` (a page as text), `postForm` (post a form, read the reply as text), `postJson` (post JSON, read JSON) and `postGrpc` (call a gRPC-web method that takes no arguments, read the bytes); a POST through a tab must match a rule in `proxyPosts`, which checks the path and the form (`form`, as Gemini does), the JSON body (`json`), or allows a gRPC-web call (`grpc: true`, as Grok does). If a response carries sensitive fields you do not need, use `proxyBody(path, body)` so the tab hands back only what you need.
 3. Register it in `extension/providers/index.js`. Pick one way to get its site:
    - always on: add the domain to `host_permissions` and `content_scripts.matches` in `manifest.json`;
-   - on request (recommended; ChatGPT and Gemini work this way): set `enabledByDefault: false, optionalPermission: true` on the provider and add the domain to `optional_host_permissions`. Ticking it makes the popup ask for the permission, and the background registers the site's page script by itself.
+   - on request (recommended; ChatGPT, Gemini and Grok work this way): set `enabledByDefault: false, optionalPermission: true` on the provider and add the domain to `optional_host_permissions`. Ticking it makes the popup ask for the permission, and the background registers the site's page script by itself.
 4. Templates may only use the treasures in `TREASURES` in `core/roles.js` (coin / emerald / crystal / potion / sapphire). For a new treasure, register it there and draw its pixel art in `TREASURE_ART` in `ui/dom.js`.
 5. If the template brings new UI text, run `npm run build:font` to rebuild the font subset.
 
@@ -266,6 +289,7 @@ npm run store:assets     # renders the store screenshots, promo tiles and store 
 - the pixel dropdown: arrow keys to choose, Enter to save, a click outside to close;
 - ChatGPT: once ticked, data comes through a chatgpt.com tab with the token, and its card only has MP / HP / EX, mana crystals and potions, with no ultimate, gold or emeralds; the paid period comes along (the page hands back only its dates), the card says "Rank renews", settings show no date field for ChatGPT, and clicking the date on the card does not jump to settings;
 - Gemini: once ticked, data comes through a gemini.google.com tab; the page hands back only the session token, the usage call's form and parameters are exactly right, and its card only has MP / HP and sapphires, with no other vendor's treasure; the HUD switches to Gemini too, and a reply finishing there fetches again;
+- Grok: once ticked, data comes through a grok.com tab. A paid account (Ultra, its tier still under the old name) reads the weekly pool, the billing call is a gRPC-web empty message, and the card shows Ultra, rank A and the renewal date read automatically, MP sealed, HP from the weekly pool and no treasure; a reply finishing there fetches again, and once the account is free it reads the Fast count (with exactly the right body): MP says "Rolling window", HP is sealed and the rank is E;
 - picking a vendor tab in the popup switches the HUD on chatgpt.com and on ordinary pages, and the toolbar tooltip, to that vendor (the ChatGPT panel has no SP, collapsed or not), and picking Claude switches them all back;
 - the popup, its settings and the short notice before consent stay inside the card in Chinese, Japanese and English, with dates set, "Data & privacy" unfolded and the calendar open;
 - the guide opens from settings and from the data use notice (the two link to each other); in all three languages every string is translated and filled in, every vendor's gauges and treasures are listed, and at 640 and 360 pixels wide nothing leaves the card and nothing scrolls sideways;

@@ -2,15 +2,15 @@
 
 简体中文 | [English](README.en.md)
 
-一个 Chrome 扩展（Manifest V3）：用像素风的「异世界冒险者公会卡」实时显示各家 AI 的用量和恢复倒计时。目前接入 Claude、ChatGPT 和 Gemini。每家厂商的「限制计划模板」、取数逻辑和界面三者解耦：每家有自己的一套能量条、宝物和资质阶梯，不会把一家的元素硬套到另一家。
+一个 Chrome 扩展（Manifest V3）：用像素风的「异世界冒险者公会卡」实时显示各家 AI 的用量和恢复倒计时。目前接入 Claude、ChatGPT、Gemini 和 Grok。每家厂商的「限制计划模板」、取数逻辑和界面三者解耦：每家有自己的一套能量条、宝物和资质阶梯，不会把一家的元素硬套到另一家。
 
-| Claude | ChatGPT | Gemini |
-| --- | --- | --- |
-| ![Claude 卡片](docs/screenshots/popup-zh.png) | ![ChatGPT 卡片](docs/screenshots/popup-chatgpt.png) | ![Gemini 卡片](docs/screenshots/popup-gemini.png) |
+| Claude | ChatGPT | Gemini | Grok |
+| --- | --- | --- | --- |
+| ![Claude 卡片](docs/screenshots/popup-zh.png) | ![ChatGPT 卡片](docs/screenshots/popup-chatgpt.png) | ![Gemini 卡片](docs/screenshots/popup-gemini.png) | ![Grok 卡片](docs/screenshots/popup-grok.png) |
 
 | 页内悬浮窗（跟随弹窗里选中的厂商） | 设置（像素下拉框 / 日历） |
 | --- | --- |
-| ![Claude 悬浮窗](docs/screenshots/hud-claude.png)<br><br>![ChatGPT 悬浮窗](docs/screenshots/hud-chatgpt.png)<br><br>![Gemini 悬浮窗](docs/screenshots/hud-gemini.png)<br><br>收起后：![Claude 收起](docs/screenshots/hud-collapsed.png) ![ChatGPT 收起](docs/screenshots/hud-collapsed-chatgpt.png) | ![下拉框](docs/screenshots/settings-dropdown.png)<br><br>![日历](docs/screenshots/settings-calendar.png) |
+| ![Claude 悬浮窗](docs/screenshots/hud-claude.png)<br><br>![ChatGPT 悬浮窗](docs/screenshots/hud-chatgpt.png)<br><br>![Gemini 悬浮窗](docs/screenshots/hud-gemini.png)<br><br>![Grok 悬浮窗](docs/screenshots/hud-grok.png)<br><br>收起后：![Claude 收起](docs/screenshots/hud-collapsed.png) ![ChatGPT 收起](docs/screenshots/hud-collapsed-chatgpt.png) | ![下拉框](docs/screenshots/settings-dropdown.png)<br><br>![日历](docs/screenshots/settings-calendar.png) |
 
 ## 能量条对应关系（Claude）
 
@@ -57,9 +57,22 @@ Gemini 应用自 2026 年 5 月起改为按算力计的用量限制：不再数�
 
 Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，才向 Chrome 申请 gemini.google.com 的权限；同意后开始取数，取消勾选会交还权限。
 
+## Grok 的方案
+
+grok.com 自 2026 年 8 月起按两种方式计量：付费方案用一个所有 Grok 产品（聊天、Imagine、语音、Grok Build 等）共用的每周额度，免费账户按 Fast 模式的次数计，在滚动窗口里陆续恢复。一个账户只有其中一种，所以 Grok 卡片上另一条显示「封印中」：
+
+| 元素 | Grok 对应 | 说明 |
+| --- | --- | --- |
+| MP 魔力 | Fast 模式剩余次数（免费账户） | 滚动窗口，网站不提供恢复时间，右边显示「滚动恢复」；次数用完时显示还要等多久 |
+| HP 体力 | 每周额度（付费方案） | 倒计时到本周期结束；颜色规则同 Claude |
+
+没有大招条（SP），也没有宝物袋（grok.com 不在限额旁边提供额度余额）。资质阶梯按 2026 年 10 月起的 The X Subscription：Ultra = A，Super = B，Premium = C，Plus = D，Free = E；之前买的 SuperGrok 方案保留原名，按接替它的方案评定（SuperGrok Heavy = A，SuperGrok Plus = B，SuperGrok = C，SuperGrok Lite = D）。订阅本期的结束时间和是否自动续订从 grok.com 自动读取，不用填写。
+
+Grok 默认不监控：在设置的「监控对象」里勾选 Grok 时，才向 Chrome 申请 grok.com 的权限；同意后开始取数，取消勾选会交还权限。
+
 ## 冒险者资质
 
-弹窗里名字下方显示「冒险者资质」和「资质过期时间」（ChatGPT 和 Gemini 的阶梯见前文）：
+弹窗里名字下方显示「冒险者资质」和「资质过期时间」（ChatGPT、Gemini 和 Grok 的阶梯见前文）：
 
 | Claude 方案 | 资质 |
 | --- | --- |
@@ -70,7 +83,7 @@ Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，�
 | Team / Enterprise（组织方案，不在个人阶梯上） | B / S |
 
 - 规则写在厂商模板里：`ladder` 按个人方案从高到低排列，第一档是 A，每低一档降一个字母；接别家时照样列出它的个人方案即可。组织方案在模板里单独写明资质。
-- **ChatGPT 自动读取**：订阅本期的开始和结束时间、是否自动续订，都从 chatgpt.com 的订阅接口读取，不用填写。会自动续订时显示「资质续期时间 ...」，不会变红；已取消续订时显示「资质过期时间 ...」。悬停能看到本期的起止日期。这个日期最多每 6 小时问一次，换方案或本期结束时立即重新读取。
+- **ChatGPT 自动读取**：订阅本期的开始和结束时间、是否自动续订，都从 chatgpt.com 的订阅接口读取，不用填写。会自动续订时显示「资质续期时间 ...」，不会变红；已取消续订时显示「资质过期时间 ...」。悬停能看到本期的起止日期。这个日期最多每 6 小时问一次，换方案或本期结束时立即重新读取。**Grok 也自动读取**：本期结束时间和是否自动续订随每次刷新从 grok.com 的订阅接口读取。
 - **Claude 和 Gemini 手动填写**：这两家的网页接口不提供订阅日期（Gemini 的续订日期只在 Google 账号的「付款和订阅」页面里），所以由你在设置的「订阅过期时间」里用像素日历选择（每个厂商一个日期，填订阅的到期日；在日历底部点「清除」或按 Delete 可清除）。填写的那天当天仍有效，过了这天显示「资质已于 ... 过期」。三天内到期或已过期时变红。ChatGPT 万一读不到日期，设置里也会出现日期框，填了就用填的。
 - 付费方案没有日期时显示「资质过期时间 未填写」，点它直接跳到设置里对应的日期框；Free 方案不显示。悬浮窗里把资质和过期时间放在印章的悬停提示里。
 
@@ -88,15 +101,15 @@ Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，�
 ## 功能一览
 
 - **先同意，再读取**：安装后会打开一页「冒险者登记」数据说明，写明会读取什么、不会做什么、数据存在哪里。点「同意并开始」之前，扩展不发任何请求、不显示悬浮窗；弹窗里也只显示简短说明和同意按钮。设置里的「数据与隐私」默认收起，点「展开」后可以重新查看说明、打开[隐私政策](PRIVACY.md)，或撤回同意（会先问一句「确定撤回同意吗？」，默认停在「取消」上，按 Esc 也是取消；确认后立即停止读取并删除已保存的用量数据）。
-- **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT / Gemini）。选中的厂商保存在设置里，页内悬浮窗和工具栏图标跟着切换。
+- **弹窗**：公会卡（冒险者资质 + 资质过期时间），能量条 + 倒计时 + 宝物袋 + 「x 秒前更新」，以及设置页。同时监控多家时，顶部出现厂商切换（Claude / ChatGPT / Gemini / Grok）。选中的厂商保存在设置里，页内悬浮窗和工具栏图标跟着切换。
 - **设置页**：所有控件都按日式 RPG 菜单的样子画成像素风：下拉框和日期框是带高光和阴影的小牌子，展开后是带双层边框和投影的子窗口；复选框是凹进去的格子，打朱红色的勾；滑块是一条金色能量条。鼠标或键盘停在哪里，哪里就亮起朱红边框和一闪一闪的三角光标（不用浏览器的虚线框）。文字颜色和背景的对比度都在 4.5:1 以上。支持键盘：下拉框用上下键和回车，日历用方向键移动日期、PageUp / PageDown 翻月、Delete 清除、Esc 关闭。
-- **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com、gemini.google.com），一次只显示一家：弹窗里选中哪家，所有标签页里的悬浮窗就立即换成那家自己的面板（Claude 是 MP / HP / SP，ChatGPT 和 Gemini 只有 MP / HP，收起后的小标签也一样）；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
-- **监控对象**：设置里每个已接入的 AI 厂商都有开关（Claude 默认开；ChatGPT 和 Gemini 默认关，勾选时申请 chatgpt.com 或 gemini.google.com 的权限）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。工具栏图标同样显示弹窗里选中的厂商；选中的厂商被关掉时，弹窗、悬浮窗和工具栏一起回到第一个被监控的厂商。
+- **页内悬浮窗**：默认只在被监控厂商的网站上显示（claude.ai，开启后也包括 chatgpt.com、gemini.google.com、grok.com），一次只显示一家：弹窗里选中哪家，所有标签页里的悬浮窗就立即换成那家自己的面板（Claude 是 MP / HP / SP，ChatGPT、Gemini 和 Grok 只有 MP / HP，收起后的小标签也一样）；在设置里勾选「所有网页都显示（需授权）」时才向 Chrome 申请所有网站的权限，同意后立刻出现在已打开的标签页里，取消勾选会把权限交还。大小可在设置里用滑块调整（100% - 200%，100% 和 200% 时像素最清晰）。可拖动，松手吸附到最近的角落；可收起成 30x22 的小标签；全屏时自动隐藏；放在 closed shadow DOM 里，不受网页样式影响，严格 CSP 的网站也能正常显示像素字体。
+- **监控对象**：设置里每个已接入的 AI 厂商都有开关（Claude 默认开；ChatGPT、Gemini 和 Grok 默认关，勾选时申请 chatgpt.com、gemini.google.com 或 grok.com 的权限）。关掉后不再请求它的接口，弹窗、悬浮窗和工具栏图标都不再显示它。工具栏图标同样显示弹窗里选中的厂商；选中的厂商被关掉时，弹窗、悬浮窗和工具栏一起回到第一个被监控的厂商。
 - **恢复通知**（默认关）：勾选「能量完全恢复时提醒」时才申请通知权限。用过的 MP / HP / SP 在重置时刻回满后，发一条桌面通知（每个窗口只发一次；浏览器关着时错过超过 1 小时的不再补发）；点通知打开 claude.ai。
-- **工具栏图标**：图标本身就是当前厂商的迷你能量条（Claude 三条；ChatGPT 和 Gemini 没有 SP，只画两条），实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
+- **工具栏图标**：图标本身就是当前厂商的迷你能量条（Claude 三条；ChatGPT、Gemini 和 Grok 没有 SP，只画两条），实时反映剩余量；平时不显示徽章，只有 MP < 20% 时显示剩余数字，MP 耗尽时显示恢复倒计时（如 `45m`）。鼠标悬停有完整数字和恢复时刻。
 - **刷新时机**：
   - 后台定时（默认 5 分钟；设置里用滑块在 1 - 30 分钟之间任选，可以拖动、滚动鼠标滚轮或按方向键）；
-  - 在 claude.ai / chatgpt.com / gemini.google.com 上每次回复（或 Codex 任务）结束约 1 秒后；
+  - 在 claude.ai / chatgpt.com / gemini.google.com / grok.com 上每次回复（或 Codex 任务）结束约 1 秒后；
   - 任一窗口到达重置时刻时；
   - 打开弹窗、切回标签页（数据较旧时）；
   - 未登录时自动降频到 30 分钟一次。
@@ -128,7 +141,12 @@ Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，�
 - 读取 gemini.google.com 网页自己用的接口（同样非公开），和网页「设置 > 用量」用的是同一个：
   - `GET https://gemini.google.com/app`：从页面的 `WIZ_global_data` 里取会话令牌 `SNlM0e`（以及 `cfb2h`、`FdrFJe` 和语言）。令牌只在内存里保留最多 30 分钟，过期或被拒绝时重新取，从不保存。经标签页转发时，页面只把这几个值交回后台，账户名、邮箱和对话等页面内容不离开页面；
   - `POST https://gemini.google.com/_/BardChatUi/data/batchexecute?rpcids=jSf9Qc`（GetUsageInfo；表单只有 `at` 令牌和固定的 `f.req`）：方案等级（1 Free、2 Pro、3 / 6 Ultra、4 Plus）、5 小时窗口和每周窗口的已用比例与重置时间、Google AI 额度余额。响应以 `)]}'` 开头，之后是按长度分帧的 JSON。接口和格式参考了开源项目 [HanaokaYuzu/Gemini-API](https://github.com/HanaokaYuzu/Gemini-API)。
-- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的该厂商标签页，以页面身份同源请求。标签页只做白名单里的请求：Claude 和 ChatGPT 只能 GET 上面列出的路径（ChatGPT 只允许转发上面两个请求头）；Gemini 只能取 app 页面，以及发那一个只读的用量查询，表单内容也必须完全一致。
+- 读取 grok.com 网页自己用的接口（同样非公开），和网页「设置 > 用量」用的是同一组；只用浏览器已有的登录状态，不读取任何令牌：
+  - `GET https://grok.com/rest/subscriptions`：账户的订阅列表。只用当前有效订阅（`status` 为 `SUBSCRIPTION_STATUS_ACTIVE`，有多个时取最新的）的 `tier`、`billingSystem`、`billingPeriodEnd`、`cancelAtPeriodEnd`，以及 `dominantPlan` 的显示名称。等级枚举在换到 The X Subscription 后仍沿用旧名（Ultra 账户的 `tier` 还是 `SUPER_GROK_PRO`），所以按「旧名 -> 接替它的方案」对应，`billingSystem` 为 `BILLING_SYSTEM_LEGACY` 时显示 SuperGrok 的原名。返回 401 表示没有登录。经标签页转发时，页面只交回这些字段，`xaiUserId` 等其余字段不离开页面；
+  - 付费方案：`POST https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig`（gRPC-web，请求是不带参数的空消息）：每周额度的已用比例（protobuf 字段 1，float）、本周期（字段 4）和它的结束时间（字段 5）。经标签页转发时，页面只交回这三个字段，按产品的分项用量、付款方式等不离开页面；
+  - 免费账户（或付费方案的每周额度读不到时）：`POST https://grok.com/rest/rate-limits`，请求体固定为 `{"requestKind":"DEFAULT","modelName":"grok-3"}`（Fast 模式）：`remainingQueries`、`totalQueries`，以及次数用完时的 `waitTimeSeconds`。经标签页转发时只交回这几个数字。
+  - 接口参考了开源项目 [JoshuaWang2211/grok-usage-watch](https://github.com/JoshuaWang2211/grok-usage-watch)、[titanlyy/grok-watch](https://github.com/titanlyy/grok-watch) 和 [AstroQore/vibe-bar](https://github.com/AstroQore/vibe-bar)（订阅接口的字段）。
+- 后台 service worker 先直接请求；如果被拦（比如返回了验证页），会借用一个已打开的该厂商标签页，以页面身份同源请求。标签页只做白名单里的请求：Claude 和 ChatGPT 只能 GET 上面列出的路径（ChatGPT 只允许转发上面两个请求头）；Gemini 只能取 app 页面，以及发那一个只读的用量查询，表单内容也必须完全一致；Grok 只能 GET 订阅接口、POST 那一个 Fast 次数查询（请求体必须完全一致），以及调用不带参数的计费查询。
 - 数据只保存在本机的 `chrome.storage.local`，不发送到任何第三方服务器。
 - 以上读取都在你同意数据说明之后才开始；完整说明见[隐私政策](PRIVACY.md)。
 
@@ -149,6 +167,7 @@ Gemini 默认不监控：在设置的「监控对象」里勾选 Gemini 时，�
 | `optional_host_permissions: http(s)://*/*` | 勾选「所有网页都显示」时；取消勾选会交还 |
 | `optional_host_permissions: https://chatgpt.com/*` | 在「监控对象」里勾选 ChatGPT 时；取消勾选会交还 |
 | `optional_host_permissions: https://gemini.google.com/*` | 在「监控对象」里勾选 Gemini 时；取消勾选会交还 |
+| `optional_host_permissions: https://grok.com/*` | 在「监控对象」里勾选 Grok 时；取消勾选会交还 |
 | `optional_permissions: notifications` | 勾选「能量完全恢复时提醒」时；取消勾选会交还 |
 
 在 `chrome://extensions` 里手动撤销这些权限时，对应的设置也会自动关掉。
@@ -165,6 +184,10 @@ extension/
     chatgpt/template.js       ChatGPT 自己的一套：MP / HP + EX，魔晶石 / 回复药水，Pro 起算的阶梯
     gemini/provider.js        Gemini：/app 取会话令牌 + batchexecute 的 GetUsageInfo -> Meter[] + Wallet[]
     gemini/template.js        Gemini 自己的一套：MP（5 小时）/ HP（每周），蓝宝石，Ultra 起算的阶梯
+    grok/provider.js          Grok：/rest/subscriptions 取方案和订阅周期，付费方案读 gRPC 的 GetGrokCreditsConfig，
+                              免费账户读 /rest/rate-limits -> Meter[]
+    grok/proto.js             只够这一个计费调用用的 protobuf / gRPC-web 读取和裁剪
+    grok/template.js          Grok 自己的一套：MP（Fast 次数，免费）/ HP（每周额度，付费），Ultra 起算的阶梯
   core/                       与厂商无关
     gauges.js                 Meter[] + 模板 -> 卡片上的每一行（剩余量、等级、READY、封印、恢复中）
     wallets.js                Wallet[] + 模板 -> 宝物袋的每一行（余额、上限、失效、状态）
@@ -228,10 +251,10 @@ extension/
    };
    ```
 
-2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http, { now, previous }) }`，其中 `fetchUsage` 返回 `{ meters, wallets, plan, subscription? }`（`wallets` 可以是空数组）。厂商能给出订阅周期时，返回 `subscription: { startsAt, endsAt, renews, checkedAt }`，卡片就用它，用户不用填写日期（ChatGPT 就是这样）；`previous` 是上一次的快照，可以用来少问几次不常变的数据。`http` 提供 `getJson`、`getText`（取网页文本）和 `postForm`（提交表单、读文本）。需要额外请求头（比如 Bearer token）时传 `{ headers }`，并在 `proxyHeaders` 里列出允许经标签页转发的头；需要 POST 时在 `proxyPosts` 里写明允许的路径和表单检查（Gemini 就是这样）；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
+2. 新建 `extension/providers/<id>/provider.js`，导出 `{ id, name, site, origin, homeUrl, template, proxyPaths, proxyPosts?, proxyHeaders?, proxyBody?, isActivity(path, ms), fetchUsage(http, { now, previous }) }`，其中 `fetchUsage` 返回 `{ meters, wallets, plan, subscription? }`（`wallets` 可以是空数组）。厂商能给出订阅周期时，返回 `subscription: { startsAt, endsAt, renews, checkedAt }`，卡片就用它，用户不用填写日期（ChatGPT 就是这样）；`previous` 是上一次的快照，可以用来少问几次不常变的数据。`http` 提供 `getJson`、`getText`（取网页文本）、`postForm`（提交表单、读文本）、`postJson`（提交 JSON、读 JSON）和 `postGrpc`（调用不带参数的 gRPC-web 方法、读字节）。需要额外请求头（比如 Bearer token）时传 `{ headers }`，并在 `proxyHeaders` 里列出允许经标签页转发的头；需要 POST 时在 `proxyPosts` 里写明允许的路径，以及表单检查（`form`，Gemini 就是这样）、JSON 请求体检查（`json`）或 `grpc: true`（Grok 就是这样）；响应里有用不到的敏感字段时，用 `proxyBody(path, body)` 让标签页只交回需要的部分。
 3. 在 `extension/providers/index.js` 里注册。权限二选一：
    - 安装即用：把域名加进 `manifest.json` 的 `host_permissions` 和 `content_scripts.matches`；
-   - 按需申请（推荐，ChatGPT 和 Gemini 就是这样）：在 provider 里写 `enabledByDefault: false, optionalPermission: true`，把域名加进 `optional_host_permissions`。勾选时弹窗会申请权限，后台自动注册该站的页面脚本。
+   - 按需申请（推荐，ChatGPT、Gemini 和 Grok 就是这样）：在 provider 里写 `enabledByDefault: false, optionalPermission: true`，把域名加进 `optional_host_permissions`。勾选时弹窗会申请权限，后台自动注册该站的页面脚本。
 4. 模板里的宝物只能用 `core/roles.js` 的 `TREASURES`（coin / emerald / crystal / potion / sapphire），新宝物在那里登记、在 `ui/dom.js` 的 `TREASURE_ART` 里画像素图即可。
 5. 如果模板里出现了新的界面文字，运行 `npm run build:font` 重新生成字体子集。
 
@@ -261,6 +284,7 @@ npm run store:assets     # 生成商店截图、宣传图和商店图标（docs/
 - 像素下拉框：键盘上下选择、回车保存、点外面关闭；
 - ChatGPT：勾选后经 chatgpt.com 标签页带 token 取数，卡片只有 MP / HP / EX、魔晶石和回复药水，没有奥义、金币和绿宝石；订阅周期也一起读到（页面只交回日期），卡片显示「资质续期时间」，设置里 ChatGPT 不再出现日期框，点卡片上的日期也不会跳去设置；
 - Gemini：勾选后经 gemini.google.com 标签页取数，页面只交回会话令牌，用量查询的表单和参数完全正确；卡片只有 MP / HP 和蓝宝石，没有其他厂商的宝物，悬浮窗也跟着切到 Gemini；那里一次回复结束后会重新取数；
+- Grok：勾选后经 grok.com 标签页取数。付费账户（Ultra，等级枚举仍是旧名）读每周额度，计费调用是 gRPC-web 的空消息，卡片显示 Ultra、资质 A 和自动读到的续期时间，MP 封印、HP 是每周额度，没有宝物；那里一次回复结束后重新取数，账户变成免费时改读 Fast 次数（请求体完全正确），MP 显示「滚动恢复」，HP 封印，资质 E；
 - 弹窗里点厂商标签后，chatgpt.com 和普通网页上的悬浮窗、工具栏提示都切到那一家（ChatGPT 面板没有 SP，收起后也没有 SP 条），再点回 Claude 时一起切回；
 - 中文、日文、英文三种语言下，填了日期、展开「数据与隐私」、打开日历时，弹窗、设置页和同意前的简短说明都不超出卡片边框；
 - 使用说明页：从设置和数据说明页都能打开（两页互相链接），三种语言下所有文字都翻译并填好，列出每一家的全部能量条和宝物，宽 640 和 360 像素时都不超出卡片、不出现横向滚动；

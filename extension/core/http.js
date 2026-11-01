@@ -13,8 +13,18 @@
  * @property {(path: string, fields: Record<string, string>, options?: {headers?: Record<string, string>}) => Promise<string>} postForm
  *           POST a form and read the reply as text. On the tab route the path and
  *           the form must pass one of the provider's `proxyPosts` rules.
+ * @property {(path: string, json: object, options?: {headers?: Record<string, string>}) => Promise<any>} postJson
+ *           POST a JSON body and read a JSON reply. On the tab route the path and
+ *           the body must pass one of the provider's `proxyPosts` rules (`json`).
+ * @property {(path: string) => Promise<Uint8Array>} postGrpc
+ *           Call a gRPC-web method that takes no arguments and read the reply's
+ *           bytes. On the tab route the path must have a `proxyPosts` rule with `grpc`.
  * @property {(name: string) => Promise<string|null>} getCookie  Read a cookie of the provider's origin.
  */
+
+/** A gRPC-web call's headers, and the body of one that takes no arguments: one frame, an empty message. */
+export const GRPC_HEADERS = Object.freeze({ 'content-type': 'application/grpc-web+proto', 'x-grpc-web': '1' });
+export const EMPTY_GRPC_REQUEST = Object.freeze([0, 0, 0, 0, 0]);
 
 export class HttpError extends Error {
   /**

@@ -33,7 +33,7 @@ const COPY = {
     shots: [
       { title: 'AI 用量，一眼看清', lines: ['魔力 MP：当前会话', '体力 HP：每周全部模型', '奥义 SP：每周 Fable', '都显示剩余量和恢复倒计时'] },
       { title: '页内悬浮窗', lines: ['在 claude.ai 上直接显示', '授权后可在任意网页显示', '可拖动、收起', '大小 100% - 200%'] },
-      { title: '每家 AI 一套方案', lines: ['Claude：绿宝石、金币', 'ChatGPT：魔晶石、回复药水', 'ChatGPT、Gemini 按需开启', '冒险者资质按订阅方案评定'] },
+      { title: '每家 AI 一套方案', lines: ['Claude：绿宝石、金币', 'ChatGPT：魔晶石、回复药水', '可选：ChatGPT、Gemini、Grok', '冒险者资质按订阅方案评定'] },
       { title: '悬浮窗跟着切换', lines: ['在弹窗里切换 AI', '悬浮窗随之切换', '工具栏图标随之切换', '收起后只留迷你能量条'] },
       { title: '像素风设置', lines: ['选择监控哪些 AI', '填写订阅过期时间', '悬浮窗、通知、刷新间隔', '数据只保存在本机'] },
     ],
@@ -44,7 +44,7 @@ const COPY = {
     shots: [
       { title: 'Your AI limits at a glance', lines: ['MP Mana: current session', 'HP Health: weekly limit', 'SP Ultimate: weekly Fable', 'Live reset countdowns'] },
       { title: 'A HUD on the page', lines: ['Shown on claude.ai', 'Any site, if you allow it', 'Drag it or collapse it', 'Size 100% - 200%'] },
-      { title: 'One scheme per AI', lines: ['Claude: emeralds, gold', 'ChatGPT: crystals, potions', 'ChatGPT, Gemini: opt-in', 'Rank comes from your plan'] },
+      { title: 'One scheme per AI', lines: ['Claude: emeralds, gold', 'ChatGPT: crystals, potions', 'ChatGPT, Gemini, Grok: opt-in', 'Rank comes from your plan'] },
       { title: 'The HUD follows along', lines: ['Switch AI in the popup', 'The HUD switches too', 'So does the toolbar icon', 'Collapse to mini gauges'] },
       { title: 'Pixel settings', lines: ['Pick which AI to monitor', 'Set when your plan ends', 'HUD, alerts, refresh rate', 'Data stays in this browser'] },
     ],
@@ -55,7 +55,7 @@ const COPY = {
     shots: [
       { title: 'AI の残量がひと目で', lines: ['魔力 MP：現在のセッション', '体力 HP：週間・全モデル', '奥義 SP：週間 Fable', '残量と回復までの時間を表示'] },
       { title: 'ページ上の HUD', lines: ['claude.ai ではそのまま表示', '許可すればどのサイトでも', 'ドラッグ・折りたたみ可能', 'サイズ 100% - 200%'] },
-      { title: 'AI ごとに専用の表示', lines: ['Claude：エメラルド、金貨', 'ChatGPT：魔晶石、回復薬', 'ChatGPT・Gemini は任意', 'ランクはプランで決定'] },
+      { title: 'AI ごとに専用の表示', lines: ['Claude：エメラルド、金貨', 'ChatGPT：魔晶石、回復薬', 'ChatGPT・Gemini・Grok は任意', 'ランクはプランで決定'] },
       { title: 'HUD も一緒に切り替え', lines: ['ポップアップで AI を切替', 'HUD も同時に切り替わる', 'アイコンも同時に切り替わる', '折りたたむとミニゲージ'] },
       { title: 'ピクセル風の設定', lines: ['監視する AI を選ぶ', 'サブスクの終了日を入力', 'HUD・通知・更新間隔', 'データはこのブラウザだけに'] },
     ],
